@@ -1,1 +1,1 @@
-files.extend-exclude = ["datasets/**"]
+files.extend-exclude = ["*.ron"]
