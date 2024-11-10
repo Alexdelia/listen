@@ -5,7 +5,7 @@ pkgs.mkShell {
     # pkg-config
     rust-bin.stable.latest.default
 
-	typos
+    typos
   ];
 
   # shellHook = ''
