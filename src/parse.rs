@@ -29,11 +29,11 @@ where
 				})
 				.unwrap_or_default();
 
-			return pfe!(
+			pfe!(
 				e.code.to_string(),
 				f: path.to_string_lossy(),
 				l: line,
-			)?;
+			)?
 		}
 	}
 }
