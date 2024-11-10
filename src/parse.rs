@@ -24,7 +24,7 @@ where
 					ple!(
 						l,
 						i: index,
-						w: pwe!((col - 1, 0))
+						w: pwe!((col, 1))
 					)
 				})
 				.unwrap_or_default();

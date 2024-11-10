@@ -20,23 +20,5 @@ fn main() -> hmerr::Result<()> {
 
 	dbg!(list);
 
-	// 	println!("Hello, world!");
-
-	// 	let data = ron::from_str::<Vec<Entry>>(
-	// 		r#"[
-	//     (
-	//         s: Yt("video_id_123"),
-	//         q: 10,
-	//     ),
-	//     (
-	//         s: Sc("artist_name", "song_title"),
-	//         q: 5,
-	//     ),
-	// ]
-	// "#,
-	// 	);
-
-	// 	dbg!(data);
-
 	Ok(())
 }
