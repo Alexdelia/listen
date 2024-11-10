@@ -1,8 +1,12 @@
 [package]
-name = "listen"
+name = "fl"
 version = "0.1.0"
 edition = "2021"
+authors = ["adelille <adelille@student.42.fr>"]
+description = "fetch declared listens and organize them"
 
 [dependencies]
+hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
+clap = { version = "4", features = ["derive"] }

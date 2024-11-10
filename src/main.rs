@@ -1,33 +1,42 @@
-use serde::{Deserialize, Serialize};
+mod entry;
+mod parse;
 
-#[derive(Debug, Deserialize, Serialize)]
-enum Source {
-	Yt(String),
-	Sc(String, String),
+use std::path::PathBuf;
+
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(about)]
+pub struct Args {
+	/// path to the ron file where the listens are declared
+	#[clap(default_value = "listen.ron")]
+	path: PathBuf,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct Entry {
-	s: Source,
-	q: u8,
-}
+fn main() -> hmerr::Result<()> {
+	let args = Args::parse();
 
-fn main() {
-	println!("Hello, world!");
+	let list = parse::parse(args.path)?;
 
-	let data = ron::from_str::<Vec<Entry>>(
-		r#"[
-    (
-        s: Yt("video_id_123"),
-        q: 10,
-    ),
-    (
-        s: Sc("artist_name", "song_title"),
-        q: 5,
-    ),
-]
-"#,
-	);
+	dbg!(list);
 
-	dbg!(data);
+	// 	println!("Hello, world!");
+
+	// 	let data = ron::from_str::<Vec<Entry>>(
+	// 		r#"[
+	//     (
+	//         s: Yt("video_id_123"),
+	//         q: 10,
+	//     ),
+	//     (
+	//         s: Sc("artist_name", "song_title"),
+	//         q: 5,
+	//     ),
+	// ]
+	// "#,
+	// 	);
+
+	// 	dbg!(data);
+
+	Ok(())
 }
