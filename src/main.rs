@@ -4,6 +4,7 @@ mod parse;
 use std::path::PathBuf;
 
 use clap::Parser;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[derive(Parser)]
 #[command(about)]
@@ -18,7 +19,9 @@ fn main() -> hmerr::Result<()> {
 
 	let list = parse::parse(args.path)?;
 
-	dbg!(list);
+	list.par_iter().for_each(|entry| {
+		println!("{:?}", entry);
+	});
 
 	Ok(())
 }
