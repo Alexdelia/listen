@@ -3,8 +3,12 @@ mod env;
 mod fetch;
 mod parse;
 
-use std::path::PathBuf;
+use std::{
+	future::{self, IntoFuture},
+	path::PathBuf,
+};
 
+use async_std::task::block_on;
 use clap::Parser;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use soundcloud::Client;
@@ -24,7 +28,12 @@ fn main() -> hmerr::Result<()> {
 
 	let list = parse::parse(args.path)?;
 
-	let sc_client = Client::new(&env::get("SOUNDCLOUD_CLIENT_ID")?);
+	let sc_client = Client::new(&env::get(env::Var::SoundcloudClientId)?);
+	let res = sc_client.resolve("https://soundcloud.com/feintdnb/words-feat-laura-brehm");
+
+	block_on(async {
+		dbg!(res.await);
+	});
 
 	list.par_iter().for_each(fetch::fetch);
 

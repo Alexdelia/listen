@@ -3,6 +3,18 @@ use hmerr::{ge, ioe};
 
 const DOTENV_FILE: &str = ".env";
 
+pub enum Var {
+	SoundcloudClientId,
+}
+
+impl Var {
+	pub fn key(&self) -> &'static str {
+		match self {
+			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
+		}
+	}
+}
+
 pub fn load() -> hmerr::Result<()> {
 	let Err(e) = dotenv::dotenv() else {
 		return Ok(());
@@ -18,7 +30,9 @@ pub fn load() -> hmerr::Result<()> {
 	}
 }
 
-pub fn get(key: &str) -> hmerr::Result<String> {
+pub fn get(key: Var) -> hmerr::Result<String> {
+	let key = key.key();
+
 	match std::env::var(key) {
 		Ok(val) => Ok(val),
 		Err(e) => Err(ge!(

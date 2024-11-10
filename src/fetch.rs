@@ -9,6 +9,4 @@ pub fn fetch(entry: &Entry) {
 	}
 }
 
-fn soundcloud(user: &str, id: &str) {
-	println!("fetching sc {} {}", user, id);
-}
+fn soundcloud(user: &str, id: &str) {}
