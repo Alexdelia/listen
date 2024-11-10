@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-enum Source {
+pub enum Source {
 	Yt(String),
 	Sc(String, String),
 }
@@ -10,6 +10,6 @@ pub type Q = u8;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
-	s: Source,
-	q: Q,
+	pub s: Source,
+	pub q: Q,
 }

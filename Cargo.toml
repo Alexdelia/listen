@@ -5,9 +5,20 @@ edition = "2021"
 authors = ["adelille <alexandre.delille.57@gmail.com>"]
 description = "fetch declared listens and organize them"
 
+[profile.dev]
+debug = 0
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
 [dependencies]
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+ansi = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
 clap = { version = "4", features = ["derive"] }
 rayon = "1"
+soundcloud = "0.4"

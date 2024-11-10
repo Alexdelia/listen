@@ -1,10 +1,13 @@
 mod entry;
+mod env;
+mod fetch;
 mod parse;
 
 use std::path::PathBuf;
 
 use clap::Parser;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use soundcloud::Client;
 
 #[derive(Parser)]
 #[command(about)]
@@ -17,11 +20,13 @@ pub struct Args {
 fn main() -> hmerr::Result<()> {
 	let args = Args::parse();
 
+	env::load()?;
+
 	let list = parse::parse(args.path)?;
 
-	list.par_iter().for_each(|entry| {
-		println!("{:?}", entry);
-	});
+	let sc_client = Client::new(&env::get("SOUNDCLOUD_CLIENT_ID")?);
+
+	list.par_iter().for_each(fetch::fetch);
 
 	Ok(())
 }
