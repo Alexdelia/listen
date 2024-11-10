@@ -2,21 +2,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 enum Source {
-    Yt(String),
-    Sc(String, String),
+	Yt(String),
+	Sc(String, String),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Entry {
-    s: Source,
-    q: u8,
+	s: Source,
+	q: u8,
 }
 
 fn main() {
-    println!("Hello, world!");
+	println!("Hello, world!");
 
-    let data = ron::from_str::<Vec<Entry>>(
-        r#"[
+	let data = ron::from_str::<Vec<Entry>>(
+		r#"[
     (
         s: Yt("video_id_123"),
         q: 10,
@@ -27,7 +27,7 @@ fn main() {
     ),
 ]
 "#,
-    );
+	);
 
-    dbg!(data);
+	dbg!(data);
 }

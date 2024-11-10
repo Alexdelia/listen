@@ -4,6 +4,8 @@ pkgs.mkShell {
     # openssl
     # pkg-config
     rust-bin.stable.latest.default
+
+	typos
   ];
 
   # shellHook = ''
