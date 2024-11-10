@@ -3,15 +3,12 @@ mod env;
 mod fetch;
 mod parse;
 
-use std::{
-	future::{self, IntoFuture},
-	path::PathBuf,
-};
+use std::path::PathBuf;
 
-use async_std::task::block_on;
 use clap::Parser;
+use musicbrainz_rs_nova::entity::{recording::Recording, release::Release};
+use musicbrainz_rs_nova::Fetch;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use soundcloud::Client;
 
 #[derive(Parser)]
 #[command(about)]
@@ -21,21 +18,40 @@ pub struct Args {
 	path: PathBuf,
 }
 
+const MUSIC_BRAINZ_USER_AGENT: &str =
+	"Alexdelia's personal declarative listen/0.1.0 ( https://github.com/Alexdelia/listen )";
+
 fn main() -> hmerr::Result<()> {
 	let args = Args::parse();
 
 	env::load()?;
 
+	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
+
+	// let res = Recording::fetch()
+	// 	.id("7afff9fa-0de6-4e77-a210-0cbb78f56c2d")
+	// 	// .with_artists()
+	// 	// .with_genres()
+	// 	// .with_tags()
+	// 	// .with_releases()
+	// 	// .with_medias()
+	// 	// .with_work_level_relations()
+	// 	// .with_work_relations()
+	// 	.with_url_relations()
+	// 	.execute()?;
+	// dbg!(&res);
+
+	let res: Release = Release::fetch()
+		.id("e56934aa-a110-4820-aad9-4ca825c71b7f")
+		.with_url_relations()
+		.execute()?;
+	dbg!(&res);
+
+	/*
 	let list = parse::parse(args.path)?;
 
-	let sc_client = Client::new(&env::get(env::Var::SoundcloudClientId)?);
-	let res = sc_client.resolve("https://soundcloud.com/feintdnb/words-feat-laura-brehm");
-
-	block_on(async {
-		dbg!(res.await);
-	});
-
 	list.par_iter().for_each(fetch::fetch);
+	*/
 
 	Ok(())
 }
