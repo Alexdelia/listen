@@ -12,7 +12,7 @@ pub fn report(sync: GroupedEntry<SyncEntry>) -> bool {
 		section("q");
 		q.sort_by_key(|(q, _)| *q);
 		for (q, update) in q {
-			ret |= single_report(&q.to_string(), &update);
+			ret |= single_report(&q.to_string(), update);
 		}
 	}
 

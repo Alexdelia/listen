@@ -26,7 +26,7 @@ pub fn load() -> hmerr::Result<()> {
 			e,
 			h:format!("please {B}{G}copy {M}.env.example{D} to {B}{Y}{DOTENV_FILE}{D} and {B}{G}fill in the values{D}")
 		))?,
-		_ => return Err(e.into()),
+		_ => Err(e.into()),
 	}
 }
 

@@ -9,11 +9,7 @@ mod report;
 use std::path::PathBuf;
 
 use clap::Parser;
-use filter::{GroupedEntry, SyncEntry};
 use hmerr::ioe;
-use musicbrainz_rs_nova::entity::{recording::Recording, release::Release};
-use musicbrainz_rs_nova::Fetch;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 #[derive(Parser)]
 #[command(about)]

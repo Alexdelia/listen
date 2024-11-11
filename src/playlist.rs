@@ -1,18 +1,17 @@
 use std::{
 	collections::HashSet,
 	path::{Path, PathBuf},
-	str::FromStr,
 };
 
-use hmerr::{ge, se};
+use hmerr::se;
 
 use crate::entry::{Source, Q};
 
-pub const OUTPUT_DIR: &'static str = "./output/playlist";
+pub const OUTPUT_DIR: &str = "./output/playlist";
 
-pub const PREFIX: &'static str = "+q";
+pub const PREFIX: &str = "+q";
 
-pub const EXT: &'static str = "m3u";
+pub const EXT: &str = "m3u";
 
 pub fn q_stem(q: u8) -> String {
 	format!("{PREFIX}{q}")
@@ -47,7 +46,7 @@ pub fn parse_content(content: &str) -> HashSet<Source> {
 		set.insert(
 			Path::new(line)
 				.file_stem()
-				.expect(&format!("failed to get file stem from {line}"))
+				.unwrap_or_else(|| panic!("failed to get file stem from {line}"))
 				.to_string_lossy()
 				.to_string(),
 		);
