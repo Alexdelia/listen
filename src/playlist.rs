@@ -1,4 +1,8 @@
-use std::{collections::HashSet, path::PathBuf, str::FromStr};
+use std::{
+	collections::HashSet,
+	path::{Path, PathBuf},
+	str::FromStr,
+};
 
 use hmerr::{ge, se};
 
@@ -40,7 +44,13 @@ pub fn parse_content(content: &str) -> HashSet<Source> {
 			continue;
 		}
 
-		set.insert(line.to_string());
+		set.insert(
+			Path::new(line)
+				.file_stem()
+				.expect(&format!("failed to get file stem from {line}"))
+				.to_string_lossy()
+				.to_string(),
+		);
 	}
 
 	set
