@@ -24,3 +24,4 @@ ron = "0.8"
 clap = { version = "4", features = ["derive"] }
 # rayon = "1"
 musicbrainz_rs_nova = "0.8"
+id3 = "1.14.0"

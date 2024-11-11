@@ -1,3 +1,4 @@
+mod channel;
 mod entry;
 mod env;
 mod fetch;
@@ -6,9 +7,10 @@ mod parse;
 mod playlist;
 mod report;
 
-use std::{future::IntoFuture, path::PathBuf};
+use std::{future::IntoFuture, os::linux::raw::stat, path::PathBuf, thread};
 
 use async_std::task::block_on;
+use channel::Status;
 use clap::Parser;
 use hmerr::ioe;
 
@@ -44,9 +46,30 @@ fn main() -> hmerr::Result<()> {
 		}
 	}
 
-	block_on(fetch::fetch(&sync.fs).into_future());
+	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
-	// TODO: sync playlist
+	// thread to fetch
+	let txc = tx.clone();
+	thread::spawn(move || {
+		block_on(fetch::fetch(&sync.fs, txc).into_future());
+	});
+
+	// thread to sync playlist
+	thread::spawn(move || {
+		let res = block_on(
+			tx.send(Status {
+				action: channel::Action::SyncPlaylist,
+				status: Ok(()),
+			})
+			.into_future(),
+		);
+		res.expect("failed to send sync playlist status");
+	});
+
+	// main thread to print the status
+	while let Ok(status) = rx.recv_blocking() {
+		println!("{:?}", status);
+	}
 
 	Ok(())
 }

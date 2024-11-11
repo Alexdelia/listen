@@ -77,8 +77,5 @@ fn youtube<P>(url: &str, path: P)
 where
 	P: AsRef<Path>,
 {
-	eprintln!(
-		"youtube downloading {url} to {path:?}",
-		path = path.as_ref()
-	);
+	// TODO
 }
