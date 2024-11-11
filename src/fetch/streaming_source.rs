@@ -1,7 +1,4 @@
-use std::{
-	path::Path,
-	process::Command,
-};
+use std::{path::Path, process::Command};
 
 use hmerr::ioe;
 use musicbrainz_rs_nova::entity::url::Url;
