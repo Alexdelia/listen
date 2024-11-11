@@ -1,10 +1,11 @@
 mod streaming_source;
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 
 use ansi::abbrev::{B, D, R, Y};
 
-use async_std::channel::{Receiver, Sender};
+use async_std::channel::Sender;
 use async_std::path::{Path, PathBuf};
 use async_std::task;
 use id3::{Tag, TagLike};
@@ -147,8 +148,7 @@ async fn fetch_recording(
 }
 
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
-	/*
-	let mut tag = Tag::read_from
+	let mut tag = Tag::read_from_path(&path).unwrap_or_default();
 
 	let Recording {
 		title,
@@ -161,12 +161,46 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 	if !title.is_empty() {
 		tag.set_title(title);
 	}
-	*/
 
-	tx.send(Status {
-		action: Action::AddMetadata,
-		status: Ok(()),
-	})
+	if let Some(artist_credit) = artist_credit {
+		if !artist_credit.is_empty() {
+			let artists = artist_credit
+				.iter()
+				.map(|ac| ac.artist.name.as_str())
+				.collect::<Vec<_>>()
+				.join(" & ");
+
+			tag.set_artist(artists);
+		};
+	}
+
+	let mut all_tags = HashSet::new();
+
+	let genres_binding = genres.unwrap_or_default();
+	all_tags.extend(genres_binding.iter().map(|g| g.name.as_str()));
+	let tags_binding = tags.unwrap_or_default();
+	all_tags.extend(tags_binding.iter().map(|t| t.name.as_str()));
+
+	if !all_tags.is_empty() {
+		let mut tags = all_tags.into_iter().collect::<Vec<_>>();
+		tags.sort_unstable();
+
+		tag.set_genre(tags.join(" / "));
+	}
+
+	match tag.write_to_path(&path, id3::Version::Id3v24) {
+		Ok(_) => tx.send(Status {
+			action: Action::AddMetadata,
+			status: Ok(()),
+		}),
+		Err(e) => tx.send(Status {
+			action: Action::AddMetadata,
+			status: Err(format!(
+				"{R}failed to write metadata to {B}{path}{D}\n{e}",
+				path = path.to_string_lossy()
+			)),
+		}),
+	}
 	.await
 	.expect("failed to send add metadata status");
 }

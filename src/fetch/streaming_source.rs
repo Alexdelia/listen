@@ -1,7 +1,6 @@
 use std::{
-	io,
 	path::Path,
-	process::{Command, Output},
+	process::Command,
 };
 
 use hmerr::ioe;
@@ -59,7 +58,7 @@ where
 	P: AsRef<Path>,
 {
 	match Command::new(StreamingSource::SoundCloud.downloader())
-		.args(&[
+		.args([
 			"--hide-progress",
 			"--client-id",
 			&env::get(env::Var::SoundcloudClientId).expect("SOUNDCLOUD_CLIENT_ID not set"),
@@ -99,7 +98,7 @@ where
 	P: AsRef<Path>,
 {
 	match Command::new(StreamingSource::YouTube.downloader())
-		.args(&[
+		.args([
 			"--quiet",
 			"--extract-audio",
 			"--audio-format",
