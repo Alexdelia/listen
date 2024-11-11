@@ -16,6 +16,7 @@ panic = "abort"
 [dependencies]
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"

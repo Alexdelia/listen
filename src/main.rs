@@ -4,10 +4,13 @@ mod env;
 mod filter;
 mod parse;
 mod playlist;
+mod report;
 
 use std::path::PathBuf;
 
 use clap::Parser;
+use filter::{GroupedEntry, SyncEntry};
+use hmerr::ioe;
 use musicbrainz_rs_nova::entity::{recording::Recording, release::Release};
 use musicbrainz_rs_nova::Fetch;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -32,6 +35,17 @@ fn main() -> hmerr::Result<()> {
 	dbg!(&list);
 
 	let sync = filter::sync(list)?;
+
+	let remove = report::report(sync);
+
+	if remove {
+		let yes = ux::ask_yn("do you want to proceed with this update?", true)
+			.map_err(|e| ioe!("stdin", e))?;
+
+		if !yes {
+			return Ok(());
+		}
+	}
 
 	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
 
