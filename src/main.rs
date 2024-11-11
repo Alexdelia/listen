@@ -10,9 +10,13 @@ mod report;
 
 use std::{future::IntoFuture, path::PathBuf, thread};
 
-use async_std::task::block_on;
-use channel::Status;
+use async_std::{
+	channel::{Receiver, Sender},
+	task::block_on,
+};
+use channel::{Action, Status};
 use clap::Parser;
+use filter::{GroupedEntry, SyncEntry};
 use hmerr::ioe;
 
 #[derive(Parser)]
@@ -34,7 +38,6 @@ fn main() -> hmerr::Result<()> {
 	let list = parse::parse(args.path)?;
 
 	let sync = filter::sync(list)?;
-	dbg!(&sync);
 
 	let remove = report::report(&sync);
 
@@ -47,8 +50,21 @@ fn main() -> hmerr::Result<()> {
 		}
 	}
 
+	let total = Count {
+		fetch: sync.fs.add.len(),
+		remove: sync.fs.remove.len(),
+		playlist: sync.q.len() + sync.playlist.len(),
+	};
+
 	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
+	process(sync, tx);
+	progress(total, rx);
+
+	Ok(())
+}
+
+fn process(sync: GroupedEntry<SyncEntry>, tx: Sender<Status>) {
 	let txc = tx.clone();
 	thread::spawn(move || {
 		block_on(fetch::fetch(&sync.fs.add, txc).into_future());
@@ -70,11 +86,49 @@ fn main() -> hmerr::Result<()> {
 			block_on(playlist::sync::playlist(playlist, sync, txc).into_future());
 		});
 	}
-	drop(tx);
+}
+
+#[derive(Default)]
+struct Count {
+	fetch: usize,
+	remove: usize,
+	playlist: usize,
+}
+
+fn progress(total: Count, rx: Receiver<Status>) {
+	let mut sum = Count::default();
+	let mut music_brainz = 0;
+	let mut streaming = 0;
 
 	while let Ok(status) = rx.recv_blocking() {
-		println!("{:?}", status);
-	}
+		match status.action {
+			Action::FetchMusicBrainz => {
+				music_brainz += 1;
+			}
+			Action::FetchStreaming => {
+				streaming += 1;
+			}
+			Action::AddMetadata => {
+				sum.fetch += 1;
+			}
+			Action::RemoveFile => {
+				sum.remove += 1;
+			}
+			Action::SyncPlaylist => {
+				sum.playlist += 1;
+			}
+		}
 
-	Ok(())
+		println!(
+			"fetch: {}/{} remove: {}/{} playlist: {}/{} musicbrainz: {} streaming: {}",
+			sum.fetch,
+			total.fetch,
+			sum.remove,
+			total.remove,
+			sum.playlist,
+			total.playlist,
+			music_brainz,
+			streaming
+		);
+	}
 }
