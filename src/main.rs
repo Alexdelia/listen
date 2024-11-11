@@ -18,6 +18,7 @@ use channel::{Action, Status};
 use clap::Parser;
 use filter::{GroupedEntry, SyncEntry};
 use hmerr::ioe;
+use indicatif::{MultiProgress, ProgressStyle};
 
 #[derive(Parser)]
 #[command(about)]
@@ -59,6 +60,7 @@ fn main() -> hmerr::Result<()> {
 	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
 	process(sync, tx);
+	println!();
 	progress(total, rx);
 
 	Ok(())
@@ -96,39 +98,91 @@ struct Count {
 }
 
 fn progress(total: Count, rx: Receiver<Status>) {
-	let mut sum = Count::default();
-	let mut music_brainz = 0;
-	let mut streaming = 0;
+	let mp = MultiProgress::new();
+
+	let template = |title: &str, color: &str| {
+		let title = format!("{title:>8}");
+		ProgressStyle::with_template(
+			&[
+				&title,
+				" {wide_bar:.",
+				color,
+				"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:.bold.blue}|{eta:.bold.magenta}",
+			]
+			.join(""),
+		)
+		.expect("failed to create progress style")
+	};
+
+	let pb_playlist = mp.add(indicatif::ProgressBar::new(total.playlist as u64));
+	pb_playlist.set_style(template("playlist", "magenta"));
+	if total.playlist > 0 {
+		pb_playlist.tick();
+	}
+
+	let pb_remove = mp.add(indicatif::ProgressBar::new(total.remove as u64));
+	pb_remove.set_style(template("remove", "red"));
+	if total.remove > 0 {
+		pb_remove.tick();
+	}
+
+	let pb_fetch = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
+	pb_fetch.set_style(template("fetch", "blue"));
+	let pb_download = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
+	pb_download.set_style(template("download", "cyan"));
+	let pb_metadata = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
+	pb_metadata.set_style(template("metadata", "green"));
+	if total.fetch > 0 {
+		pb_fetch.tick();
+		pb_download.tick();
+		pb_metadata.tick();
+	}
+
+	let mut err = vec![];
 
 	while let Ok(status) = rx.recv_blocking() {
 		match status.action {
 			Action::FetchMusicBrainz => {
-				music_brainz += 1;
+				pb_fetch.inc(1);
+				pb_download.tick();
+				pb_metadata.tick();
 			}
 			Action::FetchStreaming => {
-				streaming += 1;
+				pb_fetch.tick();
+				pb_download.inc(1);
+				pb_metadata.tick();
 			}
 			Action::AddMetadata => {
-				sum.fetch += 1;
+				pb_fetch.tick();
+				pb_download.tick();
+				pb_metadata.inc(1);
 			}
-			Action::RemoveFile => {
-				sum.remove += 1;
-			}
-			Action::SyncPlaylist => {
-				sum.playlist += 1;
-			}
+			Action::RemoveFile => pb_remove.inc(1),
+			Action::SyncPlaylist => pb_playlist.inc(1),
 		}
 
-		println!(
-			"fetch: {}/{} remove: {}/{} playlist: {}/{} musicbrainz: {} streaming: {}",
-			sum.fetch,
-			total.fetch,
-			sum.remove,
-			total.remove,
-			sum.playlist,
-			total.playlist,
-			music_brainz,
-			streaming
-		);
+		if let Err(e) = status.status {
+			eprintln!("{e}\n");
+			err.push(e);
+		}
+	}
+
+	if total.fetch > 0 {
+		pb_fetch.finish();
+		pb_download.finish();
+		pb_metadata.finish();
+	}
+	if total.remove > 0 {
+		pb_remove.finish();
+	}
+	if total.playlist > 0 {
+		pb_playlist.finish();
+	}
+
+	if !err.is_empty() {
+		eprintln!("\nerrors:");
+		for e in err {
+			eprintln!("{e}\n\n");
+		}
 	}
 }
