@@ -1,3 +1,7 @@
+# output
+output/
+*.mp3
+
 # secret
 .env
 

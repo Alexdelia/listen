@@ -1,15 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
-pub enum Source {
-	Yt(String),
-	Sc(String, String),
-}
-
+pub type Source = String;
 pub type Q = u8;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
 	pub s: Source,
 	pub q: Q,
+	pub playlist: Vec<String>,
+}
+
+impl Entry {
+	pub const OUTPUT_DIR: &'static str = "./output/recording";
+
+	pub const EXT: &'static str = "mp3";
 }

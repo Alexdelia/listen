@@ -1,7 +1,9 @@
 mod entry;
 mod env;
-mod fetch;
+// mod fetch;
+mod filter;
 mod parse;
+mod playlist;
 
 use std::path::PathBuf;
 
@@ -26,6 +28,11 @@ fn main() -> hmerr::Result<()> {
 
 	env::load()?;
 
+	let list = parse::parse(args.path)?;
+	dbg!(&list);
+
+	let sync = filter::sync(list)?;
+
 	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
 
 	// let res = Recording::fetch()
@@ -41,11 +48,11 @@ fn main() -> hmerr::Result<()> {
 	// 	.execute()?;
 	// dbg!(&res);
 
-	let res: Release = Release::fetch()
-		.id("e56934aa-a110-4820-aad9-4ca825c71b7f")
-		.with_url_relations()
-		.execute()?;
-	dbg!(&res);
+	// let res: Release = Release::fetch()
+	// 	.id("e56934aa-a110-4820-aad9-4ca825c71b7f")
+	// 	.with_url_relations()
+	// 	.execute()?;
+	// dbg!(&res);
 
 	/*
 	let list = parse::parse(args.path)?;
