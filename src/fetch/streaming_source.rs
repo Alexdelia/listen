@@ -54,7 +54,7 @@ where
 	P: AsRef<Path>,
 {
 	match Command::new(StreamingSource::SoundCloud.downloader())
-		.args(&[
+		.args([
 			"--client-id",
 			&env::get(env::Var::SoundcloudClientId).expect("SOUNDCLOUD_CLIENT_ID not set"),
 			"--onlymp3",

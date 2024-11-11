@@ -7,7 +7,7 @@ mod parse;
 mod playlist;
 mod report;
 
-use std::{future::IntoFuture, os::linux::raw::stat, path::PathBuf, thread};
+use std::{future::IntoFuture, path::PathBuf, thread};
 
 use async_std::task::block_on;
 use channel::Status;
