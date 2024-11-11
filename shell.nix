@@ -11,6 +11,7 @@ pkgs.mkShell {
 
     ffmpeg
     scdl
+    yt-dlp
   ];
 
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];

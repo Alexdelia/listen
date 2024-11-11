@@ -1,8 +1,13 @@
-use std::{path::Path, process::Command};
+use std::{
+	io,
+	path::Path,
+	process::{Command, Output},
+};
 
+use hmerr::ioe;
 use musicbrainz_rs_nova::entity::url::Url;
 
-use crate::env;
+use crate::{entry::Entry, env};
 
 pub enum StreamingSource {
 	SoundCloud,
@@ -24,7 +29,7 @@ impl StreamingSource {
 		}
 	}
 
-	pub fn download<P>(&self, url: &str, path: P)
+	pub fn download<P>(&self, url: &str, path: P) -> hmerr::Result<()>
 	where
 		P: AsRef<Path>,
 	{
@@ -49,33 +54,82 @@ impl TryFrom<&Url> for StreamingSource {
 	}
 }
 
-fn soundcloud<P>(url: &str, path: P)
+fn soundcloud<P>(url: &str, path: P) -> hmerr::Result<()>
 where
 	P: AsRef<Path>,
 {
 	match Command::new(StreamingSource::SoundCloud.downloader())
-		.args([
+		.args(&[
+			"--hide-progress",
 			"--client-id",
 			&env::get(env::Var::SoundcloudClientId).expect("SOUNDCLOUD_CLIENT_ID not set"),
 			"--onlymp3",
 			"--extract-artist",
+			"--path",
+			path.as_ref().to_string_lossy().as_ref(),
 			"-l",
 			url,
 		])
 		.output()
 	{
-		Err(e) => {
-			dbg!(e);
-		}
 		Ok(output) => {
-			dbg!(output);
+			if output.status.success() {
+				return Ok(());
+			}
+
+			Err(format!(
+				"failed to download {url}\n{e}",
+				e = String::from_utf8_lossy(&output.stderr)
+			)
+			.into())
 		}
+		Err(e) => Err(ioe!(
+			format!(
+				"failed to execute {}",
+				StreamingSource::SoundCloud.downloader()
+			),
+			e,
+		)
+		.into()),
 	}
 }
 
-fn youtube<P>(url: &str, path: P)
+fn youtube<P>(url: &str, path: P) -> hmerr::Result<()>
 where
 	P: AsRef<Path>,
 {
-	// TODO
+	match Command::new(StreamingSource::YouTube.downloader())
+		.args(&[
+			"--quiet",
+			"--extract-audio",
+			"--audio-format",
+			Entry::EXT,
+			"--add-metadata",
+			"--embed-thumbnail",
+			"--ppa",
+			"EmbedThumbnail+ffmpeg_o:-c:v png -vf crop=\"'if(gt(ih,iw),iw,ih)':'if(gt(iw,ih),ih,iw)'\"",
+			"--output",
+			path.as_ref().to_string_lossy().as_ref(),
+			url,
+		])
+		.output() {
+			Ok(output) => {
+				if output.status.success() {
+					return Ok(());
+				}
+
+				Err(format!(
+					"failed to download {url}\n{e}",
+					e = String::from_utf8_lossy(&output.stderr)
+				).into())
+			},
+		Err(e) => Err(ioe!(
+			format!(
+				"failed to execute {}",
+				StreamingSource::YouTube.downloader()
+			),
+			e,
+		)
+		.into()),
+		}
 }

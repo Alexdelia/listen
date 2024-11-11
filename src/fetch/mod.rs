@@ -121,14 +121,27 @@ async fn fetch_recording(
 		.join(entry)
 		.with_extension(Entry::EXT);
 
-	url.0.download(&url.1, &path);
+	match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
+		Ok(_) => tx
+			.send(Status {
+				action: Action::FetchStreaming,
+				status: Ok(()),
+			})
+			.await
+			.expect("failed to send fetch streaming status"),
+		Err(e) => {
+			tx.send(Status {
+				action: Action::FetchStreaming,
+				status: Err(format!(
+					"{R}failed to download {B}{entry} ({title}){D}\n{e}"
+				)),
+			})
+			.await
+			.expect("failed to send fetch streaming status");
 
-	tx.send(Status {
-		action: Action::FetchStreaming,
-		status: Ok(()),
-	})
-	.await
-	.expect("failed to send fetch streaming status");
+			return None;
+		}
+	}
 
 	Some(path)
 }
