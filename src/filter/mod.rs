@@ -45,6 +45,11 @@ pub fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	remove::q(&existing.q, &mut ret.q);
 	remove::playlist(&existing.playlist, &mut ret.playlist);
 
+	ret.q
+		.retain(|_, v| !v.add.is_empty() || !v.remove.is_empty());
+	ret.playlist
+		.retain(|_, v| !v.add.is_empty() || !v.remove.is_empty());
+
 	sort::fs(&mut ret.fs);
 	sort::q(&mut ret.q);
 	sort::playlist(&mut ret.playlist);

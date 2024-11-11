@@ -34,6 +34,7 @@ fn main() -> hmerr::Result<()> {
 	let list = parse::parse(args.path)?;
 
 	let sync = filter::sync(list)?;
+	dbg!(&sync);
 
 	let remove = report::report(&sync);
 
@@ -71,7 +72,6 @@ fn main() -> hmerr::Result<()> {
 	}
 	drop(tx);
 
-	// main thread to print the status
 	while let Ok(status) = rx.recv_blocking() {
 		println!("{:?}", status);
 	}

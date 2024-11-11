@@ -25,6 +25,10 @@ pub fn q_path(q: u8) -> PathBuf {
 		.with_extension(EXT)
 }
 
+pub fn playlist_path(playlist: &str) -> PathBuf {
+	PathBuf::from(OUTPUT_DIR).join(playlist).with_extension(EXT)
+}
+
 pub fn parse_q(name: &str) -> hmerr::Result<Q> {
 	let q = name.trim_start_matches(PREFIX);
 	Ok(q.parse().map_err(|e| {
