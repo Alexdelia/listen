@@ -5,6 +5,7 @@ mod fetch;
 mod filter;
 mod parse;
 mod playlist;
+mod remove;
 mod report;
 
 use std::{future::IntoFuture, path::PathBuf, thread};
@@ -31,7 +32,6 @@ fn main() -> hmerr::Result<()> {
 	env::load()?;
 
 	let list = parse::parse(args.path)?;
-	dbg!(&list);
 
 	let sync = filter::sync(list)?;
 
@@ -48,23 +48,28 @@ fn main() -> hmerr::Result<()> {
 
 	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
-	// thread to fetch
 	let txc = tx.clone();
 	thread::spawn(move || {
-		block_on(fetch::fetch(&sync.fs, txc).into_future());
+		block_on(fetch::fetch(&sync.fs.add, txc).into_future());
+	});
+	let txc = tx.clone();
+	thread::spawn(move || {
+		block_on(remove::remove(&sync.fs.remove, txc).into_future());
 	});
 
-	// thread to sync playlist
-	thread::spawn(move || {
-		let res = block_on(
-			tx.send(Status {
-				action: channel::Action::SyncPlaylist,
-				status: Ok(()),
-			})
-			.into_future(),
-		);
-		res.expect("failed to send sync playlist status");
-	});
+	for (q, sync) in sync.q {
+		let txc = tx.clone();
+		thread::spawn(move || {
+			block_on(playlist::sync::q(q, sync, txc).into_future());
+		});
+	}
+	for (playlist, sync) in sync.playlist {
+		let txc = tx.clone();
+		thread::spawn(move || {
+			block_on(playlist::sync::playlist(playlist, sync, txc).into_future());
+		});
+	}
+	drop(tx);
 
 	// main thread to print the status
 	while let Ok(status) = rx.recv_blocking() {

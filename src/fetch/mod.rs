@@ -2,28 +2,29 @@ mod streaming_source;
 
 use std::borrow::Borrow;
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R, Y};
 
-use async_std::channel::Sender;
-use async_std::path::{Path, PathBuf};
-use async_std::task;
+use async_std::{channel::Sender, task};
 use id3::{Tag, TagLike};
-use musicbrainz_rs_nova::entity::recording::Recording;
-use musicbrainz_rs_nova::entity::relations::RelationContent;
-use musicbrainz_rs_nova::Fetch;
+use musicbrainz_rs_nova::{
+	entity::{recording::Recording, relations::RelationContent},
+	Fetch,
+};
+
 use streaming_source::StreamingSource;
 
 use crate::channel::{Action, Status};
 use crate::entry::Entry;
-use crate::{filter::SyncEntry, MUSIC_BRAINZ_USER_AGENT};
+use crate::MUSIC_BRAINZ_USER_AGENT;
 
-pub async fn fetch(sync: &SyncEntry, tx: Sender<Status>) {
+pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
 
 	let mut handles = vec![];
 
-	for entry in &sync.add {
+	for entry in sync {
 		let res = Recording::fetch()
 			.id(entry)
 			.with_artists()
@@ -118,9 +119,7 @@ async fn fetch_recording(
 	}
 
 	let url = urls.first().unwrap();
-	let path = Path::new(Entry::OUTPUT_DIR)
-		.join(entry)
-		.with_extension(Entry::EXT);
+	let path = Entry::path_from_source(entry);
 
 	match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
 		Ok(_) => tx
@@ -188,7 +187,7 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 		tag.set_genre(tags.join(" / "));
 	}
 
-	match tag.write_to_path(&path, id3::Version::Id3v24) {
+	match tag.write_to_path(&path, id3::Version::default()) {
 		Ok(_) => tx.send(Status {
 			action: Action::AddMetadata,
 			status: Ok(()),

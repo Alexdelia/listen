@@ -1,3 +1,5 @@
+pub mod sync;
+
 use std::{
 	collections::HashSet,
 	path::{Path, PathBuf},

@@ -4,6 +4,8 @@ pub enum Action {
 	FetchStreaming,
 	AddMetadata,
 
+	RemoveFile,
+
 	SyncPlaylist,
 }
 

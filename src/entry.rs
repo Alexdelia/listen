@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use serde::{Deserialize, Serialize};
 
 pub type Source = String;
@@ -14,4 +16,10 @@ impl Entry {
 	pub const OUTPUT_DIR: &'static str = "./output/recording";
 
 	pub const EXT: &'static str = "mp3";
+
+	pub fn path_from_source(source: &str) -> PathBuf {
+		return Path::new(Self::OUTPUT_DIR)
+			.join(source)
+			.with_extension(Self::EXT);
+	}
 }
