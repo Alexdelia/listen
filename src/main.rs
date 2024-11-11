@@ -1,13 +1,14 @@
 mod entry;
 mod env;
-// mod fetch;
+mod fetch;
 mod filter;
 mod parse;
 mod playlist;
 mod report;
 
-use std::path::PathBuf;
+use std::{future::IntoFuture, path::PathBuf};
 
+use async_std::task::block_on;
 use clap::Parser;
 use hmerr::ioe;
 
@@ -32,7 +33,7 @@ fn main() -> hmerr::Result<()> {
 
 	let sync = filter::sync(list)?;
 
-	let remove = report::report(sync);
+	let remove = report::report(&sync);
 
 	if remove {
 		let yes = ux::ask_yn("do you want to proceed with this update?", true)
@@ -43,32 +44,9 @@ fn main() -> hmerr::Result<()> {
 		}
 	}
 
-	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
+	block_on(fetch::fetch(&sync.fs).into_future());
 
-	// let res = Recording::fetch()
-	// 	.id("7afff9fa-0de6-4e77-a210-0cbb78f56c2d")
-	// 	// .with_artists()
-	// 	// .with_genres()
-	// 	// .with_tags()
-	// 	// .with_releases()
-	// 	// .with_medias()
-	// 	// .with_work_level_relations()
-	// 	// .with_work_relations()
-	// 	.with_url_relations()
-	// 	.execute()?;
-	// dbg!(&res);
-
-	// let res: Release = Release::fetch()
-	// 	.id("e56934aa-a110-4820-aad9-4ca825c71b7f")
-	// 	.with_url_relations()
-	// 	.execute()?;
-	// dbg!(&res);
-
-	/*
-	let list = parse::parse(args.path)?;
-
-	list.par_iter().for_each(fetch::fetch);
-	*/
+	// TODO: sync playlist
 
 	Ok(())
 }

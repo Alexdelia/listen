@@ -2,7 +2,7 @@ use ansi::abbrev::{B, CYA, D, G, M, R};
 
 use crate::filter::{GroupedEntry, SyncEntry};
 
-pub fn report(sync: GroupedEntry<SyncEntry>) -> bool {
+pub fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 	let mut ret = false;
 
 	ret |= single_report("file", &sync.fs);

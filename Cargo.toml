@@ -17,11 +17,10 @@ panic = "abort"
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+async-std = { version = "1", features = ["tokio1"] }
 dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
 ron = "0.8"
 clap = { version = "4", features = ["derive"] }
-rayon = "1"
-musicbrainz_rs_nova = { version = "0.8", default-features = false, features = [
-	"blocking",
-] }
+# rayon = "1"
+musicbrainz_rs_nova = "0.8"
