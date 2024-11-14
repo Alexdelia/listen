@@ -26,6 +26,6 @@ pkgs.mkShell {
 
 	alias run='cargo run --release'
 
-	alias send='git add listen.ron && git commit -m "🎶"'
+	alias commit='git add listen.ron && git commit -m "🎶"'
   '';
 }
