@@ -57,4 +57,19 @@
 		q: 3,
 		playlist: [],
 	),
+	(
+		s: "d7c57a38-6445-4838-baf6-70168d697876",
+		q: 3,
+		playlist: ["normie", "charged"],
+	),
+	(
+		s: "146d1328-0632-4f00-9b14-cf55042e4c7a",
+		q: 3,
+		playlist: ["normie"],
+	),
+	(
+		s: "70d4fcab-35d9-4d07-b9f9-6e29eea3d399",
+		q: 3,
+		playlist: ["aggressiv"],
+	),
 ]
