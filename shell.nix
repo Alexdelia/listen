@@ -24,8 +24,8 @@ pkgs.mkShell {
       printf "\n\n\t\033[1mplease edit the \033[35m.env\033[39m file\033[0m\n\n"
     fi
 
-	function run {
-	  cargo run --release -- $@
-	}
+	alias run='cargo run --release'
+
+	alias send='git add listen.ron && git commit -m "🎶" && git push'
   '';
 }
