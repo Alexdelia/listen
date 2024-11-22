@@ -1,5 +1,5 @@
 [
-	// charged, aggressiv, calm, normie
+	// charged, aggressive, calm, normie
 	(
 		s: "6678f68f-0e56-4105-a83c-50dc0361b73f",
 		q: 4,
@@ -16,7 +16,7 @@
 		s: "b830bfe2-17eb-4826-8ec8-0b5fe62f8768",
 		q: 2,
 		playlist: [],
-	)
+	),
 	(
 		s: "8cb5aea7-464f-43d1-860d-f47dc8fe42e3",
 		q: 2,
@@ -70,17 +70,17 @@
 	(
 		s: "70d4fcab-35d9-4d07-b9f9-6e29eea3d399",
 		q: 3,
-		playlist: ["aggressiv"],
+		playlist: ["aggressive"],
 	),
 	(
 		s: "f8b646a4-3390-4153-b68b-8fa21578a5f6",
 		q: 4,
-		playlist: ["aggressiv"],
+		playlist: ["aggressive"],
 	),
 	(
 		s: "df78a541-4c36-4fb4-99b3-f6891de26607",
 		q: 1,
-		playlist: ["aggressiv"],
+		playlist: ["aggressive"],
 	),
 	(
 		s: "b337b6ee-9e37-49dd-9e27-036ccab287db",
