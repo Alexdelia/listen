@@ -54,6 +54,7 @@ fn soundcloud<P>(url: &str, path: P) -> hmerr::Result<()>
 where
 	P: AsRef<Path>,
 {
+	let path = path.as_ref();
 	match Command::new(StreamingSource::SoundCloud.downloader())
 		.args([
 			"--hide-progress",
@@ -62,7 +63,15 @@ where
 			"--onlymp3",
 			"--extract-artist",
 			"--path",
-			path.as_ref().to_string_lossy().as_ref(),
+			path.parent()
+				.expect("no parent folder")
+				.to_string_lossy()
+				.as_ref(),
+			"--name-format",
+			path.file_stem()
+				.expect("no file stem")
+				.to_string_lossy()
+				.as_ref(),
 			"-l",
 			url,
 		])
