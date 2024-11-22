@@ -5,8 +5,6 @@ pkgs.mkShell {
     pkg-config
     rust-bin.stable.latest.default
 
-    mold
-
     typos
 
     ffmpeg
