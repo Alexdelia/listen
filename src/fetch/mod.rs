@@ -118,32 +118,39 @@ async fn fetch_recording(
 		return None;
 	}
 
-	let url = urls.first().unwrap();
 	let path = Entry::path_from_source(entry);
+	let mut err: Option<String> = None;
 
-	match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
-		Ok(_) => tx
-			.send(Status {
-				action: Action::FetchStreaming,
-				status: Ok(()),
-			})
-			.await
-			.expect("failed to send fetch streaming status"),
-		Err(e) => {
-			tx.send(Status {
-				action: Action::FetchStreaming,
-				status: Err(format!(
-					"{R}failed to download {B}{entry} ({title}){D}\n{e}"
-				)),
-			})
-			.await
-			.expect("failed to send fetch streaming status");
+	for url in urls {
+		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
+			Ok(_) => {
+				tx.send(Status {
+					action: Action::FetchStreaming,
+					status: Ok(()),
+				})
+				.await
+				.expect("failed to send fetch streaming status");
 
-			return None;
+				return Some(path);
+			}
+			Err(e) => {
+				err = Some(e);
+			}
 		}
 	}
 
-	Some(path)
+	if let Some(e) = err {
+		tx.send(Status {
+			action: Action::FetchStreaming,
+			status: Err(format!(
+				"{R}failed to download {B}{entry} ({title}){D}\n{e}"
+			)),
+		})
+		.await
+		.expect("failed to send fetch streaming status");
+	}
+
+	None
 }
 
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
