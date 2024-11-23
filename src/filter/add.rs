@@ -21,14 +21,15 @@ pub fn q(
 		if let Some(q) = existing.get_mut(&q) {
 			if q.contains(&entry.s) {
 				q.remove(&entry.s);
+				continue;
 			}
-		} else {
-			if add.get(&q).is_none() {
-				add.insert(q, SyncEntry::default());
-			}
-
-			add.get_mut(&q).unwrap().add.push(entry.s.clone());
 		}
+
+		if add.get(&q).is_none() {
+			add.insert(q, SyncEntry::default());
+		}
+
+		add.get_mut(&q).unwrap().add.push(entry.s.clone());
 	}
 }
 
@@ -41,13 +42,14 @@ pub fn playlist(
 		if let Some(set) = existing.get_mut(playlist) {
 			if set.contains(&entry.s) {
 				set.remove(&entry.s);
+				continue;
 			}
-		} else {
-			if add.get(playlist).is_none() {
-				add.insert(playlist.clone(), SyncEntry::default());
-			}
-
-			add.get_mut(playlist).unwrap().add.push(entry.s.clone());
 		}
+
+		if add.get(playlist).is_none() {
+			add.insert(playlist.clone(), SyncEntry::default());
+		}
+
+		add.get_mut(playlist).unwrap().add.push(entry.s.clone());
 	}
 }
