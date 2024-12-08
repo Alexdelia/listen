@@ -135,4 +135,19 @@
 		q: 3,
 		playlist: ["normie"],
 	),
+	(
+		s: "726cd33a-c384-4127-803a-bfb0cb3f989d",
+		q: 2,
+		playlist: [],
+	),
+	(
+		s: "a9d4b1a4-c403-483b-a5a0-7d298606fccb",
+		q: 3,
+		playlist: ["charged"],
+	),
+	(
+		s: "2e6a5f84-f560-4cdd-9b7b-67544afd73fa",
+		q: 2,
+		playlist: ["charged"],
+	),
 ]
