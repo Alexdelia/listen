@@ -3,9 +3,7 @@
 	(
 		s: "6678f68f-0e56-4105-a83c-50dc0361b73f",
 		q: 4,
-		playlist: [
-			"charged",
-		],
+		playlist: ["charged"],
 	),
 	(
 		s: "d3b47582-8395-4b55-b428-b64eca7761d0",
@@ -85,6 +83,51 @@
 	(
 		s: "f2d01bb8-8a90-4f71-950f-077692488e8c",
 		q: 2,
+		playlist: [],
+	),
+	(
+		s: "5e084a05-ea0e-496d-9885-34f45344bdf9",
+		q: 2,
+		playlist: [],
+	),
+	(
+		s: "a0e85691-7f5d-4deb-a197-413b6f00f06e",
+		q: 3,
+		playlist: ["charged"],
+	),
+	(
+		s: "a66a0a74-99fa-4f78-a4b2-da58fc794709",
+		q: 1,
+		playlist: [],
+	),
+	(
+		s: "abdead29-a653-42f4-b2eb-cb1a46920b2c",
+		q: 1,
+		playlist: ["calm"],
+	),
+	(
+		s: "bd4b0687-7349-4593-8eaa-c5bf02e50a51",
+		q: 2,
+		playlist: [],
+	),
+	(
+		s: "b4fb7433-8d8b-46a8-8f74-28ec548eacc2",
+		q: 3,
+		playlist: [],
+	),
+	(
+		s: "f247dc5c-e419-4f3b-936f-f9df09584a21",
+		q: 4,
+		playlist: ["charged"],
+	),
+	(
+		s: "992f1995-5726-4a94-8d29-30d20302bb23",
+		q: 2,
+		playlist: [],
+	),
+	(
+		s: "3d698280-0a59-46e6-ab10-7f9f915a535f",
+		q: 4,
 		playlist: [],
 	),
 ]
