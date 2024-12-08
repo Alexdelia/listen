@@ -150,4 +150,9 @@
 		q: 2,
 		playlist: ["charged"],
 	),
+	(
+		s: "40ac3134-b7d2-4ff6-8a32-1dcdce245ac9",
+		q: 3,
+		playlist: ["charged", "normie"],
+	),
 ]
