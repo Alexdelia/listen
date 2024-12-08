@@ -130,4 +130,9 @@
 		q: 4,
 		playlist: [],
 	),
+	(
+		s: "569d8bf2-b01d-4523-a379-b314e9dbaa0b",
+		q: 3,
+		playlist: ["normie"],
+	),
 ]
