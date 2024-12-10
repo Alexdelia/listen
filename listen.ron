@@ -155,4 +155,14 @@
 		q: 3,
 		playlist: ["charged", "normie"],
 	),
+	(
+		s: "42d3dec5-40dd-4ded-bee3-6f7e15a12cb4",
+		q: 4,
+		playlist: [],
+	),
+	(
+		s: "8174a087-a078-4102-808a-c44af0ebaefd",
+		q: 4,
+		playlist: [],
+	),
 ]
