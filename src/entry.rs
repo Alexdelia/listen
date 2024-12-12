@@ -18,8 +18,8 @@ impl Entry {
 	pub const EXT: &'static str = "mp3";
 
 	pub fn path_from_source(source: &str) -> PathBuf {
-		return Path::new(Self::OUTPUT_DIR)
+		Path::new(Self::OUTPUT_DIR)
 			.join(source)
-			.with_extension(Self::EXT);
+			.with_extension(Self::EXT)
 	}
 }
