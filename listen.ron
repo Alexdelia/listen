@@ -235,4 +235,9 @@
 		q: 4,
 		playlist: ["charged", "charged"],
 	),
+	(
+		s: "daf07cdd-fd8a-4fe0-8e2b-8c0849918346",
+		q: 2,
+		playlist: [],
+	),
 ]
