@@ -175,4 +175,9 @@
 		q: 2,
 		playlist: [],
 	),
+	(
+		s: "98e24e42-2671-4dbe-a142-e7f04af6cb66",
+		q: 4,
+		playlist: ["normie"],
+	),
 ]
