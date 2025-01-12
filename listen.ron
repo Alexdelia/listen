@@ -180,4 +180,9 @@
 		q: 4,
 		playlist: ["normie"],
 	),
+	(
+		s: "2f20a342-d8e2-490f-96c4-6815b126b69b",
+		q: 3,
+		playlist: ["charged"],
+	),
 ]
