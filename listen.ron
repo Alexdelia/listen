@@ -280,4 +280,9 @@
 		q: 4,
 		playlist: ["charged", "aggresive"],
 	),
+	(
+		s: "bf9059f0-f6ea-4dea-a4fe-61abe3a6d549",
+		q: 3,
+		playlist: ["charged"],
+	),
 ]
