@@ -107,7 +107,7 @@ fn progress(total: Count, rx: Receiver<Status>) {
 				&title,
 				" {wide_bar:.",
 				color,
-				"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:.bold.blue}|{eta:.bold.magenta}",
+				"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:>3.bold.blue}|{eta:3.bold.magenta}",
 			]
 			.join(""),
 		)
