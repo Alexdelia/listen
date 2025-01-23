@@ -74,4 +74,9 @@
 	(s: "589b4775-f885-43e3-a20c-a91d4f217167", q: 4, playlist: ["charged", "aggresive"]),
 	(s: "64b2adca-7310-49b5-84ec-fb5a3790115e", q: 2, playlist: ["aggresive"]),
 	(s: "41b525f9-ec6a-455e-aa37-192365cd4e4b", q: 2, playlist: []),
+	(s: "b7897bca-01f4-4b7b-ad6b-263f3270f4fa", q: 1, playlist: []),
+	(s: "916e5687-3dd2-4d5f-9d8a-3bd7cb699b80", q: 1, playlist: []),
+	(s: "f0f48375-3c5d-4a75-94ca-2eb6a096afe6", q: 1, playlist: []),
+	(s: "3b9e49b6-6669-4b68-8afa-b9aca95f6a8d", q: 1, playlist: []),
+	(s: "1f2ad47d-3868-440c-a9ba-bd5968b5829e", q: 1, playlist: []),
 ]
