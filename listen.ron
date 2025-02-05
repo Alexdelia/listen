@@ -90,4 +90,6 @@
 	(s: "bd41208a-362d-4ec8-ad0d-fd5ff66b4750", q: 4, playlist: ["charged", "aggresive"]),
 	(s: "842e54fc-5750-45b7-8e09-c17410dbaffe", q: 4, playlist: ["charged", "aggresive"]),
 	(s: "414186a8-755d-4982-8907-9e442dd91cc1", q: 3, playlist: ["aggresive"]),
+	(s: "68a34911-ce70-4278-9a35-b206f61b3153", q: 4, playlist: []),
+	(s: "8dfb505f-dd37-4a49-afb6-7957db9bb89a", q: 2, playlist: []),
 ]
