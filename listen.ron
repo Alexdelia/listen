@@ -107,4 +107,6 @@
 	(s: "cb65b540-9d08-4248-9235-6513643d025f", q: 3, playlist: []),
 	(s: "25da6d6f-5960-4176-b7c5-885b0b9edfcf", q: 0, playlist: ["normie"]),
 	(s: "65771c02-9096-46ee-a105-277853520279", q: 1, playlist: ["normie"]),
+	(s: "c4940ecd-5dfd-45a0-b415-2a4a778b7ba3", q: 1, playlist: ["aggresive"]),
+	(s: "0578c31a-4ab4-4181-b05d-1a0a62e49bec", q: 2, playlist: ["aggresive"]),
 ]
