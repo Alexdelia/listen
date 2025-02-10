@@ -105,4 +105,6 @@
 	(s: "6c6b40eb-5799-464a-b6eb-86e47b742665", q: 4, playlist: ["normie", "charged"]),
 	(s: "71e8f60b-ed1a-444f-ac26-f600cbc669fb", q: 4, playlist: []),
 	(s: "cb65b540-9d08-4248-9235-6513643d025f", q: 3, playlist: []),
+	(s: "25da6d6f-5960-4176-b7c5-885b0b9edfcf", q: 0, playlist: ["normie"]),
+	(s: "65771c02-9096-46ee-a105-277853520279", q: 1, playlist: ["normie"]),
 ]
