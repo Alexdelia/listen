@@ -46,7 +46,7 @@
 	(s: "9ccc38fb-eb6e-4097-a369-0910385ff90e", q: 1, playlist: ["aggresive"]),
 	(s: "5e299109-8292-4a6d-8e5a-fd2b80d8809e", q: 3, playlist: ["charged"]),
 	(s: "e6d35064-da9c-43e7-a627-b919935bcdaa", q: 3, playlist: ["normie"]),
-	(s: "c6b9f7c8-f24d-4927-9074-150b5a697f10", q: 4, playlist: ["charged", "charged"]),
+	(s: "c6b9f7c8-f24d-4927-9074-150b5a697f10", q: 4, playlist: ["normie", "charged"]),
 	(s: "daf07cdd-fd8a-4fe0-8e2b-8c0849918346", q: 2, playlist: []),
 	(s: "f677b546-5999-4fea-8f1a-84628e9766fb", q: 2, playlist: []),
 	(s: "e0f04cbd-d306-48f7-a079-41641a1854a9", q: 2, playlist: []),
