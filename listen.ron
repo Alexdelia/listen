@@ -138,4 +138,6 @@
 	(s: "81e1e04b-8adb-4e45-8c37-3f41ec45f2b7", q: 0, playlist: []),
 	(s: "d0760700-c09e-48c6-8767-325556df7869", q: 1, playlist: ["calm"]),
 	(s: "93693f91-7f52-4d25-ad44-fcd2c4dade6a", q: 2, playlist: []),
+	(s: "8c8fedbc-02ce-4220-b433-a7307e8396f9", q: 3, playlist: ["aggresive", "charged"]),
+	(s: "08bc10dd-7977-4cd6-a930-7d7d20bcdb76", q: 3, playlist: ["charged"]),
 ]
