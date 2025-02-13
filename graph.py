@@ -6,11 +6,15 @@ from contextlib import contextmanager
 from datetime import datetime
 
 import matplotlib.pyplot as plt
+from matplotlib.dates import num2date
 
 DATA_FILE = "listen.ron"
 GRAPH_FILE = "history.svg"
 
 NEW_FORMAT_TIMESTAMP = 1736956035
+
+CONTENT_COLOR = "#d5397b"
+TEXT_COLOR = "white"
 
 
 @contextmanager
@@ -62,14 +66,29 @@ with timer("data extraction"):
 
 with timer("graph plotting"):
     x, y = zip(*data)
-    plt.plot(x, y)
+    min_x, max_x = x[0], x[-1]
+    min_y, max_y = y[0], y[-1]
+
+    plt.plot(x, y, color=CONTENT_COLOR, alpha=0.5)
+
+    # plt.plot(x, y, color=CONTENT_COLOR)
     plt.ylabel("recording")
     plt.title(f"recording count in {DATA_FILE} over time")
 
-    plt.gcf().autofmt_xdate()
-    plt.fill_between(x, y, color="skyblue", alpha=0.4)
+    plt.gcf().autofmt_xdate(
+        rotation=-45,
+        ha="left",
+    )
+    plt.fill_between(x, y, color=CONTENT_COLOR, alpha=0.4)
     for spine in plt.gca().spines.values():
         spine.set_visible(False)
+    plt.margins(x=0, y=0)
+    plt.xlim(min_x, max_x)
+    plt.ylim(min_y, max_y + 1)
+    plt.xticks([min_x] + [num2date(tick) for tick in plt.gca().get_xticks()] + [max_x])
+    plt.gca().xaxis.set_label_coords(-0.05, 0.5)
+    plt.gca().yaxis.tick_right()
+    plt.gca().yaxis.set_label_position("right")
 
     for text_type in [
         "text.color",
@@ -78,7 +97,7 @@ with timer("graph plotting"):
         "ytick.color",
         "axes.titlecolor",
     ]:
-        plt.rcParams[text_type] = "white"
+        plt.rcParams[text_type] = TEXT_COLOR
 
     plt.savefig(
         GRAPH_FILE,
