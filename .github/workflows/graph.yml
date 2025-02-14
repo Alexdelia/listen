@@ -31,6 +31,6 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          git add graph.svg
+          git add history.svg
           git commit -m '📈 update `graph.svg` - [Skip Github Action]'
           git push

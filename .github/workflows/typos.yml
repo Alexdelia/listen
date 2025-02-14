@@ -15,8 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout actions repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: check spelling of file.txt
         uses: crate-ci/typos@master
