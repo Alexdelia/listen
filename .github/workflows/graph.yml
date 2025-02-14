@@ -3,6 +3,9 @@ name: graph
 on:
   schedule:
     - cron: "42 21 * * *"
+  push:
+    branches:
+      - main
 
 jobs:
   run:
