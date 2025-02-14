@@ -15,7 +15,7 @@ GRAPH_FILE = "history.svg"
 NEW_FORMAT_TIMESTAMP = 1736956035
 
 CONTENT_COLOR = "#d5397b"
-TEXT_COLOR = "white"
+TEXT_COLOR = "#cccccc"
 
 
 @contextmanager
@@ -71,6 +71,15 @@ with timer(os.path.basename(__file__)):
         min_x, max_x = x[0], x[-1]
         min_y, max_y = y[0], y[-1]
 
+        for text_type in [
+            "text.color",
+            "axes.labelcolor",
+            "xtick.color",
+            "ytick.color",
+            "axes.titlecolor",
+        ]:
+            plt.rcParams[text_type] = TEXT_COLOR
+
         plt.plot(x, y, color=CONTENT_COLOR, alpha=0.5)
 
         # plt.plot(x, y, color=CONTENT_COLOR)
@@ -93,15 +102,6 @@ with timer(os.path.basename(__file__)):
         plt.gca().xaxis.set_label_coords(-0.05, 0.5)
         plt.gca().yaxis.tick_right()
         plt.gca().yaxis.set_label_position("right")
-
-        for text_type in [
-            "text.color",
-            "axes.labelcolor",
-            "xtick.color",
-            "ytick.color",
-            "axes.titlecolor",
-        ]:
-            plt.rcParams[text_type] = TEXT_COLOR
 
         plt.savefig(
             GRAPH_FILE,
