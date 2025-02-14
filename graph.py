@@ -48,14 +48,17 @@ with timer(os.path.basename(__file__)):
             for datapoint in datapoints:
                 commit, date, timestamp = datapoint.split()
 
-                recording_count = int(
-                    subprocess.run(
-                        f"git show {commit}:{DATA_FILE} | wc -l",
-                        shell=True,
-                        text=True,
-                        capture_output=True,
-                    ).stdout.strip()
-                ) - 2
+                recording_count = (
+                    int(
+                        subprocess.run(
+                            f"git show {commit}:{DATA_FILE} | wc -l",
+                            shell=True,
+                            text=True,
+                            capture_output=True,
+                        ).stdout.strip()
+                    )
+                    - 2
+                )
 
                 if int(timestamp) <= NEW_FORMAT_TIMESTAMP:
                     recording_count //= 5
