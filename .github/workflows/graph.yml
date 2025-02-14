@@ -3,9 +3,6 @@ name: graph
 on:
   schedule:
     - cron: "42 21 * * *"
-  push:
-    branches:
-      - main
 
 jobs:
   run:
@@ -38,5 +35,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add history.svg
-          git commit -m '📈 update `graph.svg` - [Skip Github Action]'
+          git commit -m '📈 update `history.svg` - [Skip Github Action]'
           git push
