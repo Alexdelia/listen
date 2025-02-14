@@ -2,29 +2,30 @@ name: rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths: ["!listen.ron"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths: ["!listen.ron"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: format
-      run: cargo fmt --check
+      - name: format
+        run: cargo fmt --check
 
-    - name: build
-      run: cargo build --all-features
+      - name: build
+        run: cargo build --all-features
 
-    - name: clippy
-      run: cargo clippy --all-features -- -D warnings
+      - name: clippy
+        run: cargo clippy --all-features -- -D warnings
 
-    - name: test
-      run: cargo test --all-features
+      - name: test
+        run: cargo test --all-features

@@ -1,0 +1,26 @@
+name: graph
+
+on:
+  schedule:
+    - cron: "42 21 * * *"
+
+jobs:
+  run:
+    name: graph
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+
+      - name: Generate graph
+        run: python3 graph.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add graph.svg
+          git commit -m '📈 update `graph.svg` - [Skip Github Action]'
+          git push

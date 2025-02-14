@@ -2,9 +2,11 @@ name: typos
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths: ["!listen.ron"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths: ["!listen.ron"]
 
 jobs:
   run:
@@ -13,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Actions Repository
-      uses: actions/checkout@v4
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
 
-    - name: Check spelling of file.txt
-      uses: crate-ci/typos@master
+      - name: Check spelling of file.txt
+        uses: crate-ci/typos@master
