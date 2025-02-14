@@ -14,20 +14,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Actions Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: install dependencies
+      - name: setup python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
           cache: "pip"
+      - name: install dependencies
         run: pip install matplotlib
 
-      - name: Generate graph
-        run: python3 graph.py
+      - name: generate graph
+        run: ./graph.py
 
-      - name: Commit and push if changed
+      - name: commit
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
