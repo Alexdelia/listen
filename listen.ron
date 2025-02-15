@@ -117,7 +117,7 @@
 	(s: "93978684-9079-4d2a-af43-65688b6fe552", q: 2, playlist: []),
 	(s: "b8c15f95-1085-430e-b326-fdca50df440a", q: 3, playlist: []),
 	// (s: "33c2490f-9477-47ef-99f0-61ae030d1e84", q: 2, playlist: []),
-	(s: "8c0cec2e-049c-4ace-b6b5-90bd76357ddb", q: 1, playlist: []),
+	(s: "8c0cec2e-049c-4ace-b6b5-90bd76357ddb", q: 2, playlist: ["calm"]),
 	(s: "4208b8c7-7972-4760-95f1-5c67d3ced00b", q: 1, playlist: []),
 	(s: "22d13106-802e-4d1d-8cea-4020dfe833c7", q: 2, playlist: []),
 	(s: "73e80aca-4dd9-48a1-915f-7d23e49f2079", q: 1, playlist: []),
