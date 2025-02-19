@@ -3,9 +3,6 @@ name: graph
 on:
   schedule:
     - cron: "42 21 * * *"
-  push:
-    branches:
-      - main
 
 env:
   COMMIT_MESSAGE: "📈 update `history.svg` - [Skip Github Action]"
