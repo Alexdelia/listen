@@ -3,12 +3,20 @@ name: graph
 on:
   schedule:
     - cron: "42 21 * * *"
+  push:
+    branches:
+      - main
+
+env:
+  COMMIT_MESSAGE: "📈 update `history.svg` - [Skip Github Action]"
 
 jobs:
   run:
     name: graph
 
     runs-on: ubuntu-latest
+
+    if: "!contains(github.event.head_commit.message, ${{ env.COMMIT_MESSAGE }})"
 
     permissions:
       contents: write
@@ -35,5 +43,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           git add history.svg
-          git commit -m '📈 update `history.svg` - [Skip Github Action]'
+          git commit -m "${COMMIT_MESSAGE}"
           git push
