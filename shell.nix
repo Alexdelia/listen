@@ -19,6 +19,8 @@ pkgs.mkShell {
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
 
   shellHook = ''
+    git pull
+
     # export PATH="$HOME/.cargo/bin:$PATH"
 
     if [ ! -f .env ]; then
