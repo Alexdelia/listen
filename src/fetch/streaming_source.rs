@@ -8,6 +8,7 @@ use crate::{entry::Entry, env};
 pub enum StreamingSource {
 	SoundCloud,
 	YouTube,
+	YouTubeMusic,
 }
 
 impl StreamingSource {
@@ -15,6 +16,7 @@ impl StreamingSource {
 		match self {
 			Self::SoundCloud => "https://soundcloud.com",
 			Self::YouTube => "https://www.youtube.com",
+			Self::YouTubeMusic => "https://music.youtube.com",
 		}
 	}
 
@@ -22,6 +24,7 @@ impl StreamingSource {
 		match self {
 			Self::SoundCloud => "scdl",
 			Self::YouTube => "yt-dlp",
+			Self::YouTubeMusic => "yt-dlp",
 		}
 	}
 
@@ -32,6 +35,7 @@ impl StreamingSource {
 		match self {
 			Self::SoundCloud => soundcloud(url, path),
 			Self::YouTube => youtube(url, path),
+			Self::YouTubeMusic => youtube(url, path),
 		}
 	}
 }
@@ -40,12 +44,13 @@ impl TryFrom<&Url> for StreamingSource {
 	type Error = &'static str;
 
 	fn try_from(url: &Url) -> Result<Self, Self::Error> {
-		if url.resource.starts_with(Self::SoundCloud.base_url()) {
-			Ok(Self::SoundCloud)
-		} else if url.resource.starts_with(Self::YouTube.base_url()) {
-			Ok(Self::YouTube)
-		} else {
-			Err("unsupported streaming source")
+		match &url.resource {
+			resource if resource.starts_with(Self::SoundCloud.base_url()) => Ok(Self::SoundCloud),
+			resource if resource.starts_with(Self::YouTube.base_url()) => Ok(Self::YouTube),
+			resource if resource.starts_with(Self::YouTubeMusic.base_url()) => {
+				Ok(Self::YouTubeMusic)
+			}
+			_ => Err("unsupported streaming source"),
 		}
 	}
 }
