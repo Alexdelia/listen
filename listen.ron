@@ -204,4 +204,6 @@
 	(s: "6ddeb5ae-a87c-4bd5-9466-9e456b6a316e", q: 1, playlist: []),
 	(s: "701c180f-3aae-4f1c-a5be-b1d29aa69956", q: 2, playlist: ["calm"]),
 	(s: "936dbede-194e-4895-ac39-ec9b1c6696d8", q: 3, playlist: ["calm"]),
+	(s: "8933e969-442c-4b44-9ab1-34cf62912243", q: 2, playlist: ["calm"]),
+	(s: "eff5ec93-0d1b-4534-b7f0-5bd933f49d3e", q: 3, playlist: ["calm"]),
 ]
