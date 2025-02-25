@@ -2,7 +2,7 @@ name: graph
 
 on:
   schedule:
-    - cron: "42 21 * * *"
+    - cron: "42 18 * * *"
 
 env:
   COMMIT_MESSAGE: "📈 update `history.svg` - [Skip Github Action]"
