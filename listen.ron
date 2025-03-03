@@ -223,4 +223,6 @@
 	(s: "75326ac1-7c5d-41d0-93bb-905dbcd1c581", q: 3, playlist: ["aggresive"]),
 	(s: "4f1d34ad-6d70-4c41-9182-02f6518132f9", q: 2, playlist: []),
 	// (s: "9c1b8a9d-7c17-4af8-942a-bc2f71762d4a", q:2, playlist: []),
+	(s: "b278bd37-4b54-4d6d-83aa-ee41ac8d4c5f", q: 3, playlist: ["calm"]),
+	(s: "09f8dc28-4fd4-4930-8474-dc9ac584fefb", q: 2, playlist: []),
 ]
