@@ -225,4 +225,6 @@
 	// (s: "9c1b8a9d-7c17-4af8-942a-bc2f71762d4a", q:2, playlist: []),
 	(s: "b278bd37-4b54-4d6d-83aa-ee41ac8d4c5f", q: 3, playlist: ["calm"]),
 	(s: "09f8dc28-4fd4-4930-8474-dc9ac584fefb", q: 2, playlist: []),
+	(s: "ae340e82-b2cf-493a-bdb0-9b022d5d8189", q: 2, playlist: []),
+	(s: "aa560049-31ce-41c3-a1a9-a61fd270c4dc", q: 2, playlist: []),
 ]
