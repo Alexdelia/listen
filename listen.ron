@@ -230,4 +230,6 @@
 	(s: "3fb5ee72-e139-4153-8944-3ab63a7519b3", q: 3, playlist: []),
 	(s: "ae198a6c-54f0-435e-9bb3-77462b7d6f8a", q: 2, playlist: []),
 	(s: "f95de284-df7c-42f5-8d07-60c93f065e1d", q: 3, playlist: ["charged"]),
+	(s: "df3d5840-22f4-4868-86f8-5814ee0141d8", q: 3, playlist: ["charged"]),
+	(s: "cfeb16d8-abf3-416f-9b11-eb7de5097675", q: 2, playlist: []),
 ]
