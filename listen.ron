@@ -255,4 +255,5 @@
 	(s: "fea5134e-f0ee-49d5-a643-470fbc893241", q: 4, playlist: ["charged"]),
 	(s: "e4fb3e0e-3273-40e4-8550-259d28983ea8", q: 4, playlist: ["calm"]),
 	(s: "c24eb26a-04d6-4f09-9449-9bc334f78ede", q: 3, playlist: ["normie", "charged", "aggresive"]),
+	(s: "adbfa8f0-4b36-4975-b055-6a75bbc0a2a4", q: 3, playlist: ["normie", "aggresive"]),
 ]
