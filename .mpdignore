@@ -2,4 +2,5 @@
 .github
 target
 .cargo
+.ruff_cache
 src
