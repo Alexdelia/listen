@@ -267,4 +267,5 @@
 	(s: "7137391e-64ae-4bcb-8d95-78f19475d2bb", q: 0, playlist: ["normie"]),
 	(s: "4ff74451-497e-4bf8-bf53-70ca91eb848a", q: 1, playlist: ["aggresive"]),
 	(s: "8ef548ab-1f07-470d-ba40-c597582b122a", q: 1, playlist: ["aggresive"]),
+	(s: "c6e66488-a4fa-4665-9253-0c704fed429b", q: 3, playlist: ["normie", "calm"]),
 ]
