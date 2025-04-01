@@ -20,7 +20,7 @@ ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 async-std = { version = "1", features = ["tokio1"] }
 dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
-ron = "0.8"
+ron = "0.9"
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.17"
 musicbrainz_rs_nova = "0.8"
