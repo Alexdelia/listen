@@ -361,5 +361,5 @@
 	(s: "ed46fbaf-b7b8-4509-91b0-7bce8c1ff972", q: 0, playlist: []),
 	(s: "3bf798f4-b3fa-4a0b-a7bb-655af72429b2", q: 1, playlist: ["normie"]),
 	(s: "59bb2a1e-d565-4d7f-83ed-aee9ddbe56eb", q: 1, playlist: []),
-	(s: "2716bea2-10f9-4e40-8a89-ae4b98826497", q: 2, playlist: []),
+	(s: "2716bea2-10f9-4e40-8a89-ae4b98826497", q: 2, playlist: ["charged"]),
 ]
