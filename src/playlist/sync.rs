@@ -52,7 +52,7 @@ where
 	let path = path.as_ref();
 
 	let mut set = if path.exists() {
-		parse_content(&fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?)
+		parse_content(&fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?)
 	} else {
 		HashSet::new()
 	};

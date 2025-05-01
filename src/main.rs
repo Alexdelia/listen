@@ -182,7 +182,7 @@ fn progress(total: Count, rx: Receiver<Status>) {
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
 		for e in err {
-			eprint!("{e}\n");
+			eprintln!("{e}");
 		}
 		eprint!("\n\n\n");
 	}
