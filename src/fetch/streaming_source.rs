@@ -38,6 +38,14 @@ impl StreamingSource {
 			Self::YouTubeMusic => youtube(url, path),
 		}
 	}
+
+	pub fn priority(&self) -> u8 {
+		match self {
+			Self::SoundCloud => 0,
+			Self::YouTubeMusic => 1,
+			Self::YouTube => 2,
+		}
+	}
 }
 
 impl TryFrom<&Url> for StreamingSource {

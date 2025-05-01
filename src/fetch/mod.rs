@@ -121,6 +121,8 @@ async fn fetch_recording(
 	let path = Entry::path_from_source(entry);
 	let mut err: Option<String> = None;
 
+	urls.sort_by(|a, b| a.0.priority().cmp(&b.0.priority()));
+
 	for url in urls {
 		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
 			Ok(_) => {
