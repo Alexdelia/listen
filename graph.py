@@ -4,7 +4,7 @@ import os
 import subprocess
 import time
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
@@ -97,9 +97,17 @@ with timer(os.path.basename(__file__)):
         plt.margins(x=0, y=0)
         plt.xlim(min_x, max_x)
         plt.ylim(min_y, max_y + 1)
-        plt.xticks(
-            [min_x] + [num2date(tick) for tick in plt.gca().get_xticks()] + [max_x]
-        )
+
+        min_x_edge = min_x.replace(tzinfo=None) + timedelta(days=5)
+        max_x_edge = max_x.replace(tzinfo=None) - timedelta(days=5)
+        xticks = []
+        for tick in plt.gca().get_xticks():
+            tick = num2date(tick).replace(tzinfo=None)
+            if tick > min_x_edge and tick < max_x_edge:
+                xticks.append(tick)
+        plt.xticks([min_x] + xticks + [max_x])
+        plt.yticks([tick for tick in plt.gca().get_yticks() if tick < max_y] + [max_y])
+
         plt.gca().xaxis.set_label_coords(-0.05, 0.5)
         plt.gca().yaxis.tick_right()
         plt.gca().yaxis.set_label_position("right")
@@ -114,8 +122,8 @@ with timer(os.path.basename(__file__)):
             f"days: {total_days}\n avg: {average:.2f}",
             color=TEXT_COLOR,
             transform=plt.gca().transAxes,
-            va='top',
-            linespacing=1.5
+            va="top",
+            linespacing=1.5,
         )
 
         plt.savefig(
