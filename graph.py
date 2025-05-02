@@ -104,6 +104,20 @@ with timer(os.path.basename(__file__)):
         plt.gca().yaxis.tick_right()
         plt.gca().yaxis.set_label_position("right")
 
+        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        total_days = (today - min_x).days
+        average = max_y / total_days if total_days > 0 else 0.0
+
+        plt.text(
+            0.1,
+            0.9,
+            f"days: {total_days}\n avg: {average:.2f}",
+            color=TEXT_COLOR,
+            transform=plt.gca().transAxes,
+            va='top',
+            linespacing=1.5
+        )
+
         plt.savefig(
             GRAPH_FILE,
             format=GRAPH_FILE.split(".")[-1],
