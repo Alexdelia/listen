@@ -80,6 +80,7 @@ with timer(os.path.basename(__file__)):
             "axes.titlecolor",
         ]:
             plt.rcParams[text_type] = TEXT_COLOR
+        plt.rcParams["font.family"] = "monospace"
 
         plt.plot(x, y, color=CONTENT_COLOR, alpha=0.5)
 
@@ -123,6 +124,7 @@ with timer(os.path.basename(__file__)):
             color=TEXT_COLOR,
             transform=plt.gca().transAxes,
             va="top",
+            family="monospace",
             linespacing=1.5,
         )
 
