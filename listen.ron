@@ -306,7 +306,7 @@
 	(s: "978a0b41-c320-495e-979f-52b59bf7fb58", q: 1, playlist: []),
 	(s: "3a9c3521-5c84-4df9-99f0-21a9385cc353", q: 3, playlist: []),
 	(s: "015021a9-2621-4593-b82d-f1f28bdf440a", q: 1, playlist: ["normie"]),
-	(s: "c75b14cf-02d8-400c-871c-14ee2e8c6d8a", q: 2, playlist: ["aggressive"]),
+	(s: "c75b14cf-02d8-400c-871c-14ee2e8c6d8a", q: 3, playlist: ["aggressive", "charged"]),
 	(s: "ececb112-40a0-42c7-a915-5557d5085ed2", q: 1, playlist: []),
 	(s: "1b73f8dc-f7b7-4d0f-b625-2a94eef03672", q: 1, playlist: []),
 	(s: "e22a2dae-6774-4103-967b-adeaeb7b222e", q: 1, playlist: []),
