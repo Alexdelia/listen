@@ -472,4 +472,5 @@
 	(s: "d717f437-ea9e-4ba2-81bb-11bf708ddf88", q: 1, playlist: ["aggressive"]),
 	(s: "8f682227-f359-48fc-9ea8-0837b577896b", q: 2, playlist: []),
 	(s: "d0645956-b517-4422-a19f-ed4f9696a9f4", q: 3, playlist: ["charged", "aggressive"]),
+	(s: "9de7b10d-b7d3-454a-92c3-1b9a0d88292e", q: 3, playlist: ["calm"]),
 ]
