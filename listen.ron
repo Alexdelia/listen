@@ -31,7 +31,7 @@
 	(s: "a9d4b1a4-c403-483b-a5a0-7d298606fccb", q: 3, playlist: ["charged"]),
 	(s: "2e6a5f84-f560-4cdd-9b7b-67544afd73fa", q: 2, playlist: ["charged"]),
 	(s: "40ac3134-b7d2-4ff6-8a32-1dcdce245ac9", q: 3, playlist: ["charged", "normie"]),
-	(s: "42d3dec5-40dd-4ded-bee3-6f7e15a12cb4", q: 4, playlist: []),
+	(s: "42d3dec5-40dd-4ded-bee3-6f7e15a12cb4", q: 4, playlist: ["charged"]),
 	(s: "8174a087-a078-4102-808a-c44af0ebaefd", q: 4, playlist: []),
 	(s: "6d6589f0-a212-4a15-9358-46eb73ece930", q: 4, playlist: ["charged"]),
 	(s: "424eda5b-c95c-4fac-ac62-98f36761199d", q: 3, playlist: ["charged"]),
