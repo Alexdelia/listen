@@ -509,4 +509,5 @@
 	(s: "20640548-05bf-4a49-936d-6cae490fc110", q: 1, playlist: []),
 	(s: "fdba186a-4520-4193-b3ea-d9b828306e85", q: 2, playlist: []),
 	(s: "51052d89-ee79-4ee7-98ea-a62b9192af9b", q: 2, playlist: ["aggressive"]),
+	(s: "ea9f40ba-837a-4bf9-96a2-0639d98beb06", q: 1, playlist: ["normie"]),
 ]
