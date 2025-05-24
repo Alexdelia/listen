@@ -528,4 +528,16 @@
 	(s: "16507b99-e1d3-43bb-9c81-90b24ba2f183", q: 1, playlist: ["calm"]),
 	(s: "8515ec9e-2ff2-4a47-8010-bf4dd12f617c", q: 1, playlist: []),
 	(s: "abefa4f1-24b5-4395-b9b7-49a59e101964", q: 2, playlist: []),
+	(s: "d025646c-d699-456d-a4d8-a80a2c1a5bae", q: 0, playlist: []),
+	(s: "1f2c68ae-cff6-4c48-a91b-6384431ef101", q: 0, playlist: []),
+	(s: "c0d29841-b4aa-4938-ba7e-653f1829b3e3", q: 2, playlist: ["calm"]),
+	(s: "0c0e35cf-dac8-466c-8ade-896453eb60f4", q: 3, playlist: ["calm"]),
+	(s: "46ca9fb0-9cda-4158-b662-edd65caf972a", q: 0, playlist: []),
+	(s: "58162217-9457-4354-8698-9496f3267d6c", q: 1, playlist: ["calm"]),
+	(s: "875bc242-d785-4645-ae17-bf26f568b03d", q: 1, playlist: ["calm"]),
+	(s: "e6177504-f8ca-4dea-8648-90b1582d8366", q: 0, playlist: []),
+	(s: "a9ddc1f2-b53c-4f94-822a-da9f7dc7f38b", q: 1, playlist: ["calm"]),
+	// (s: "d6373799-7ba6-4235-9a73-882f0b88e9a1", q: 0, playlist: []), // more like ambient noise
+	(s: "bf706ddb-29c3-4db3-a3b1-c57df66891a5", q: 1, playlist: []),
+	(s: "f3512378-c043-4fbd-a757-ae77769e9651", q: 2, playlist: ["calm"]),
 ]
