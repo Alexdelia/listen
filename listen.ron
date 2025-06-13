@@ -611,5 +611,6 @@
 	(s: "c326be6c-efbd-45f3-8f4e-913e75ea959c", q: 0, playlist: []),
 	(s: "38b27632-eaa9-4598-bfd1-2a973636d09f", q: 1, playlist: []),
 	(s: "261b6b95-c497-4d36-b6bc-50ed70d2995f", q: 0, playlist: []),
-	(s: "129d7625-dcd8-4170-9046-27b765808852", q: 2, playlist: ["aggresive"]),
+	(s: "129d7625-dcd8-4170-9046-27b765808852", q: 2, playlist: ["aggresive", "charged"]),
+	(s: "5515a255-8a1f-4fcf-ba14-0a0dae9c329a", q: 3, playlist: ["charged"]),
 ]
