@@ -19,5 +19,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: check spelling of file.txt
+      - name: typos
         uses: crate-ci/typos@master
