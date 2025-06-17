@@ -624,4 +624,5 @@
 	(s: "0f0f4d5e-38fa-445a-a2bd-336b53e86d4f", q: 3, playlist: ["charged"]),
 	(s: "ffba8e38-fc7a-41ec-abcd-cb5fedc591bd", q: 3, playlist: ["calm"]),
 	(s: "8d35aba3-cb74-4b47-b4f2-1ffa675d9633", q: 1, playlist: []),
+	(s: "eda8396b-7981-47f3-a8a9-2874d6906c09", q: 1, playlist: ["calm"]),
 ]
