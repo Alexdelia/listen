@@ -18,7 +18,10 @@ pkgs.mkShell {
 
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
 
-  shellHook =
+  shellHook = let
+    run = "cargo run --release";
+    sync = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
+  in
     /*
     bash
     */
@@ -32,8 +35,10 @@ pkgs.mkShell {
       	printf "\n\n\t\033[1mplease edit the \033[35m.env\033[39m file\033[0m\n\n"
       fi
 
-      alias run='cargo run --release'
+      alias run='${run}'
 
-      alias sync='git add listen.ron && git commit -m "🎶" && git push -q && cargo run --release -q'
+      alias sync='${sync}'
+
+      alias add='$EDITOR listen.ron && ${sync}';
     '';
 }
