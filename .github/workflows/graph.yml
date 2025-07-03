@@ -8,16 +8,33 @@ env:
   COMMIT_MESSAGE: "📈 update `history.svg` - [Skip Github Action]"
 
 jobs:
+  should_run:
+    runs-on: ubuntu-latest
+    outputs:
+      run_job: ${{ steps.check_commit.outputs.run_job }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check last commit
+        id: check_commit
+        run: |
+          if [ "$(git log -1 --pretty=format:%s)" == "$COMMIT_MESSAGE" ]; then
+            echo "run_job=false" >> $GITHUB_OUTPUT
+          else
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          fi
+
   run:
     name: graph
+
+    needs: should_run
+    if: ${{ needs.should_run.outputs.run_job == 'true' }}
 
     runs-on: ubuntu-latest
 
     timeout-minutes: 2
-
-    # https://github.com/actions/runner/issues/1189
-    # if: ${{ github.event.head_commit.message != env.COMMIT_MESSAGE }}
-    if: "!contains(github.event.head_commit.message, '[Skip Github Action]')"
 
     permissions:
       contents: write
@@ -28,11 +45,6 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      # - name: setup python
-      #   uses: actions/setup-python@v5
-      #   with:
-      #     python-version: "3.x"
-      #     cache: "pip"
       - name: install dependencies
         run: pip install matplotlib
 
@@ -41,8 +53,8 @@ jobs:
 
       - name: commit
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
           git add history.svg
           git commit -m "${COMMIT_MESSAGE}"
           git push
