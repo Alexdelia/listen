@@ -647,4 +647,5 @@
 	(s: "3864c8dd-ee17-4fef-981b-6c86771b4151", q: 1, playlist: []),
 	(s: "3685fa8f-3957-4baf-a672-562595838966", q: 1, playlist: []),
 	(s: "6b3020ab-d160-41a5-9fd4-366834b8ac63", q: 0, playlist: []),
+	(s: "49b12c1a-a7a1-4f20-87f3-7e938d723930", q: 2, playlist: ["normie"]),
 ]
