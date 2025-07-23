@@ -604,7 +604,7 @@
 	(s: "c832691f-fe0c-448a-bf22-54e28335627e", q: 1, playlist: ["normie"]),
 	(s: "ee862a7f-5a0e-4d5e-884d-ae6879b43289", q: 3, playlist: []),
 	(s: "b71bb35e-78c6-4e48-8e14-bac3904fea02", q: 3, playlist: ["charged"]),
-	(s: "d7cbff91-b713-4611-96be-70ec55756d3c", q: 2, playlist: ["charged"]),
+	(s: "d7cbff91-b713-4611-96be-70ec55756d3c", q: 3, playlist: ["charged"]),
 	(s: "dfa9ec77-2eb1-4149-8427-739f5aa09f4b", q: 0, playlist: ["normie"]),
 	(s: "c0f89d6a-d740-4f91-b6e1-d5e8572268c1", q: 0, playlist: ["normie"]),
 	(s: "679b7b10-b29e-4700-87fa-37b8d46a48d5", q: 1, playlist: []),
