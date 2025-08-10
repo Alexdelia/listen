@@ -694,4 +694,5 @@
 	(s: "fb4b7d67-3b02-40b4-b8b3-c53024b31dff", q: 1, playlist: []),
 	// (s: "8c712e50-1822-4caf-9eb1-6d9cf6f8556f", q: 1, playlist: ["normie"]),
 	(s: "bc23c596-e68a-4ac3-ad45-a29ce0d678d1", q: 3, playlist: ["normie", "charged"]),
+	(s: "a24974c0-9da0-4f02-b59b-b209e81e2ede", q: 1, playlist: ["normie"]),
 ]
