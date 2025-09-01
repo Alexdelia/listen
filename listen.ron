@@ -691,7 +691,7 @@
 	(s: "9e1614b8-43e0-414f-adcc-65849f5c2fec", q: 1, playlist: []),
 	(s: "4e4aef62-d5bd-4b79-83ee-dfab71770e04", q: 1, playlist: ["aggressive"]),
 	(s: "fb4b7d67-3b02-40b4-b8b3-c53024b31dff", q: 1, playlist: []),
-	// (s: "8c712e50-1822-4caf-9eb1-6d9cf6f8556f", q: 1, playlist: ["normie"]),
+	(s: "8c712e50-1822-4caf-9eb1-6d9cf6f8556f", q: 1, playlist: ["normie"]),
 	(s: "bc23c596-e68a-4ac3-ad45-a29ce0d678d1", q: 3, playlist: ["normie", "charged"]),
 	(s: "a24974c0-9da0-4f02-b59b-b209e81e2ede", q: 1, playlist: ["normie"]),
 	(s: "af690e0d-9f74-4eaf-92c5-d654c5f0ecbc", q: 2, playlist: ["calm"]),
@@ -714,4 +714,5 @@
 	(s: "2e6b76d2-283b-47be-a31c-fda395e6d0a9", q: 0, playlist: ["aggressive"]),
 	(s: "9a339179-6d01-49ca-ac66-2e246fbd5323", q: 1, playlist: ["normie"]),
 	(s: "c52c2b90-8b0f-4834-9cb9-bc9e5cdd3930", q: 1, playlist: []),
+	(s: "7c0ed007-5118-4086-917a-fd9cfb0d338e", q: 1, playlist: ["normie"]),
 ]
