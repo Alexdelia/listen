@@ -19,11 +19,11 @@ pkgs.mkShell {
     ++ (
       let
         run = "cargo run --release";
-        sync = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
+        push = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
       in [
         (pkgs.writers.writeBashBin "run" {} "${run}")
-        (pkgs.writers.writeBashBin "sync" {} "${sync}")
-        (pkgs.writers.writeBashBin "add" {} "$EDITOR listen.ron && ${sync}")
+        (pkgs.writers.writeBashBin "push" {} "${push}")
+        (pkgs.writers.writeBashBin "add" {} "$EDITOR listen.ron && ${push}")
       ]
     );
 
