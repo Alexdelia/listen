@@ -15,8 +15,8 @@ where
 	match ron::from_str::<Vec<Entry>>(&content) {
 		Ok(list) => Ok(list),
 		Err(e) => {
-			let index = e.position.line - 1;
-			let col = e.position.col - 1;
+			let index = e.span.start.line - 1;
+			let col = e.span.start.col - 1;
 			let line = content
 				.lines()
 				.nth(index)
