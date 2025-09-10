@@ -99,15 +99,15 @@ with timer(os.path.basename(__file__)):
         plt.xlim(min_x, max_x)
         plt.ylim(min_y, max_y + 1)
 
-        min_x_edge = min_x.replace(tzinfo=None) + timedelta(days=5)
-        max_x_edge = max_x.replace(tzinfo=None) - timedelta(days=5)
+        min_x_edge = min_x.replace(tzinfo=None) + timedelta(days=15)
+        max_x_edge = max_x.replace(tzinfo=None) - timedelta(days=15)
         xticks = []
         for tick in plt.gca().get_xticks():
             tick = num2date(tick).replace(tzinfo=None)
             if tick > min_x_edge and tick < max_x_edge:
                 xticks.append(tick)
         plt.xticks([min_x] + xticks + [max_x])
-        plt.yticks([tick for tick in plt.gca().get_yticks() if tick < max_y] + [max_y])
+        plt.yticks([tick for tick in plt.gca().get_yticks() if tick < max_y - 33] + [max_y])
 
         plt.gca().xaxis.set_label_coords(-0.05, 0.5)
         plt.gca().yaxis.tick_right()
