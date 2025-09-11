@@ -72,7 +72,8 @@ where
 		.args([
 			"--hide-progress",
 			"--client-id",
-			&env::get(env::Var::SoundcloudClientId).expect("SOUNDCLOUD_CLIENT_ID not set"),
+			&env::get(env::Var::SoundcloudClientId)
+				.expect(format!("{} not set", env::Var::SoundcloudClientId.key())),
 			"--onlymp3",
 			"--extract-artist",
 			"--path",
