@@ -767,5 +767,6 @@
 	(s: "97e29626-005d-4a01-8388-0eecadca7964", q: 2, playlist: ["charged"]),
 	(s: "77ca4ac1-8f3d-4eee-88d2-06a1a6bf5915", q: 2, playlist: []),
 	(s: "be071f17-e4ed-4a7e-a8f1-30faa5e440dd", q: 1, playlist: []),
-	(s: "e7aeb938-e93e-48f2-bbb4-0c0a1fd1f882", q: 1, playlist: ["charged"])
+	(s: "e7aeb938-e93e-48f2-bbb4-0c0a1fd1f882", q: 1, playlist: ["charged"]),
+	(s: "f19ade50-f9eb-4beb-8471-b08d487a0034", q: 2, playlist: []),
 ]
