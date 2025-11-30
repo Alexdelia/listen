@@ -32,7 +32,7 @@ fn fs() -> hmerr::Result<HashSet<Source>> {
 		let entry = entry.map_err(|e| ioe!(Entry::OUTPUT_DIR, e))?;
 
 		let path = entry.path();
-		if !path.is_file() {
+		if !path.is_file() || path.extension().map(|ext| ext.to_str()) != Some(Some(Entry::EXT)) {
 			continue;
 		}
 
