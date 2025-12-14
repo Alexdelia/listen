@@ -175,8 +175,8 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 		tag.set_title(title);
 	}
 
-	if let Some(artist_credit) = artist_credit {
-		if !artist_credit.is_empty() {
+	if let Some(artist_credit) = artist_credit
+		&& !artist_credit.is_empty() {
 			let artists = artist_credit
 				.iter()
 				.map(|ac| ac.artist.name.as_str())
@@ -185,7 +185,6 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 
 			tag.set_artist(artists);
 		};
-	}
 
 	let mut all_tags = HashSet::new();
 
