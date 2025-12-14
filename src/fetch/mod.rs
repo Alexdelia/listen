@@ -8,9 +8,9 @@ use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
 use id3::{Tag, TagLike};
-use musicbrainz_rs_nova::{
+use musicbrainz_rs::{
 	entity::{recording::Recording, relations::RelationContent},
-	Fetch,
+	Fetch, MusicBrainzClient,
 };
 
 use streaming_source::StreamingSource;
@@ -20,7 +20,12 @@ use crate::entry::Entry;
 use crate::MUSIC_BRAINZ_USER_AGENT;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
-	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
+	let mut client = MusicBrainzClient::default();
+	client
+		.set_user_agent(MUSIC_BRAINZ_USER_AGENT)
+		.unwrap_or_else(|e| {
+			panic!("failed to set MusicBrainz user agent to {MUSIC_BRAINZ_USER_AGENT}: {e}")
+		});
 
 	let mut handles = vec![];
 
@@ -31,7 +36,7 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 			.with_genres()
 			.with_tags()
 			.with_url_relations()
-			.execute()
+			.execute_with_client(&client)
 			.await;
 
 		let Ok(recording) = res else {

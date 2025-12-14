@@ -1,7 +1,7 @@
 use std::{path::Path, process::Command};
 
 use hmerr::ioe;
-use musicbrainz_rs_nova::entity::url::Url;
+use musicbrainz_rs::entity::url::Url;
 
 use crate::{entry::Entry, env};
 
