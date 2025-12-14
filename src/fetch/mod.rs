@@ -9,15 +9,15 @@ use ansi::abbrev::{B, D, R, Y};
 use async_std::{channel::Sender, task};
 use id3::{Tag, TagLike};
 use musicbrainz_rs::{
-	entity::{recording::Recording, relations::RelationContent},
 	Fetch, MusicBrainzClient,
+	entity::{recording::Recording, relations::RelationContent},
 };
 
 use streaming_source::StreamingSource;
 
+use crate::MUSIC_BRAINZ_USER_AGENT;
 use crate::channel::{Action, Status};
 use crate::entry::Entry;
-use crate::MUSIC_BRAINZ_USER_AGENT;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 	let mut client = MusicBrainzClient::default();
@@ -176,15 +176,16 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 	}
 
 	if let Some(artist_credit) = artist_credit
-		&& !artist_credit.is_empty() {
-			let artists = artist_credit
-				.iter()
-				.map(|ac| ac.artist.name.as_str())
-				.collect::<Vec<_>>()
-				.join(" & ");
+		&& !artist_credit.is_empty()
+	{
+		let artists = artist_credit
+			.iter()
+			.map(|ac| ac.artist.name.as_str())
+			.collect::<Vec<_>>()
+			.join(" & ");
 
-			tag.set_artist(artists);
-		};
+		tag.set_artist(artists);
+	};
 
 	let mut all_tags = HashSet::new();
 

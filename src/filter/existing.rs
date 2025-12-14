@@ -6,7 +6,7 @@ use std::{
 use hmerr::ioe;
 
 use crate::{
-	entry::{Entry, Source, Q},
+	entry::{Entry, Q, Source},
 	playlist,
 };
 

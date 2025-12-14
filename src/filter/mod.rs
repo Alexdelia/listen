@@ -8,7 +8,7 @@ use std::{collections::HashMap, fs};
 use hmerr::ioe;
 
 use crate::{
-	entry::{Entry, Source, Q},
+	entry::{Entry, Q, Source},
 	playlist,
 };
 

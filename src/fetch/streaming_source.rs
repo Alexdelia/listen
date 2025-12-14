@@ -135,17 +135,19 @@ where
 			path.as_ref().to_string_lossy().as_ref(),
 			url,
 		])
-		.output() {
-			Ok(output) => {
-				if output.status.success() {
-					return Ok(());
-				}
+		.output()
+	{
+		Ok(output) => {
+			if output.status.success() {
+				return Ok(());
+			}
 
-				Err(format!(
-					"failed to download {url}\n{e}",
-					e = String::from_utf8_lossy(&output.stderr)
-				).into())
-			},
+			Err(format!(
+				"failed to download {url}\n{e}",
+				e = String::from_utf8_lossy(&output.stderr)
+			)
+			.into())
+		}
 		Err(e) => Err(ioe!(
 			format!(
 				"failed to execute {}",
@@ -154,5 +156,5 @@ where
 			e,
 		)
 		.into()),
-		}
+	}
 }
