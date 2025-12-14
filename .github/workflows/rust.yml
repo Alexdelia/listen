@@ -5,7 +5,6 @@ on:
     branches: ["main"]
     paths: ["!listen.ron"]
   pull_request:
-    paths: ["!listen.ron"]
 
 env:
   CARGO_TERM_COLOR: always
