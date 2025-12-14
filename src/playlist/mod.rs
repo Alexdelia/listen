@@ -7,7 +7,7 @@ use std::{
 
 use hmerr::se;
 
-use crate::entry::{Source, Q};
+use crate::entry::{Q, Source};
 
 pub const OUTPUT_DIR: &str = "./output/playlist";
 

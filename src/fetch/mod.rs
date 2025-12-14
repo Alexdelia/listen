@@ -8,19 +8,24 @@ use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
 use id3::{Tag, TagLike};
-use musicbrainz_rs_nova::{
+use musicbrainz_rs::{
+	Fetch, MusicBrainzClient,
 	entity::{recording::Recording, relations::RelationContent},
-	Fetch,
 };
 
 use streaming_source::StreamingSource;
 
+use crate::MUSIC_BRAINZ_USER_AGENT;
 use crate::channel::{Action, Status};
 use crate::entry::Entry;
-use crate::MUSIC_BRAINZ_USER_AGENT;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
-	musicbrainz_rs_nova::config::set_user_agent(MUSIC_BRAINZ_USER_AGENT);
+	let mut client = MusicBrainzClient::default();
+	client
+		.set_user_agent(MUSIC_BRAINZ_USER_AGENT)
+		.unwrap_or_else(|e| {
+			panic!("failed to set MusicBrainz user agent to {MUSIC_BRAINZ_USER_AGENT}: {e}")
+		});
 
 	let mut handles = vec![];
 
@@ -31,7 +36,7 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 			.with_genres()
 			.with_tags()
 			.with_url_relations()
-			.execute()
+			.execute_with_client(&client)
 			.await;
 
 		let Ok(recording) = res else {
@@ -170,17 +175,17 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 		tag.set_title(title);
 	}
 
-	if let Some(artist_credit) = artist_credit {
-		if !artist_credit.is_empty() {
-			let artists = artist_credit
-				.iter()
-				.map(|ac| ac.artist.name.as_str())
-				.collect::<Vec<_>>()
-				.join(" & ");
+	if let Some(artist_credit) = artist_credit
+		&& !artist_credit.is_empty()
+	{
+		let artists = artist_credit
+			.iter()
+			.map(|ac| ac.artist.name.as_str())
+			.collect::<Vec<_>>()
+			.join(" & ");
 
-			tag.set_artist(artists);
-		};
-	}
+		tag.set_artist(artists);
+	};
 
 	let mut all_tags = HashSet::new();
 

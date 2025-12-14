@@ -1,7 +1,7 @@
 use std::{path::Path, process::Command};
 
 use hmerr::ioe;
-use musicbrainz_rs_nova::entity::url::Url;
+use musicbrainz_rs::entity::url::Url;
 
 use crate::{entry::Entry, env};
 
@@ -72,8 +72,12 @@ where
 		.args([
 			"--hide-progress",
 			"--client-id",
-			&env::get(env::Var::SoundcloudClientId)
-				.expect(&format!("{} not set", env::Var::SoundcloudClientId.key())),
+			&env::get(env::Var::SoundcloudClientId).unwrap_or_else(|e| {
+				panic!(
+					"{key} not set ({e})",
+					key = env::Var::SoundcloudClientId.key()
+				)
+			}),
 			"--onlymp3",
 			"--extract-artist",
 			"--path",
@@ -131,17 +135,19 @@ where
 			path.as_ref().to_string_lossy().as_ref(),
 			url,
 		])
-		.output() {
-			Ok(output) => {
-				if output.status.success() {
-					return Ok(());
-				}
+		.output()
+	{
+		Ok(output) => {
+			if output.status.success() {
+				return Ok(());
+			}
 
-				Err(format!(
-					"failed to download {url}\n{e}",
-					e = String::from_utf8_lossy(&output.stderr)
-				).into())
-			},
+			Err(format!(
+				"failed to download {url}\n{e}",
+				e = String::from_utf8_lossy(&output.stderr)
+			)
+			.into())
+		}
 		Err(e) => Err(ioe!(
 			format!(
 				"failed to execute {}",
@@ -150,5 +156,5 @@ where
 			e,
 		)
 		.into()),
-		}
+	}
 }

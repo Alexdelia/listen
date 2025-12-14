@@ -1,7 +1,7 @@
 [package]
 name = "fl"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["adelille <alexandre.delille.57@gmail.com>"]
 description = "fetch declared listens and organize them"
 
@@ -23,5 +23,5 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.18"
-musicbrainz_rs_nova = "0.8"
+musicbrainz_rs = "0.12"
 id3 = "1"

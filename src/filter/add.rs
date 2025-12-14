@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::entry::{Entry, Source, Q};
+use crate::entry::{Entry, Q, Source};
 
 use super::SyncEntry;
 
@@ -18,11 +18,11 @@ pub fn q(
 	entry: &Entry,
 ) {
 	for q in 0..=entry.q {
-		if let Some(q) = existing.get_mut(&q) {
-			if q.contains(&entry.s) {
-				q.remove(&entry.s);
-				continue;
-			}
+		if let Some(q) = existing.get_mut(&q)
+			&& q.contains(&entry.s)
+		{
+			q.remove(&entry.s);
+			continue;
 		}
 
 		if add.get(&q).is_none() {
@@ -39,11 +39,11 @@ pub fn playlist(
 	entry: &Entry,
 ) {
 	for playlist in &entry.playlist {
-		if let Some(set) = existing.get_mut(playlist) {
-			if set.contains(&entry.s) {
-				set.remove(&entry.s);
-				continue;
-			}
+		if let Some(set) = existing.get_mut(playlist)
+			&& set.contains(&entry.s)
+		{
+			set.remove(&entry.s);
+			continue;
 		}
 
 		if add.get(playlist).is_none() {
