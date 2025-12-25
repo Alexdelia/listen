@@ -107,7 +107,9 @@ with timer(os.path.basename(__file__)):
             if tick > min_x_edge and tick < max_x_edge:
                 xticks.append(tick)
         plt.xticks([min_x] + xticks + [max_x])
-        plt.yticks([tick for tick in plt.gca().get_yticks() if tick < max_y - 33] + [max_y])
+        plt.yticks(
+            [tick for tick in plt.gca().get_yticks() if tick < max_y - 33] + [max_y]
+        )
 
         plt.gca().xaxis.set_label_coords(-0.05, 0.5)
         plt.gca().yaxis.tick_right()
