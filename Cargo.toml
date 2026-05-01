@@ -23,5 +23,5 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.18"
-musicbrainz_rs = "0.12"
+musicbrainz_rs = "0.13"
 id3 = "1"
