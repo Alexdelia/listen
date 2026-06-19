@@ -822,4 +822,5 @@
 	(s: "8430b1ce-2a47-4cb8-9b65-e02b5b2949bd", q: 0, playlist: ["normie"]),
 	(s: "a41010d4-732f-4c94-be09-52083bcac49f", q: 1, playlist: []),
 	(s: "31c66cd0-afa9-425e-89ae-c7e7615e8ade", q: 2, playlist: ["aggressive"]),
+	(s: "f0ee68bc-773d-4ffe-9815-f2450bbeb051", q: 1, playlist: ["normie"]),
 ]
