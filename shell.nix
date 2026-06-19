@@ -2,6 +2,8 @@
 pkgs.mkShell {
   buildInputs = with pkgs;
     [
+      git
+
       openssl
       pkg-config
       rust-bin.stable.latest.default
@@ -27,13 +29,15 @@ pkgs.mkShell {
       ]
     );
 
-  LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
+  # LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
 
   shellHook =
     /*
     bash
     */
     ''
+      unset LD_LIBRARY_PATH
+
       git pull
 
       # export PATH="$HOME/.cargo/bin:$PATH"
