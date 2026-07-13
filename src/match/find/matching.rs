@@ -1,5 +1,5 @@
+use super::super::verify::Info;
 use super::text::normalize_title;
-use super::verify::Info;
 
 const DURATION_TOLERANCE_SEC: i64 = 1;
 

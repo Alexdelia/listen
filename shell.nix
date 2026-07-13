@@ -17,6 +17,8 @@ pkgs.mkShell {
       ffmpeg
       scdl
       yt-dlp
+      wl-clipboard
+      xdg-utils
     ]
     ++ (
       let

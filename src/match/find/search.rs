@@ -2,12 +2,15 @@ use std::process::Command;
 
 use ansi::abbrev::{B, D, R};
 
-use super::{MAX_CANDIDATE, push_unique};
+use crate::fetch::streaming_source::StreamingSource;
 
-const SEARCH_BASE: &str = "https://music.youtube.com/search";
-// opaque YouTube Music url param selecting the "Songs" tab (never "Videos")
+use super::push_unique;
+
+// opaque music.youtube.com url param selecting the "Songs" tab (never "Videos")
 const SONGS_FILTER: &str = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D";
-const RESULT_PER_QUERY: usize = 5;
+
+const RESULT_PER_QUERY: usize = 4;
+const MAX_CANDIDATE: usize = 8;
 
 pub(super) fn search(query: &[String]) -> hmerr::Result<Vec<String>> {
 	let mut id = Vec::new();
@@ -28,7 +31,8 @@ pub(super) fn search(query: &[String]) -> hmerr::Result<Vec<String>> {
 
 fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
 	let url = format!(
-		"{SEARCH_BASE}?q={q}&sp={SONGS_FILTER}",
+		"{base_url}/search?q={q}&sp={SONGS_FILTER}",
+		base_url = StreamingSource::YouTubeMusic.base_url(),
 		q = percent_encode(query)
 	);
 	let end = RESULT_PER_QUERY.to_string();

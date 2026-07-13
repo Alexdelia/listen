@@ -2,8 +2,18 @@ use std::process::Command;
 
 use ansi::abbrev::{B, D, R};
 
-use super::WATCH_BASE;
+use crate::fetch::streaming_source::StreamingSource;
 
+const YT_DLP_ABSENT_FIELD: &str = "NA";
+
+pub(super) fn watch(id: &str) -> String {
+	format!(
+		"{base_url}/watch?v={id}",
+		base_url = StreamingSource::YouTubeMusic.base_url()
+	)
+}
+
+// a "Song" has track/artist; a "Video" reports NA for both
 pub(super) struct Info {
 	pub(super) track: Option<String>,
 	pub(super) artist: Option<String>,
@@ -18,15 +28,13 @@ impl Info {
 }
 
 pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
-	let url = format!("{WATCH_BASE}{id}");
-
 	let output = Command::new("yt-dlp")
 		.args([
 			"--skip-download",
 			"--no-warnings",
 			"--print",
 			"%(track,title)s\t%(artist)s\t%(duration)s\t%(album)s",
-			&url,
+			&watch(id),
 		])
 		.output()
 		.map_err(|e| format!("{R}failed to execute {B}yt-dlp{D}\n{e}"))?;
@@ -53,5 +61,5 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 fn none_if_na(s: &str) -> Option<String> {
 	let s = s.trim();
 
-	(!s.is_empty() && s != "NA").then(|| s.to_string())
+	(!s.is_empty() && s != YT_DLP_ABSENT_FIELD).then(|| s.to_string())
 }

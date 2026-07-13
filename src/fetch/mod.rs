@@ -1,4 +1,4 @@
-mod streaming_source;
+pub(crate) mod streaming_source;
 
 use std::borrow::Borrow;
 use std::collections::HashSet;

@@ -12,12 +12,16 @@ pub enum StreamingSource {
 }
 
 impl StreamingSource {
-	pub fn base_url(&self) -> &'static str {
+	pub fn host(&self) -> &'static str {
 		match self {
-			Self::SoundCloud => "https://soundcloud.com",
-			Self::YouTube => "https://www.youtube.com",
-			Self::YouTubeMusic => "https://music.youtube.com",
+			Self::SoundCloud => "soundcloud.com",
+			Self::YouTube => "www.youtube.com",
+			Self::YouTubeMusic => "music.youtube.com",
 		}
+	}
+
+	pub fn base_url(&self) -> String {
+		format!("https://{host}", host = self.host())
 	}
 
 	fn downloader(&self) -> &'static str {
@@ -53,9 +57,13 @@ impl TryFrom<&Url> for StreamingSource {
 
 	fn try_from(url: &Url) -> Result<Self, Self::Error> {
 		match &url.resource {
-			resource if resource.starts_with(Self::SoundCloud.base_url()) => Ok(Self::SoundCloud),
-			resource if resource.starts_with(Self::YouTube.base_url()) => Ok(Self::YouTube),
-			resource if resource.starts_with(Self::YouTubeMusic.base_url()) => {
+			resource if resource.starts_with(Self::SoundCloud.base_url().as_str()) => {
+				Ok(Self::SoundCloud)
+			}
+			resource if resource.starts_with(Self::YouTube.base_url().as_str()) => {
+				Ok(Self::YouTube)
+			}
+			resource if resource.starts_with(Self::YouTubeMusic.base_url().as_str()) => {
 				Ok(Self::YouTubeMusic)
 			}
 			_ => Err("unsupported streaming source"),

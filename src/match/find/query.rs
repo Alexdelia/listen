@@ -1,5 +1,4 @@
-use super::push_unique;
-use super::text::is_latin;
+use super::{push_unique, text::is_latin};
 
 const MAX_QUERY: usize = 5;
 

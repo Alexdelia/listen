@@ -3,8 +3,10 @@ use musicbrainz_rs::{
 	entity::{alias::Alias, artist::Artist, artist_credit::ArtistCredit, recording::Recording},
 };
 
-use super::push_unique;
-use super::text::{normalize_title, romanize};
+use super::{
+	push_unique,
+	text::{normalize_title, romanize},
+};
 
 pub(super) fn title(recording: &Recording, title: &str) -> Vec<String> {
 	with_romaji(std::iter::once(title.to_string()).chain(alias_name(&recording.aliases)))
