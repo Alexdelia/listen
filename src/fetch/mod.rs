@@ -20,12 +20,7 @@ use crate::channel::{Action, Status};
 use crate::entry::Entry;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
-	let mut client = MusicBrainzClient::default();
-	client
-		.set_user_agent(MUSIC_BRAINZ_USER_AGENT)
-		.unwrap_or_else(|e| {
-			panic!("failed to set MusicBrainz user agent to {MUSIC_BRAINZ_USER_AGENT}: {e}")
-		});
+	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
 
 	let mut handles = vec![];
 
@@ -36,7 +31,7 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 			.with_genres()
 			.with_tags()
 			.with_url_relations()
-			.execute_with_client(&client)
+			.execute_with_client_async(&client)
 			.await;
 
 		let Ok(recording) = res else {
