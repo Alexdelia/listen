@@ -3,6 +3,7 @@ mod entry;
 mod env;
 mod fetch;
 mod filter;
+mod r#match;
 mod parse;
 mod playlist;
 mod remove;
@@ -22,10 +23,23 @@ use indicatif::{MultiProgress, ProgressStyle};
 
 #[derive(Parser)]
 #[command(about)]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
+	#[command(subcommand)]
+	command: Option<Command>,
+
 	/// path to the ron file where the listens are declared
 	#[clap(default_value = "listen.ron")]
 	path: PathBuf,
+}
+
+#[derive(clap::Subcommand)]
+enum Command {
+	/// find the exact YouTube Music match for a MusicBrainz recording
+	Match {
+		/// MusicBrainz recording MBID
+		mbid: String,
+	},
 }
 
 const MUSIC_BRAINZ_USER_AGENT: &str =
@@ -33,6 +47,10 @@ const MUSIC_BRAINZ_USER_AGENT: &str =
 
 fn main() -> hmerr::Result<()> {
 	let args = Args::parse();
+
+	if let Some(Command::Match { mbid }) = args.command {
+		return block_on(r#match::run(&mbid));
+	}
 
 	env::load()?;
 

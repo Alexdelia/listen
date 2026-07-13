@@ -29,3 +29,4 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 	"rustls",
 ] }
 id3 = "1"
+wana_kana = { version = "5", default-features = false }
