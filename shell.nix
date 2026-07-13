@@ -24,6 +24,7 @@ pkgs.mkShell {
         push = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
       in [
         (pkgs.writers.writeBashBin "run" {} "${run}")
+        (pkgs.writers.writeBashBin "match" {} "${run} match $@")
         (pkgs.writers.writeBashBin "push" {} "${push}")
         (pkgs.writers.writeBashBin "add" {} "$EDITOR listen.ron && ${push}")
       ]
