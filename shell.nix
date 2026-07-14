@@ -25,7 +25,7 @@ pkgs.mkShell {
         run = "cargo run --release";
         push = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
       in [
-        (pkgs.writers.writeBashBin "run" {} "${run}")
+        (pkgs.writers.writeBashBin "run" {} "${run} $@")
         (pkgs.writers.writeBashBin "match" {} "${run} match $@")
         (pkgs.writers.writeBashBin "outlier" {} "${run} outlier $@")
         (pkgs.writers.writeBashBin "push" {} "${push}")
