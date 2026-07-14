@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use ansi::abbrev::{B, D, R};
+use ansi::abbrev::R;
 use hmerr::{ge, ioe};
 
 use super::super::fetch::ListenCount;
@@ -16,14 +16,8 @@ pub(in crate::outlier) fn read(username: &str) -> hmerr::Result<Option<ListenCou
 	}
 
 	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	let listen = serde_json::from_str(&content).map_err(|e| {
-		ge!(format!(
-			"{R}failed to parse cache {B}{path}{D}\n{e}",
-			path = path.to_string_lossy(),
-		))
-	})?;
 
-	Ok(Some(listen))
+	Ok(serde_json::from_str(&content).ok())
 }
 
 pub(in crate::outlier) fn write(username: &str, listen: &ListenCount) -> hmerr::Result<()> {

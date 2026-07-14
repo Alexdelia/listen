@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::{
+	cmp::{Ordering, Reverse},
+	collections::{BTreeMap, HashSet},
+};
 
 use crate::entry::{Entry, Q, Source};
 
@@ -7,6 +10,7 @@ use super::{age::Age, fetch::ListenCount};
 pub(super) struct Analysis {
 	pub median: BTreeMap<Q, f64>,
 	pub outlier: Vec<Record>,
+	pub undeclared: Vec<Undeclared>,
 	pub matched: usize,
 	pub declared: usize,
 }
@@ -20,21 +24,30 @@ pub(super) struct Record {
 	pub rate: f64,
 }
 
+pub(super) struct Undeclared {
+	pub mbid: Source,
+	pub listen: u32,
+	pub track: String,
+	pub artist: String,
+}
+
 pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analysis {
 	let observation = list
 		.iter()
 		.map(|entry| {
-			let listen = listen.get(&entry.s).copied().unwrap_or(0);
+			let count = listen.get(&entry.s).map_or(0, |l| l.count);
 			let days = age.get(&entry.s).copied().unwrap_or(0);
 
-			(entry, listen, days, rate(listen, days))
+			(entry, count, days, rate(count, days))
 		})
 		.collect::<Vec<_>>();
 
 	let matched = observation
 		.iter()
-		.filter(|(_, listen, ..)| *listen > 0)
+		.filter(|(_, count, ..)| *count > 0)
 		.count();
+
+	let undeclared = undeclared(list, listen);
 
 	let median = median_per_q(&observation);
 
@@ -64,9 +77,29 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analys
 	Analysis {
 		median,
 		outlier,
+		undeclared,
 		matched,
 		declared: list.len(),
 	}
+}
+
+fn undeclared(list: &[Entry], listen: &ListenCount) -> Vec<Undeclared> {
+	let declared = list.iter().map(|entry| &entry.s).collect::<HashSet<_>>();
+
+	let mut undeclared = listen
+		.iter()
+		.filter(|(mbid, _)| !declared.contains(mbid))
+		.map(|(mbid, l)| Undeclared {
+			mbid: mbid.clone(),
+			listen: l.count,
+			track: l.track.clone(),
+			artist: l.artist.clone(),
+		})
+		.collect::<Vec<_>>();
+
+	undeclared.sort_by_key(|undeclared| Reverse(undeclared.listen));
+
+	undeclared
 }
 
 #[allow(
@@ -115,6 +148,8 @@ fn cmp_rate(a: f64, b: f64) -> Ordering {
 mod tests {
 	use super::*;
 
+	use crate::outlier::fetch::Listen;
+
 	fn entry(s: &str, q: Q) -> Entry {
 		Entry {
 			s: s.to_string(),
@@ -123,9 +158,17 @@ mod tests {
 		}
 	}
 
+	fn listen(count: u32) -> Listen {
+		Listen {
+			count,
+			track: String::new(),
+			artist: String::new(),
+		}
+	}
+
 	#[test]
 	fn overrated_and_underrated() {
-		let listen = [
+		let sample = [
 			("low-a", 1, 1),
 			("low-b", 1, 2),
 			("low-outlier", 1, 100),
@@ -134,15 +177,15 @@ mod tests {
 			("high-outlier", 4, 1),
 		];
 
-		let list = listen
+		let list = sample
 			.iter()
 			.map(|(s, q, _)| entry(s, *q))
 			.collect::<Vec<_>>();
-		let count = listen
+		let count = sample
 			.iter()
-			.map(|(s, _, c)| ((*s).to_string(), *c))
+			.map(|(s, _, c)| ((*s).to_string(), listen(*c)))
 			.collect::<ListenCount>();
-		let age = listen
+		let age = sample
 			.iter()
 			.map(|(s, _, _)| ((*s).to_string(), 1))
 			.collect::<Age>();

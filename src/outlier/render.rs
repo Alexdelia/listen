@@ -5,7 +5,7 @@ use ansi::{
 
 use crate::color;
 
-use super::analyze::{Analysis, Record};
+use super::analyze::{Analysis, Record, Undeclared};
 use super::meta;
 
 pub(super) fn render(analysis: &Analysis) {
@@ -29,11 +29,22 @@ pub(super) fn render(analysis: &Analysis) {
 	);
 	if analysis.outlier.is_empty() {
 		println!("none");
-		return;
+	} else {
+		for record in &analysis.outlier {
+			line(record);
+		}
 	}
 
-	for record in &analysis.outlier {
-		line(record);
+	println!(
+		"\n{B}{M}{count}{D} {M}listen not in file{D}",
+		count = analysis.undeclared.len()
+	);
+	if analysis.undeclared.is_empty() {
+		println!("none");
+	} else {
+		for undeclared in &analysis.undeclared {
+			undeclared_line(undeclared);
+		}
 	}
 }
 
@@ -59,5 +70,14 @@ fn line(record: &Record) {
 		rate = record.rate,
 		mbid = record.mbid,
 		label = meta::label(&record.mbid),
+	);
+}
+
+fn undeclared_line(undeclared: &Undeclared) {
+	println!(
+		"{B}{listen:>4}{D} {DIM}{mbid}{D} {label}",
+		listen = undeclared.listen,
+		mbid = undeclared.mbid,
+		label = meta::join(&undeclared.track, &undeclared.artist),
 	);
 }

@@ -7,8 +7,15 @@ pub(super) fn label(mbid: &str) -> String {
 		return String::new();
 	};
 
-	let title = tag.title().unwrap_or_default().trim();
-	let artist = tag.artist().unwrap_or_default().trim();
+	join(
+		tag.title().unwrap_or_default(),
+		tag.artist().unwrap_or_default(),
+	)
+}
+
+pub(super) fn join(title: &str, artist: &str) -> String {
+	let title = title.trim();
+	let artist = artist.trim();
 
 	match (title.is_empty(), artist.is_empty()) {
 		(true, true) => String::new(),
