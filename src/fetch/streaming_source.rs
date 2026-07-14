@@ -27,8 +27,7 @@ impl StreamingSource {
 	fn downloader(&self) -> &'static str {
 		match self {
 			Self::SoundCloud => "scdl",
-			Self::YouTube => "yt-dlp",
-			Self::YouTubeMusic => "yt-dlp",
+			Self::YouTube | Self::YouTubeMusic => "yt-dlp",
 		}
 	}
 
@@ -38,8 +37,7 @@ impl StreamingSource {
 	{
 		match self {
 			Self::SoundCloud => soundcloud(url, path),
-			Self::YouTube => youtube(url, path),
-			Self::YouTubeMusic => youtube(url, path),
+			Self::YouTube | Self::YouTubeMusic => youtube(url, path),
 		}
 	}
 

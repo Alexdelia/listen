@@ -3,12 +3,13 @@ use hmerr::{ge, ioe};
 
 const DOTENV_FILE: &str = ".env";
 
+#[derive(Clone, Copy)]
 pub enum Var {
 	SoundcloudClientId,
 }
 
 impl Var {
-	pub fn key(&self) -> &'static str {
+	pub fn key(self) -> &'static str {
 		match self {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
 		}
