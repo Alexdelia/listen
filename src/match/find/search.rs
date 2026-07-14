@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use ansi::abbrev::{B, D, R};
+use hmerr::ge;
 
 use crate::fetch::streaming_source::StreamingSource;
 
@@ -48,13 +49,13 @@ fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
 			&url,
 		])
 		.output()
-		.map_err(|e| format!("{R}failed to execute {B}yt-dlp{D}\n{e}"))?;
+		.map_err(|e| ge!(format!("{R}failed to execute {B}yt-dlp{D}\n{e}")))?;
 
 	if !output.status.success() {
-		return Err(format!(
+		return Err(ge!(format!(
 			"{R}yt-dlp failed to search {B}{query}{D}\n{e}",
 			e = String::from_utf8_lossy(&output.stderr),
-		)
+		))
 		.into());
 	}
 

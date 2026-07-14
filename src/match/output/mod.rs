@@ -3,7 +3,7 @@ mod clipboard;
 use std::{fs, path::Path};
 
 use ansi::abbrev::{B, D, R};
-use hmerr::ioe;
+use hmerr::{ge, ioe};
 
 use super::{duration, open, verify::Info};
 
@@ -28,10 +28,10 @@ pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
 	let Some(close) = content.rfind(LIST_CLOSE) else {
-		return Err(format!(
+		return Err(ge!(format!(
 			"{R}cannot append entry: {B}{path}{D} has no closing {B}{LIST_CLOSE}{D}",
 			path = path.display(),
-		)
+		))
 		.into());
 	};
 

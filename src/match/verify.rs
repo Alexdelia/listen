@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use ansi::abbrev::{B, D, R};
+use hmerr::ge;
 
 use crate::fetch::streaming_source::StreamingSource;
 
@@ -37,7 +38,7 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 			&watch(id),
 		])
 		.output()
-		.map_err(|e| format!("{R}failed to execute {B}yt-dlp{D}\n{e}"))?;
+		.map_err(|e| ge!(format!("{R}failed to execute {B}yt-dlp{D}\n{e}")))?;
 
 	if !output.status.success() {
 		return Ok(None);

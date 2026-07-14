@@ -11,6 +11,7 @@ mod verify;
 use std::path::Path;
 
 use ansi::abbrev::{B, D, R};
+use hmerr::ge;
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
 use crate::MUSIC_BRAINZ_USER_AGENT;
@@ -25,17 +26,17 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 		.with_url_relations()
 		.execute_with_client_async(&client)
 		.await
-		.map_err(|e| format!("{R}failed to fetch recording {B}{mbid}{D}\n{e:#?}"))?;
+		.map_err(|e| ge!(format!("{R}failed to fetch recording {B}{mbid}{D}\n{e:#?}")))?;
 
 	let title = recording.title.trim().to_string();
 	if title.is_empty() {
-		return Err(format!("{R}recording {B}{mbid}{D} has no title").into());
+		return Err(ge!(format!("{R}recording {B}{mbid}{D} has no title")).into());
 	}
 
 	let Some(length) = recording.length else {
-		return Err(format!(
+		return Err(ge!(format!(
 			"{R}recording {B}{title}{D} has no length, cannot confirm match by duration{D}"
-		)
+		))
 		.into());
 	};
 	let length = duration::round_sec(length);

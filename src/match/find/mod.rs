@@ -5,6 +5,7 @@ mod search;
 mod text;
 
 use ansi::abbrev::{B, D, R};
+use hmerr::ge;
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
 use crate::fetch::streaming_source::StreamingSource;
@@ -39,11 +40,10 @@ pub(super) async fn song(
 		}
 	}
 
-	Err(format!(
+	Err(ge!(format!(
 		"{R}no exact {host} match for {B}{title}{D}",
 		host = StreamingSource::YouTubeMusic.host()
-	)
-	.into())
+	)))?
 }
 
 fn push_unique(out: &mut Vec<String>, s: String) {
