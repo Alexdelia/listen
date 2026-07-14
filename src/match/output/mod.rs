@@ -1,8 +1,13 @@
 mod clipboard;
 
-use ansi::abbrev::{B, D};
+use std::{fs, path::Path};
+
+use ansi::abbrev::{B, D, R};
+use hmerr::ioe;
 
 use super::{duration, open, verify::Info};
+
+const LIST_CLOSE: char = ']';
 
 pub(super) fn found(info: &Info, length: i64) {
 	eprintln!(
@@ -19,8 +24,27 @@ pub(super) fn found(info: &Info, length: i64) {
 	);
 }
 
-pub(super) fn entry(mbid: &str) {
-	println!("(s: {mbid:?}, q: ?, playlist: [])");
+pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
+	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+
+	let Some(close) = content.rfind(LIST_CLOSE) else {
+		return Err(format!(
+			"{R}cannot append entry: {B}{path}{D} has no closing {B}{LIST_CLOSE}{D}",
+			path = path.display(),
+		)
+		.into());
+	};
+
+	let entry = format!("\t(s: {mbid:?}, q: ?, playlist: []),\n");
+	let content = format!(
+		"{head}{entry}{tail}",
+		head = &content[..close],
+		tail = &content[close..]
+	);
+
+	fs::write(path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+
+	Ok(())
 }
 
 pub(super) fn musicbrainz(mbid: &str, url: &str) -> hmerr::Result<()> {

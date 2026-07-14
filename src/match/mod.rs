@@ -8,12 +8,14 @@ mod output;
 mod upgrade;
 mod verify;
 
+use std::path::Path;
+
 use ansi::abbrev::{B, D, R};
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
 use crate::MUSIC_BRAINZ_USER_AGENT;
 
-pub async fn run(mbid: &str) -> hmerr::Result<()> {
+pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
 
 	let recording = Recording::fetch()
@@ -39,12 +41,12 @@ pub async fn run(mbid: &str) -> hmerr::Result<()> {
 	let length = duration::round_sec(length);
 
 	let Some(id) = link::youtube(&recording) else {
-		return no_link::run(&client, &recording, &title, length, mbid).await;
+		return no_link::run(&client, &recording, &title, length, path, mbid).await;
 	};
 
 	match verify::verify(&id)? {
 		None => todo!("reverse-engineer the music.youtube.com dead-link redirect"),
-		Some(info) if info.is_song() => keep::run(mbid, &info, length),
-		Some(_video) => upgrade::run(&client, &recording, &title, length, mbid).await,
+		Some(info) if info.is_song() => keep::run(path, mbid, &info, length),
+		Some(_video) => upgrade::run(&client, &recording, &title, length, path, mbid).await,
 	}
 }

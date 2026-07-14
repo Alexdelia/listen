@@ -48,8 +48,8 @@ const MUSIC_BRAINZ_USER_AGENT: &str =
 fn main() -> hmerr::Result<()> {
 	let args = Args::parse();
 
-	if let Some(Command::Match { mbid }) = args.command {
-		return block_on(r#match::run(&mbid));
+	if let Some(Command::Match { mbid }) = &args.command {
+		return block_on(r#match::run(&args.path, mbid));
 	}
 
 	env::load()?;
