@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ansi::{DIM, abbrev::D};
 use id3::{Tag, TagLike};
 
 use crate::entry::{Entry, Source};
@@ -37,6 +38,6 @@ pub(super) fn join(title: &str, artist: &str) -> String {
 		(true, true) => String::new(),
 		(false, true) => title.to_string(),
 		(true, false) => artist.to_string(),
-		(false, false) => format!("{title} - {artist}"),
+		(false, false) => format!("{title} {DIM}-{D} {artist}"),
 	}
 }
