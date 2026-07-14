@@ -1,21 +1,27 @@
-use ansi::abbrev::{B, CYA, D, G, M, R, Y};
+use ansi::abbrev::{B, D, G, M, R};
+
+use crate::color;
 
 use super::analyze::{Analysis, Record};
+use super::meta;
 
 pub(super) fn render(analysis: &Analysis) {
 	println!(
-		"# {B}{M}matched{D} {matched}/{declared} declared recording",
+		"{B}{M}matched{D} {matched}/{declared} declared recording",
 		matched = analysis.matched,
 		declared = analysis.declared,
 	);
 
-	println!("\n# {B}{M}median listen/day per q{D}");
+	println!("\n{B}{M}median listen/day per q{D}");
 	for (q, median) in &analysis.median {
-		println!("{B}{CYA}q{q}{D}: {median:.4}");
+		println!(
+			"{B}{color}q{q}{D}: {color}{median:.4}{D}",
+			color = color::q(*q),
+		);
 	}
 
 	println!(
-		"\n# {B}{M}outlier{D} ({count})",
+		"\n{B}{M}{count}{D} {M}outlier{D}",
 		count = analysis.outlier.len()
 	);
 	if analysis.outlier.is_empty() {
@@ -29,19 +35,22 @@ pub(super) fn render(analysis: &Analysis) {
 }
 
 fn line(record: &Record) {
-	let (verdict, color) = if record.observed < record.declared {
-		("overrated", R)
+	let arrow = if record.observed < record.declared {
+		R
 	} else {
-		("underrated", G)
+		G
 	};
 
 	println!(
-		"{B}{color}{verdict:>10}{D} {B}{Y}q{declared}{D}->{B}{Y}q{observed}{D} {mbid} listen={listen:>4} days={days:>4} rate={rate:.4}",
+		"{B}{declared_color}{declared}{D}{B}{arrow}->{D}{B}{observed_color}{observed}{D} listen={listen:>4} days={days:>4} {B}{observed_color}rate={rate:.4}{D} {mbid} {label}",
+		declared_color = color::q(record.declared),
 		declared = record.declared,
+		observed_color = color::q(record.observed),
 		observed = record.observed,
-		mbid = record.mbid,
 		listen = record.listen,
 		days = record.days,
 		rate = record.rate,
+		mbid = record.mbid,
+		label = meta::label(&record.mbid),
 	);
 }

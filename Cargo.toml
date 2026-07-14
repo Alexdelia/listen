@@ -15,7 +15,7 @@ panic = "abort"
 
 [dependencies]
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
-ansi = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 async-std = { version = "1", features = ["tokio1"] }
 dotenv = "0.15"

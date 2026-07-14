@@ -2,6 +2,7 @@ mod age;
 mod analyze;
 mod cache;
 mod fetch;
+mod meta;
 mod render;
 
 use std::path::Path;

@@ -1,4 +1,5 @@
 mod channel;
+mod color;
 mod entry;
 mod env;
 mod fetch;
