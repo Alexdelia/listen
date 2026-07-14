@@ -39,7 +39,7 @@ fn classify(url: &str) -> Option<Streaming> {
 	}
 }
 
-fn video_id(url: &str) -> Option<String> {
+pub(super) fn video_id(url: &str) -> Option<String> {
 	let query = url
 		.strip_prefix(StreamingSource::YouTubeMusic.base_url().as_str())?
 		.strip_prefix("/watch?")?;

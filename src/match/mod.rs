@@ -5,10 +5,12 @@ mod link;
 mod no_link;
 mod open;
 mod output;
+mod record;
+mod redirect;
 mod upgrade;
 mod verify;
 
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
@@ -47,10 +49,40 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 			eprintln!("{B}soundcloud{D} link already on musicbrainz");
 			keep::run(path, mbid, None, length)
 		}
-		Some(link::Streaming::YouTubeMusic(id)) => match verify::verify(&id)? {
-			None => todo!("reverse-engineer the music.youtube.com dead-link redirect"),
-			Some(info) if info.is_song() => keep::run(path, mbid, Some(&info), length),
-			Some(_video) => upgrade::run(&client, &recording, &title, length, path, mbid).await,
-		},
+		Some(link::Streaming::YouTubeMusic(mut id)) => {
+			let mut dead = HashSet::new();
+
+			loop {
+				match verify::verify(&id)? {
+					Some(info) if info.is_song() => {
+						break if dead.is_empty() {
+							keep::run(path, mbid, Some(&info), length)
+						} else {
+							let found = find::Found {
+								url: verify::watch(&id),
+								info,
+							};
+							record::run(path, mbid, &found, length)
+						};
+					}
+					Some(_video) => {
+						break upgrade::run(&client, &recording, &title, length, path, mbid).await;
+					}
+					None => {
+						dead.insert(id.clone());
+
+						match redirect::resolve(&id)? {
+							Some(replacement) if !dead.contains(&replacement) => id = replacement,
+							_ => {
+								break no_link::run(
+									&client, &recording, &title, length, path, mbid,
+								)
+								.await;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }

@@ -21,6 +21,7 @@ async-std = { version = "1", features = ["tokio1"] }
 dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
 ron = "0.12"
+ureq = "3"
 clap = { version = "4", features = ["derive"] }
 indicatif = "0.18"
 musicbrainz_rs = { version = "0.13", default-features = false, features = [
