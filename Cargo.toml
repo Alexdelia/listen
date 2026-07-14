@@ -30,3 +30,13 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 ] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
