@@ -1,9 +1,9 @@
 mod apply;
 mod play;
 
-use std::path::Path;
+use std::{ops::ControlFlow, path::Path};
 
-use ansi::abbrev::{B, CYA, D};
+use ansi::abbrev::{B, CYA, D, R};
 use hmerr::ioe;
 use ux::AskKey;
 
@@ -22,6 +22,7 @@ enum Answer {
 	Apply(Q),
 	Skip,
 	Play,
+	Quit,
 }
 
 pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
@@ -35,7 +36,9 @@ pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
 
 	let mut player = Player::new();
 	for record in &analysis.outlier {
-		review(record, path, &mut player)?;
+		if review(record, path, &mut player)?.is_break() {
+			return Ok(());
+		}
 	}
 
 	render::undeclared(&analysis.undeclared);
@@ -43,16 +46,17 @@ pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<()> {
+fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<ControlFlow<()>> {
 	loop {
 		render::line(record);
 
 		match ask(record)? {
-			Answer::Skip => return Ok(()),
+			Answer::Quit => return Ok(ControlFlow::Break(())),
+			Answer::Skip => return Ok(ControlFlow::Continue(())),
 			Answer::Apply(q) => {
 				apply::set_q(path, &record.mbid, q)?;
 				println!("{B}{color}q{q}{D}", color = color::q(q));
-				return Ok(());
+				return Ok(ControlFlow::Continue(()));
 			}
 			Answer::Play => {
 				if let Err(e) = player.play(&record.mbid) {
@@ -69,6 +73,7 @@ fn ask(record: &Record) -> hmerr::Result<Answer> {
 	Ok(match answer {
 		'y' => Answer::Apply(record.observed),
 		'p' => Answer::Play,
+		'q' => Answer::Quit,
 		digit @ '0'..='4' => Answer::Apply(digit as Q - b'0'),
 		_ => Answer::Skip,
 	})
@@ -79,6 +84,7 @@ fn key(record: &Record) -> Vec<AskKey> {
 		AskKey::new('y', Some("apply"), true, Some(color::q(record.observed))),
 		AskKey::new('n', Some("skip"), true, None::<&str>),
 		AskKey::new('p', Some("play"), true, Some(CYA)),
+		AskKey::new('q', Some("quit"), true, Some(R)),
 	];
 
 	for q in 0..=TOP_Q {
