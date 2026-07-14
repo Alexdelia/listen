@@ -11,7 +11,7 @@ pub async fn remove(sync: &[String], tx: Sender<Status>) {
 		let path = Entry::path_from_source(entry);
 
 		match remove_file(&path).await {
-			Ok(_) => tx.send(Status {
+			Ok(()) => tx.send(Status {
 				action: Action::RemoveFile,
 				status: Ok(()),
 			}),

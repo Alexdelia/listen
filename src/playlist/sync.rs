@@ -15,7 +15,7 @@ pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
 	let path = q_path(q);
 
 	match sync(&path, sync_entry) {
-		Ok(_) => tx.send(Status {
+		Ok(()) => tx.send(Status {
 			action: Action::SyncPlaylist,
 			status: Ok(()),
 		}),
@@ -32,7 +32,7 @@ pub async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status
 	let path = playlist_path(&playlist);
 
 	match sync(&path, sync_entry) {
-		Ok(_) => tx.send(Status {
+		Ok(()) => tx.send(Status {
 			action: Action::SyncPlaylist,
 			status: Ok(()),
 		}),

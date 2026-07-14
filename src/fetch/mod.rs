@@ -125,7 +125,7 @@ async fn fetch_recording(
 
 	for url in urls {
 		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
-			Ok(_) => {
+			Ok(()) => {
 				tx.send(Status {
 					action: Action::FetchStreaming,
 					status: Ok(()),
@@ -180,7 +180,7 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 			.join(" & ");
 
 		tag.set_artist(artists);
-	};
+	}
 
 	let mut all_tags = HashSet::new();
 
@@ -197,7 +197,7 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 	}
 
 	match tag.write_to_path(&path, id3::Version::default()) {
-		Ok(_) => tx.send(Status {
+		Ok(()) => tx.send(Status {
 			action: Action::AddMetadata,
 			status: Ok(()),
 		}),
