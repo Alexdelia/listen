@@ -79,9 +79,7 @@ fn main() -> hmerr::Result<()> {
 
 	process(sync, tx);
 	println!();
-	progress(total, rx);
-
-	Ok(())
+	progress(total, &rx)
 }
 
 fn process(sync: GroupedEntry<SyncEntry>, tx: Sender<Status>) {
@@ -106,19 +104,21 @@ fn process(sync: GroupedEntry<SyncEntry>, tx: Sender<Status>) {
 			block_on(playlist::sync::playlist(playlist, sync, txc).into_future());
 		});
 	}
+
+	drop(tx);
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 struct Count {
 	fetch: usize,
 	remove: usize,
 	playlist: usize,
 }
 
-fn progress(total: Count, rx: Receiver<Status>) {
+fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	let mp = MultiProgress::new();
 
-	let template = |title: &str, color: &str| {
+	let template = |title: &str, color: &str| -> hmerr::Result<ProgressStyle> {
 		let title = format!("{title:>8}");
 		ProgressStyle::with_template(
 			&[
@@ -129,27 +129,27 @@ fn progress(total: Count, rx: Receiver<Status>) {
 			]
 			.join(""),
 		)
-		.expect("failed to create progress style")
+		.map_err(|e| format!("failed to create progress style\n{e}").into())
 	};
 
 	let pb_playlist = mp.add(indicatif::ProgressBar::new(total.playlist as u64));
-	pb_playlist.set_style(template("playlist", "magenta"));
+	pb_playlist.set_style(template("playlist", "magenta")?);
 	if total.playlist > 0 {
 		pb_playlist.tick();
 	}
 
 	let pb_remove = mp.add(indicatif::ProgressBar::new(total.remove as u64));
-	pb_remove.set_style(template("remove", "red"));
+	pb_remove.set_style(template("remove", "red")?);
 	if total.remove > 0 {
 		pb_remove.tick();
 	}
 
 	let pb_fetch = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_fetch.set_style(template("fetch", "blue"));
+	pb_fetch.set_style(template("fetch", "blue")?);
 	let pb_download = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_download.set_style(template("download", "cyan"));
+	pb_download.set_style(template("download", "cyan")?);
 	let pb_metadata = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_metadata.set_style(template("metadata", "green"));
+	pb_metadata.set_style(template("metadata", "green")?);
 	if total.fetch > 0 {
 		pb_fetch.tick();
 		pb_download.tick();
@@ -204,4 +204,6 @@ fn progress(total: Count, rx: Receiver<Status>) {
 		}
 		eprint!("\n\n\n");
 	}
+
+	Ok(())
 }

@@ -16,7 +16,7 @@ use musicbrainz_rs::{
 use streaming_source::StreamingSource;
 
 use crate::MUSIC_BRAINZ_USER_AGENT;
-use crate::channel::{Action, Status};
+use crate::channel::{Action, Status, report};
 use crate::entry::Entry;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
@@ -35,22 +35,26 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 			.await;
 
 		let Ok(recording) = res else {
-			tx.send(Status {
-				action: Action::FetchMusicBrainz,
-				status: Err(format!("{R}failed to fetch {B}{entry}{D}\n{res:#?}")),
-			})
-			.await
-			.expect("failed to send fetch status");
+			report(
+				&tx,
+				Status {
+					action: Action::FetchMusicBrainz,
+					status: Err(format!("{R}failed to fetch {B}{entry}{D}\n{res:#?}")),
+				},
+			)
+			.await;
 
 			continue;
 		};
 
-		tx.send(Status {
-			action: Action::FetchMusicBrainz,
-			status: Ok(()),
-		})
-		.await
-		.expect("failed to send fetch status");
+		report(
+			&tx,
+			Status {
+				action: Action::FetchMusicBrainz,
+				status: Ok(()),
+			},
+		)
+		.await;
 
 		let entry = entry.clone();
 
@@ -77,12 +81,14 @@ async fn fetch_recording(
 	let title = &recording.title;
 
 	let Some(relations) = &recording.relations else {
-		tx.send(Status {
-			action: Action::FetchStreaming,
-			status: Err(format!("{R}no relations for {B}{entry} ({title}){D}")),
-		})
-		.await
-		.expect("failed to send fetch streaming status");
+		report(
+			tx,
+			Status {
+				action: Action::FetchStreaming,
+				status: Err(format!("{R}no relations for {B}{entry} ({title}){D}")),
+			},
+		)
+		.await;
 
 		return None;
 	};
@@ -106,14 +112,16 @@ async fn fetch_recording(
 	}
 
 	if urls.is_empty() {
-		tx.send(Status {
-			action: Action::FetchStreaming,
-			status: Err(format!(
-				"{R}no streaming urls for {B}{entry} ({title}){D}\n{Y}{relations:#?}{D}"
-			)),
-		})
-		.await
-		.expect("failed to send fetch streaming status");
+		report(
+			tx,
+			Status {
+				action: Action::FetchStreaming,
+				status: Err(format!(
+					"{R}no streaming urls for {B}{entry} ({title}){D}\n{Y}{relations:#?}{D}"
+				)),
+			},
+		)
+		.await;
 
 		return None;
 	}
@@ -126,12 +134,14 @@ async fn fetch_recording(
 	for url in urls {
 		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
 			Ok(()) => {
-				tx.send(Status {
-					action: Action::FetchStreaming,
-					status: Ok(()),
-				})
-				.await
-				.expect("failed to send fetch streaming status");
+				report(
+					tx,
+					Status {
+						action: Action::FetchStreaming,
+						status: Ok(()),
+					},
+				)
+				.await;
 
 				return Some(path);
 			}
@@ -142,14 +152,16 @@ async fn fetch_recording(
 	}
 
 	if let Some(e) = err {
-		tx.send(Status {
-			action: Action::FetchStreaming,
-			status: Err(format!(
-				"{R}failed to download {B}{entry} ({title}){D}\n{e}"
-			)),
-		})
-		.await
-		.expect("failed to send fetch streaming status");
+		report(
+			tx,
+			Status {
+				action: Action::FetchStreaming,
+				status: Err(format!(
+					"{R}failed to download {B}{entry} ({title}){D}\n{e}"
+				)),
+			},
+		)
+		.await;
 	}
 
 	None
@@ -196,19 +208,21 @@ async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) 
 		tag.set_genre(tags.join(" / "));
 	}
 
-	match tag.write_to_path(&path, id3::Version::default()) {
-		Ok(()) => tx.send(Status {
-			action: Action::AddMetadata,
-			status: Ok(()),
-		}),
-		Err(e) => tx.send(Status {
-			action: Action::AddMetadata,
-			status: Err(format!(
+	let status = tag
+		.write_to_path(&path, id3::Version::default())
+		.map_err(|e| {
+			format!(
 				"{R}failed to write metadata to {B}{path}{D}\n{e}",
 				path = path.to_string_lossy()
-			)),
-		}),
-	}
-	.await
-	.expect("failed to send add metadata status");
+			)
+		});
+
+	report(
+		tx,
+		Status {
+			action: Action::AddMetadata,
+			status,
+		},
+	)
+	.await;
 }

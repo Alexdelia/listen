@@ -49,13 +49,11 @@ pub fn parse_content(content: &str) -> HashSet<Source> {
 			continue;
 		}
 
-		set.insert(
-			Path::new(line)
-				.file_stem()
-				.unwrap_or_else(|| panic!("failed to get file stem from {line}"))
-				.to_string_lossy()
-				.to_string(),
-		);
+		let Some(stem) = Path::new(line).file_stem() else {
+			continue;
+		};
+
+		set.insert(stem.to_string_lossy().to_string());
 	}
 
 	set

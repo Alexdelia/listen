@@ -4,7 +4,7 @@ use async_std::channel::Sender;
 use hmerr::ioe;
 
 use crate::{
-	channel::{Action, Status},
+	channel::{Action, Status, report},
 	entry::{Entry, Q},
 	filter::SyncEntry,
 };
@@ -13,36 +13,30 @@ use super::{parse_content, playlist_path, q_path};
 
 pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
 	let path = q_path(q);
+	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
 
-	match sync(&path, sync_entry) {
-		Ok(()) => tx.send(Status {
+	report(
+		&tx,
+		Status {
 			action: Action::SyncPlaylist,
-			status: Ok(()),
-		}),
-		Err(e) => tx.send(Status {
-			action: Action::SyncPlaylist,
-			status: Err(e.to_string()),
-		}),
-	}
-	.await
-	.expect("failed to send sync playlist status");
+			status,
+		},
+	)
+	.await;
 }
 
 pub async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status>) {
 	let path = playlist_path(&playlist);
+	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
 
-	match sync(&path, sync_entry) {
-		Ok(()) => tx.send(Status {
+	report(
+		&tx,
+		Status {
 			action: Action::SyncPlaylist,
-			status: Ok(()),
-		}),
-		Err(e) => tx.send(Status {
-			action: Action::SyncPlaylist,
-			status: Err(e.to_string()),
-		}),
-	}
-	.await
-	.expect("failed to send sync playlist status");
+			status,
+		},
+	)
+	.await;
 }
 
 fn sync<P>(path: P, sync: SyncEntry) -> hmerr::Result<()>

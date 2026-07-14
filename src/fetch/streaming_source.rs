@@ -74,28 +74,25 @@ where
 	P: AsRef<Path>,
 {
 	let path = path.as_ref();
+	let client_id = env::get(env::Var::SoundcloudClientId)?;
+	let parent = path
+		.parent()
+		.ok_or_else(|| format!("no parent folder for {path}", path = path.to_string_lossy()))?;
+	let stem = path
+		.file_stem()
+		.ok_or_else(|| format!("no file stem for {path}", path = path.to_string_lossy()))?;
+
 	match Command::new(StreamingSource::SoundCloud.downloader())
 		.args([
 			"--hide-progress",
 			"--client-id",
-			&env::get(env::Var::SoundcloudClientId).unwrap_or_else(|e| {
-				panic!(
-					"{key} not set ({e})",
-					key = env::Var::SoundcloudClientId.key()
-				)
-			}),
+			&client_id,
 			"--onlymp3",
 			"--extract-artist",
 			"--path",
-			path.parent()
-				.expect("no parent folder")
-				.to_string_lossy()
-				.as_ref(),
+			parent.to_string_lossy().as_ref(),
 			"--name-format",
-			path.file_stem()
-				.expect("no file stem")
-				.to_string_lossy()
-				.as_ref(),
+			stem.to_string_lossy().as_ref(),
 			"-l",
 			url,
 		])

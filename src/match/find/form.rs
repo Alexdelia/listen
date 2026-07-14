@@ -9,7 +9,7 @@ use super::{
 };
 
 pub(super) fn title(recording: &Recording, title: &str) -> Vec<String> {
-	with_romaji(std::iter::once(title.to_string()).chain(alias_name(&recording.aliases)))
+	with_romaji(std::iter::once(title.to_string()).chain(alias_name(recording.aliases.as_deref())))
 }
 
 pub(super) async fn artist(client: &MusicBrainzClient, recording: &Recording) -> Vec<Vec<String>> {
@@ -31,7 +31,7 @@ async fn credit_form(client: &MusicBrainzClient, credit: &ArtistCredit) -> Vec<S
 		.execute_with_client_async(client)
 		.await
 	{
-		name.extend(alias_name(&artist.aliases));
+		name.extend(alias_name(artist.aliases.as_deref()));
 	}
 
 	with_romaji(name)
@@ -47,8 +47,12 @@ pub(super) fn accepted_title(title_form: &[String]) -> Vec<String> {
 	out
 }
 
-fn alias_name(alias: &Option<Vec<Alias>>) -> Vec<String> {
-	alias.iter().flatten().map(|a| a.name.clone()).collect()
+fn alias_name(alias: Option<&[Alias]>) -> Vec<String> {
+	alias
+		.into_iter()
+		.flatten()
+		.map(|a| a.name.clone())
+		.collect()
 }
 
 fn with_romaji(form: impl IntoIterator<Item = String>) -> Vec<String> {
