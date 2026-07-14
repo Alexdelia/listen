@@ -16,13 +16,13 @@ pub fn fs(sync: &mut SyncEntry) {
 }
 
 pub fn q(sync: &mut HashMap<Q, SyncEntry>) {
-	for (_, entry) in sync.iter_mut() {
+	for entry in sync.values_mut() {
 		entry.sort();
 	}
 }
 
 pub fn playlist(sync: &mut HashMap<String, SyncEntry>) {
-	for (_, entry) in sync.iter_mut() {
+	for entry in sync.values_mut() {
 		entry.sort();
 	}
 }
