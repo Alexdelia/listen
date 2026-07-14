@@ -1,12 +1,10 @@
 pub(crate) mod streaming_source;
 
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
-use id3::{Tag, TagLike};
 use musicbrainz_rs::{
 	Fetch, MusicBrainzClient,
 	entity::{recording::Recording, relations::RelationContent},
@@ -17,6 +15,7 @@ use streaming_source::StreamingSource;
 use crate::MUSIC_BRAINZ_USER_AGENT;
 use crate::channel::{Action, Status, report};
 use crate::entry::Entry;
+use crate::metadata;
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
@@ -167,54 +166,7 @@ async fn fetch_recording(
 }
 
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
-	let mut tag = Tag::read_from_path(&path).unwrap_or_default();
-
-	let Recording {
-		title,
-		artist_credit,
-		genres,
-		tags,
-		..
-	} = recording;
-
-	if !title.is_empty() {
-		tag.set_title(title);
-	}
-
-	if let Some(artist_credit) = artist_credit
-		&& !artist_credit.is_empty()
-	{
-		let artists = artist_credit
-			.iter()
-			.map(|ac| ac.artist.name.as_str())
-			.collect::<Vec<_>>()
-			.join(" & ");
-
-		tag.set_artist(artists);
-	}
-
-	let mut all_tags = HashSet::new();
-
-	let genres_binding = genres.unwrap_or_default();
-	all_tags.extend(genres_binding.iter().map(|g| g.name.as_str()));
-	let tags_binding = tags.unwrap_or_default();
-	all_tags.extend(tags_binding.iter().map(|t| t.name.as_str()));
-
-	if !all_tags.is_empty() {
-		let mut tags = all_tags.into_iter().collect::<Vec<_>>();
-		tags.sort_unstable();
-
-		tag.set_genre(tags.join(" / "));
-	}
-
-	let status = tag
-		.write_to_path(&path, id3::Version::default())
-		.map_err(|e| {
-			format!(
-				"{R}failed to write metadata to {B}{path}{D}\n{e}",
-				path = path.to_string_lossy()
-			)
-		});
+	let status = metadata::write(&path, &recording);
 
 	report(
 		tx,

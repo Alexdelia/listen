@@ -5,9 +5,11 @@ mod env;
 mod fetch;
 mod filter;
 mod r#match;
+mod metadata;
 mod outlier;
 mod parse;
 mod playlist;
+mod refresh;
 mod remove;
 mod report;
 
@@ -33,6 +35,10 @@ pub struct Args {
 	/// path to the ron file where the listens are declared
 	#[clap(default_value = "listen.ron")]
 	path: PathBuf,
+
+	/// refetch metadata from musicbrainz and rewrite tags for every downloaded recording
+	#[arg(long)]
+	refresh_metadata: bool,
 }
 
 #[derive(clap::Subcommand)]
@@ -64,6 +70,11 @@ fn main() -> hmerr::Result<()> {
 
 	if let Some(Command::Outlier { username, refresh }) = &args.command {
 		return outlier::run(&args.path, username.as_deref(), *refresh);
+	}
+
+	if args.refresh_metadata {
+		let list = parse::parse(&args.path)?;
+		return block_on(refresh::refresh(&list));
 	}
 
 	env::load()?;
