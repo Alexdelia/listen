@@ -1,11 +1,13 @@
 use std::{
 	cmp::{Ordering, Reverse},
-	collections::{BTreeMap, HashSet},
+	collections::{BTreeMap, HashMap, HashSet},
 };
 
 use crate::entry::{Entry, Q, Source};
 
-use super::{age::Age, fetch::ListenCount};
+use super::{age::Age, fetch::ListenCount, meta::Meta, song::Song};
+
+const MIN_DAY: u64 = 21;
 
 pub(super) struct Analysis {
 	pub median: BTreeMap<Q, f64>,
@@ -31,11 +33,14 @@ pub(super) struct Undeclared {
 	pub artist: String,
 }
 
-pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analysis {
+pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age, meta: &Meta) -> Analysis {
+	let count = assign(list, listen, meta);
+	let consumed = count.consumed;
+
 	let observation = list
 		.iter()
-		.map(|entry| {
-			let count = listen.get(&entry.s).map_or(0, |l| l.count);
+		.zip(count.per_entry)
+		.map(|(entry, count)| {
 			let days = age.get(&entry.s).copied().unwrap_or(0);
 
 			(entry, count, days, rate(count, days))
@@ -47,11 +52,15 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analys
 		.filter(|(_, count, ..)| *count > 0)
 		.count();
 
-	let undeclared = undeclared(list, listen);
+	let considered = observation
+		.iter()
+		.copied()
+		.filter(|(_, _, days, _)| *days >= MIN_DAY)
+		.collect::<Vec<_>>();
 
-	let median = median_per_q(&observation);
+	let median = median_per_q(&considered);
 
-	let mut outlier = observation
+	let mut outlier = considered
 		.into_iter()
 		.filter_map(|(entry, listen, days, rate)| {
 			let observed = nearest_q(&median, rate)?;
@@ -74,6 +83,8 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analys
 			.then(cmp_rate(b.rate, a.rate))
 	});
 
+	let undeclared = undeclared(listen, &consumed);
+
 	Analysis {
 		median,
 		outlier,
@@ -83,12 +94,85 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age) -> Analys
 	}
 }
 
-fn undeclared(list: &[Entry], listen: &ListenCount) -> Vec<Undeclared> {
-	let declared = list.iter().map(|entry| &entry.s).collect::<HashSet<_>>();
+struct Assignment<'l> {
+	per_entry: Vec<u32>,
+	consumed: HashSet<&'l Source>,
+}
 
+fn assign<'l>(list: &[Entry], listen: &'l ListenCount, meta: &Meta) -> Assignment<'l> {
+	let song = list
+		.iter()
+		.map(|entry| {
+			meta.get(&entry.s)
+				.map(|(title, artist)| Song::new(title, artist))
+		})
+		.collect::<Vec<_>>();
+
+	let index = list
+		.iter()
+		.enumerate()
+		.map(|(i, entry)| (&entry.s, i))
+		.collect::<HashMap<_, _>>();
+
+	let mut per_entry = vec![0u32; list.len()];
+	let mut consumed = HashSet::new();
+
+	for (mbid, l) in listen {
+		if let Some(&i) = index.get(mbid) {
+			per_entry[i] += l.count;
+			consumed.insert(mbid);
+			continue;
+		}
+
+		let listened = Song::new(&l.track, &l.artist);
+
+		let Some(best) = song
+			.iter()
+			.flatten()
+			.filter_map(|s| s.matches(&listened))
+			.max()
+		else {
+			if let Some(i) = unique_title(&song, &listened) {
+				per_entry[i] += l.count;
+				consumed.insert(mbid);
+			}
+			continue;
+		};
+
+		consumed.insert(mbid);
+		for (i, s) in song.iter().enumerate() {
+			if s.as_ref().and_then(|s| s.matches(&listened)) == Some(best) {
+				per_entry[i] += l.count;
+			}
+		}
+	}
+
+	Assignment {
+		per_entry,
+		consumed,
+	}
+}
+
+fn unique_title(song: &[Option<Song>], listened: &Song) -> Option<usize> {
+	unique(song, |s| s.same_title(listened))
+		.or_else(|| unique(song, |s| s.same_stripped_title(listened)))
+}
+
+fn unique(song: &[Option<Song>], matches: impl Fn(&Song) -> bool) -> Option<usize> {
+	let mut candidate = song
+		.iter()
+		.enumerate()
+		.filter(|(_, s)| s.as_ref().is_some_and(&matches))
+		.map(|(i, _)| i);
+
+	let first = candidate.next()?;
+	candidate.next().is_none().then_some(first)
+}
+
+fn undeclared(listen: &ListenCount, consumed: &HashSet<&Source>) -> Vec<Undeclared> {
 	let mut undeclared = listen
 		.iter()
-		.filter(|(mbid, _)| !declared.contains(mbid))
+		.filter(|(mbid, _)| !consumed.contains(mbid))
 		.map(|(mbid, l)| Undeclared {
 			mbid: mbid.clone(),
 			listen: l.count,
@@ -158,11 +242,11 @@ mod tests {
 		}
 	}
 
-	fn listen(count: u32) -> Listen {
+	fn play(count: u32, track: &str, artist: &str) -> Listen {
 		Listen {
 			count,
-			track: String::new(),
-			artist: String::new(),
+			track: track.to_string(),
+			artist: artist.to_string(),
 		}
 	}
 
@@ -183,14 +267,14 @@ mod tests {
 			.collect::<Vec<_>>();
 		let count = sample
 			.iter()
-			.map(|(s, _, c)| ((*s).to_string(), listen(*c)))
+			.map(|(s, _, c)| ((*s).to_string(), play(*c, "", "")))
 			.collect::<ListenCount>();
 		let age = sample
 			.iter()
-			.map(|(s, _, _)| ((*s).to_string(), 1))
+			.map(|(s, _, _)| ((*s).to_string(), 100))
 			.collect::<Age>();
 
-		let analysis = analyze(&list, &count, &age);
+		let analysis = analyze(&list, &count, &age, &Meta::new());
 
 		let by_mbid = analysis
 			.outlier
@@ -206,9 +290,125 @@ mod tests {
 	#[test]
 	fn missing_listen_counts_as_zero() {
 		let list = vec![entry("declared", 4)];
-		let analysis = analyze(&list, &ListenCount::new(), &Age::new());
+		let age = Age::from([("declared".to_string(), 100)]);
+
+		let analysis = analyze(&list, &ListenCount::new(), &age, &Meta::new());
 
 		assert_eq!(analysis.outlier.len(), 0);
 		assert_eq!(analysis.median.get(&4), Some(&0.0));
+	}
+
+	#[test]
+	fn young_entry_is_excluded() {
+		let list = vec![entry("fresh", 4)];
+		let count = ListenCount::from([("fresh".to_string(), play(1, "", ""))]);
+		let age = Age::from([("fresh".to_string(), MIN_DAY - 1)]);
+
+		let analysis = analyze(&list, &count, &age, &Meta::new());
+
+		assert!(analysis.median.is_empty());
+		assert!(analysis.outlier.is_empty());
+	}
+
+	#[test]
+	fn listen_matched_across_mbid() {
+		let list = vec![entry("a", 1), entry("b", 4), entry("hole", 4)];
+		let count = ListenCount::from([
+			("a".to_string(), play(1, "A", "X")),
+			("b".to_string(), play(100, "B", "Y")),
+			("scrobbled".to_string(), play(100, "Hole Song", "Z")),
+		]);
+		let age = sample_age(&["a", "b", "hole"]);
+		let meta = Meta::from([(
+			"hole".to_string(),
+			("Hole Song".to_string(), "Z".to_string()),
+		)]);
+
+		let analysis = analyze(&list, &count, &age, &meta);
+
+		assert!(analysis.undeclared.iter().all(|u| u.mbid != "scrobbled"));
+		assert!(analysis.outlier.iter().all(|o| o.mbid != "hole"));
+	}
+
+	#[test]
+	fn version_listen_stays_on_its_own_version() {
+		let list = vec![entry("original", 1), entry("remix", 4)];
+		let count = ListenCount::from([
+			("play-original".to_string(), play(10, "Collide", "Hellberg")),
+			(
+				"play-remix".to_string(),
+				play(100, "Collide (Astronaut & Barely Alive remix)", "Hellberg"),
+			),
+		]);
+		let age = sample_age(&["original", "remix"]);
+		let meta = Meta::from([
+			(
+				"original".to_string(),
+				("Collide".to_string(), "Hellberg".to_string()),
+			),
+			(
+				"remix".to_string(),
+				(
+					"Collide (Astronaut & Barely Alive remix)".to_string(),
+					"Hellberg".to_string(),
+				),
+			),
+		]);
+
+		let analysis = analyze(&list, &count, &age, &meta);
+
+		assert_eq!(analysis.median.get(&1), Some(&0.1));
+		assert_eq!(analysis.median.get(&4), Some(&1.0));
+	}
+
+	#[test]
+	fn wrong_artist_still_matches_a_unique_title() {
+		let list = vec![entry("declared", 3)];
+		let count = ListenCount::from([(
+			"mismatched".to_string(),
+			play(30, "Gnossienne no. 1", "Pascal Rogé"),
+		)]);
+		let age = sample_age(&["declared"]);
+		let meta = Meta::from([(
+			"declared".to_string(),
+			("Gnossienne no. 1".to_string(), "Otto Tolonen".to_string()),
+		)]);
+
+		let analysis = analyze(&list, &count, &age, &meta);
+
+		assert!(analysis.undeclared.is_empty());
+		assert_eq!(analysis.matched, 1);
+	}
+
+	#[test]
+	fn ambiguous_title_stays_undeclared() {
+		let list = vec![entry("cover-a", 2), entry("cover-b", 2)];
+		let count = ListenCount::from([(
+			"other-cover".to_string(),
+			play(9, "Bad Apple!!", "Mini Miku"),
+		)]);
+		let age = sample_age(&["cover-a", "cover-b"]);
+		let meta = Meta::from([
+			(
+				"cover-a".to_string(),
+				(
+					"Bad Apple!!".to_string(),
+					"RichaadEB & Cristina Vee".to_string(),
+				),
+			),
+			(
+				"cover-b".to_string(),
+				("Bad Apple".to_string(), "Cloudjumper & UN3H".to_string()),
+			),
+		]);
+
+		let analysis = analyze(&list, &count, &age, &meta);
+
+		assert_eq!(analysis.undeclared.len(), 1);
+		assert_eq!(analysis.matched, 0);
+	}
+
+	fn sample_age(mbid: &[&str]) -> Age {
+		mbid.iter().map(|s| ((*s).to_string(), 100)).collect()
 	}
 }

@@ -4,6 +4,7 @@ mod cache;
 mod fetch;
 mod meta;
 mod render;
+mod song;
 
 use std::path::Path;
 
@@ -19,8 +20,9 @@ pub fn run(path: &Path, username: Option<&str>, refresh: bool) -> hmerr::Result<
 	let list = parse::parse(path)?;
 	let listen = listen(&username, refresh)?;
 	let age = age::days_since_added(path)?;
+	let meta = meta::declared(&list);
 
-	let analysis = analyze::analyze(&list, &listen, &age);
+	let analysis = analyze::analyze(&list, &listen, &age, &meta);
 
 	render::render(&analysis);
 
