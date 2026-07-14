@@ -14,6 +14,7 @@ pkgs.mkShell {
 
       typos
 
+      mpc
       ffmpeg
       scdl
       yt-dlp

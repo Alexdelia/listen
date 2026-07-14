@@ -55,6 +55,9 @@ enum Command {
 		/// refetch listen stats instead of using the cache
 		#[arg(short, long)]
 		refresh: bool,
+		/// review each outlier and apply a new q to the ron file
+		#[arg(short, long)]
+		interactive: bool,
 	},
 }
 
@@ -68,8 +71,13 @@ fn main() -> hmerr::Result<()> {
 		return block_on(r#match::run(&args.path, mbid));
 	}
 
-	if let Some(Command::Outlier { username, refresh }) = &args.command {
-		return outlier::run(&args.path, username.as_deref(), *refresh);
+	if let Some(Command::Outlier {
+		username,
+		refresh,
+		interactive,
+	}) = &args.command
+	{
+		return outlier::run(&args.path, username.as_deref(), *refresh, *interactive);
 	}
 
 	if args.refresh_metadata {

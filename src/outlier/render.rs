@@ -9,12 +9,21 @@ use super::analyze::{Analysis, Record, Undeclared};
 use super::meta;
 
 pub(super) fn render(analysis: &Analysis) {
+	matched(analysis);
+	median(analysis);
+	outlier(&analysis.outlier);
+	undeclared(&analysis.undeclared);
+}
+
+pub(super) fn matched(analysis: &Analysis) {
 	println!(
 		"{B}{M}matched{D} {matched}/{declared} declared recording",
 		matched = analysis.matched,
 		declared = analysis.declared,
 	);
+}
 
+pub(super) fn median(analysis: &Analysis) {
 	println!("\n{B}{M}median listen/day per q{D}");
 	for (q, median) in &analysis.median {
 		println!(
@@ -22,33 +31,26 @@ pub(super) fn render(analysis: &Analysis) {
 			color = color::q(*q),
 		);
 	}
+}
 
-	println!(
-		"\n{B}{M}{count}{D} {M}outlier{D}",
-		count = analysis.outlier.len()
-	);
-	if analysis.outlier.is_empty() {
+pub(super) fn outlier_header(count: usize) {
+	println!("\n{B}{M}{count}{D} {M}outlier{D}");
+}
+
+fn outlier(outlier: &[Record]) {
+	outlier_header(outlier.len());
+
+	if outlier.is_empty() {
 		println!("none");
-	} else {
-		for record in &analysis.outlier {
-			line(record);
-		}
+		return;
 	}
 
-	println!(
-		"\n{B}{M}{count}{D} {M}listen not in file{D}",
-		count = analysis.undeclared.len()
-	);
-	if analysis.undeclared.is_empty() {
-		println!("none");
-	} else {
-		for undeclared in &analysis.undeclared {
-			undeclared_line(undeclared);
-		}
+	for record in outlier {
+		line(record);
 	}
 }
 
-fn line(record: &Record) {
+pub(super) fn line(record: &Record) {
 	let arrow = if record.observed < record.declared {
 		R
 	} else {
@@ -71,6 +73,22 @@ fn line(record: &Record) {
 		mbid = record.mbid,
 		label = meta::label(&record.mbid),
 	);
+}
+
+pub(super) fn undeclared(undeclared: &[Undeclared]) {
+	println!(
+		"\n{B}{M}{count}{D} {M}listen not in file{D}",
+		count = undeclared.len()
+	);
+
+	if undeclared.is_empty() {
+		println!("none");
+		return;
+	}
+
+	for undeclared in undeclared {
+		undeclared_line(undeclared);
+	}
 }
 
 fn undeclared_line(undeclared: &Undeclared) {

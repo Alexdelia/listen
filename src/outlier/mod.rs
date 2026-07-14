@@ -2,6 +2,7 @@ mod age;
 mod analyze;
 mod cache;
 mod fetch;
+mod interactive;
 mod meta;
 mod render;
 mod song;
@@ -14,7 +15,12 @@ use crate::parse;
 
 use fetch::ListenCount;
 
-pub fn run(path: &Path, username: Option<&str>, refresh: bool) -> hmerr::Result<()> {
+pub fn run(
+	path: &Path,
+	username: Option<&str>,
+	refresh: bool,
+	interactive: bool,
+) -> hmerr::Result<()> {
 	let username = cache::username::resolve(username)?;
 
 	let list = parse::parse(path)?;
@@ -23,6 +29,10 @@ pub fn run(path: &Path, username: Option<&str>, refresh: bool) -> hmerr::Result<
 	let meta = meta::declared(&list);
 
 	let analysis = analyze::analyze(&list, &listen, &age, &meta);
+
+	if interactive {
+		return interactive::run(&analysis, path);
+	}
 
 	render::render(&analysis);
 
