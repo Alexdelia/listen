@@ -1,4 +1,7 @@
-use ansi::abbrev::{B, D, G, M, R};
+use ansi::{
+	DIM,
+	abbrev::{B, CYA, D, G, M, R},
+};
 
 use crate::color;
 
@@ -41,8 +44,12 @@ fn line(record: &Record) {
 		G
 	};
 
+	let listen_0 = if record.listen == 0 { R } else { "" };
+
 	println!(
-		"{B}{declared_color}{declared}{D}{B}{arrow}->{D}{B}{observed_color}{observed}{D} listen={listen:>4} days={days:>4} {B}{observed_color}rate={rate:.4}{D} {mbid} {label}",
+		"{B}{declared_color}{declared}{D}{B}{arrow}->{D}{B}{observed_color}{observed}{D}\
+{B}{listen_0}{listen:>4}{D}{DIM}/{D}{CYA}{days:<4}{D} {observed_color}{rate:.4}{D} \
+{DIM}{mbid}{D} {label}",
 		declared_color = color::q(record.declared),
 		declared = record.declared,
 		observed_color = color::q(record.observed),
