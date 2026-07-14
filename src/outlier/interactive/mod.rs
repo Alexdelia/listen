@@ -68,7 +68,7 @@ fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<Co
 }
 
 fn ask(record: &Record) -> hmerr::Result<Answer> {
-	let answer = ux::ask("apply?", &key(record), Some('n')).map_err(|e| ioe!("stdin", e))?;
+	let answer = ux::ask("apply?", &key(record), Some('y')).map_err(|e| ioe!("stdin", e))?;
 
 	Ok(match answer {
 		'y' => Answer::Apply(record.observed),
