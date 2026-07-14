@@ -50,22 +50,26 @@ impl StreamingSource {
 	}
 }
 
-impl TryFrom<&Url> for StreamingSource {
+impl TryFrom<&str> for StreamingSource {
 	type Error = &'static str;
 
-	fn try_from(url: &Url) -> Result<Self, Self::Error> {
-		match &url.resource {
-			resource if resource.starts_with(Self::SoundCloud.base_url().as_str()) => {
-				Ok(Self::SoundCloud)
-			}
-			resource if resource.starts_with(Self::YouTube.base_url().as_str()) => {
-				Ok(Self::YouTube)
-			}
-			resource if resource.starts_with(Self::YouTubeMusic.base_url().as_str()) => {
+	fn try_from(url: &str) -> Result<Self, Self::Error> {
+		match url {
+			url if url.starts_with(Self::SoundCloud.base_url().as_str()) => Ok(Self::SoundCloud),
+			url if url.starts_with(Self::YouTube.base_url().as_str()) => Ok(Self::YouTube),
+			url if url.starts_with(Self::YouTubeMusic.base_url().as_str()) => {
 				Ok(Self::YouTubeMusic)
 			}
 			_ => Err("unsupported streaming source"),
 		}
+	}
+}
+
+impl TryFrom<&Url> for StreamingSource {
+	type Error = &'static str;
+
+	fn try_from(url: &Url) -> Result<Self, Self::Error> {
+		Self::try_from(url.resource.as_str())
 	}
 }
 

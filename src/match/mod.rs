@@ -41,13 +41,16 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	};
 	let length = duration::round_sec(length);
 
-	let Some(id) = link::youtube(&recording) else {
-		return no_link::run(&client, &recording, &title, length, path, mbid).await;
-	};
-
-	match verify::verify(&id)? {
-		None => todo!("reverse-engineer the music.youtube.com dead-link redirect"),
-		Some(info) if info.is_song() => keep::run(path, mbid, &info, length),
-		Some(_video) => upgrade::run(&client, &recording, &title, length, path, mbid).await,
+	match link::streaming(&recording) {
+		None => no_link::run(&client, &recording, &title, length, path, mbid).await,
+		Some(link::Streaming::SoundCloud) => {
+			eprintln!("{B}soundcloud{D} link already on musicbrainz");
+			keep::run(path, mbid, None, length)
+		}
+		Some(link::Streaming::YouTubeMusic(id)) => match verify::verify(&id)? {
+			None => todo!("reverse-engineer the music.youtube.com dead-link redirect"),
+			Some(info) if info.is_song() => keep::run(path, mbid, Some(&info), length),
+			Some(_video) => upgrade::run(&client, &recording, &title, length, path, mbid).await,
+		},
 	}
 }

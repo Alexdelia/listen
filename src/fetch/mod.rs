@@ -1,6 +1,5 @@
 pub(crate) mod streaming_source;
 
-use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -104,7 +103,7 @@ async fn fetch_recording(
 			continue;
 		};
 
-		let Ok(streaming_source) = StreamingSource::try_from(url.borrow()) else {
+		let Ok(streaming_source) = StreamingSource::try_from(url.resource.as_str()) else {
 			continue;
 		};
 
