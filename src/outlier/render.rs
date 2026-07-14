@@ -24,12 +24,20 @@ pub(super) fn matched(analysis: &Analysis) {
 }
 
 pub(super) fn median(analysis: &Analysis) {
-	println!("\n{B}{M}median listen/day per q{D}");
-	for (q, median) in &analysis.median {
-		println!(
-			"{B}{color}q{q}{D}: {color}{median:.4}{D}",
-			color = color::q(*q),
-		);
+	println!("\n{B}{M}median listen/day per q{D} {DIM}(declared){D}");
+	for (q, count) in &analysis.declared_per_q {
+		let color = color::q(*q);
+		let percent = count * 100 / analysis.declared.max(1);
+
+		let head = format!("{B}{color}q{q}{D}:");
+		let tail = format!("{DIM}{count:>4}{percent:>3}%{D}");
+		let median = analysis
+			.median
+			.get(q)
+			.map(|median| format!(" {color}{median:.4}{D}"))
+			.unwrap_or_default();
+
+		println!("{head}{median} {tail}");
 	}
 }
 

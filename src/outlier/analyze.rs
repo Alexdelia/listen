@@ -11,6 +11,7 @@ const MIN_DAY: u64 = 21;
 
 pub(super) struct Analysis {
 	pub median: BTreeMap<Q, f64>,
+	pub declared_per_q: BTreeMap<Q, usize>,
 	pub outlier: Vec<Record>,
 	pub undeclared: Vec<Undeclared>,
 	pub matched: usize,
@@ -87,11 +88,22 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age, meta: &Me
 
 	Analysis {
 		median,
+		declared_per_q: declared_per_q(list),
 		outlier,
 		undeclared,
 		matched,
 		declared: list.len(),
 	}
+}
+
+fn declared_per_q(list: &[Entry]) -> BTreeMap<Q, usize> {
+	let mut per_q = BTreeMap::new();
+
+	for entry in list {
+		*per_q.entry(entry.q).or_insert(0) += 1;
+	}
+
+	per_q
 }
 
 struct Assignment<'l> {
