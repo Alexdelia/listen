@@ -80,17 +80,16 @@ fn ask(record: &Record) -> hmerr::Result<Answer> {
 }
 
 fn key(record: &Record) -> Vec<AskKey> {
-	let mut key = vec![
-		AskKey::new(
-			'y',
-			Some("apply"),
-			true,
-			Some(format!("{B}{q_color}", q_color = color::q(record.observed))),
-		),
-		AskKey::new('n', Some("skip"), true, Some(D)),
-		AskKey::new('p', Some("play"), true, Some(CYA)),
-		AskKey::new('q', Some("quit"), true, Some(R)),
-	];
+	let mut key = Vec::with_capacity(9);
+
+	key.push(AskKey::new(
+		'y',
+		Some("apply"),
+		true,
+		Some(format!("{B}{q_color}", q_color = color::q(record.observed))),
+	));
+	key.push(AskKey::new('n', Some("skip"), true, Some(D)));
+	key.push(AskKey::new('p', Some("play"), true, Some(CYA)));
 
 	for q in 0..=TOP_Q {
 		key.push(AskKey::new(
@@ -100,6 +99,8 @@ fn key(record: &Record) -> Vec<AskKey> {
 			Some(color::q(q)),
 		));
 	}
+
+	key.push(AskKey::new('q', Some("quit"), true, Some(R)));
 
 	key
 }
