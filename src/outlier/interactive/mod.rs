@@ -35,7 +35,7 @@ pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
 	}
 
 	let mut player = Player::new();
-	for record in &analysis.outlier {
+	for record in analysis.outlier.iter().filter(|record| record.listen > 0) {
 		if review(record, path, &mut player)?.is_break() {
 			return Ok(());
 		}
