@@ -4,6 +4,7 @@ mod env;
 mod fetch;
 mod filter;
 mod r#match;
+mod outlier;
 mod parse;
 mod playlist;
 mod remove;
@@ -40,6 +41,14 @@ enum Command {
 		/// musicbrainz.org recording MBID
 		mbid: String,
 	},
+	/// compare declared q against listenbrainz listen counts to surface outliers
+	Outlier {
+		/// listenbrainz.org username, cached and optional after the first use
+		username: Option<String>,
+		/// refetch listen stats instead of using the cache
+		#[arg(short, long)]
+		refresh: bool,
+	},
 }
 
 const MUSIC_BRAINZ_USER_AGENT: &str =
@@ -50,6 +59,10 @@ fn main() -> hmerr::Result<()> {
 
 	if let Some(Command::Match { mbid }) = &args.command {
 		return block_on(r#match::run(&args.path, mbid));
+	}
+
+	if let Some(Command::Outlier { username, refresh }) = &args.command {
+		return outlier::run(&args.path, username.as_deref(), *refresh);
 	}
 
 	env::load()?;
