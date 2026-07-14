@@ -35,9 +35,9 @@ pub struct Args {
 
 #[derive(clap::Subcommand)]
 enum Command {
-	/// find the exact YouTube Music match for a MusicBrainz recording
+	/// find the exact music.youtube.com match for a musicbrainz.org recording
 	Match {
-		/// MusicBrainz recording MBID
+		/// musicbrainz.org recording MBID
 		mbid: String,
 	},
 }
