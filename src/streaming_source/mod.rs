@@ -1,9 +1,12 @@
+mod run;
 mod soundcloud;
 mod youtube;
 
 use std::path::Path;
 
 use musicbrainz_rs::entity::url::Url;
+
+use run::run;
 
 pub enum StreamingSource {
 	SoundCloud,
@@ -35,10 +38,12 @@ impl StreamingSource {
 	where
 		P: AsRef<Path>,
 	{
-		match self {
-			Self::SoundCloud => soundcloud::download(url, path),
-			Self::YouTube | Self::YouTubeMusic => youtube::download(url, path),
-		}
+		let mut command = match self {
+			Self::SoundCloud => soundcloud::command(url, path)?,
+			Self::YouTube | Self::YouTubeMusic => youtube::command(url, path),
+		};
+
+		run(&mut command, url)
 	}
 
 	pub fn priority(&self) -> u8 {
