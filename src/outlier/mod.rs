@@ -11,7 +11,7 @@ use std::path::Path;
 
 use ansi::abbrev::{B, CYA, D, G};
 
-use crate::parse;
+use crate::declaration::parse;
 
 use fetch::ListenCount;
 

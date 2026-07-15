@@ -4,7 +4,9 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use serde::Deserialize;
 
-use crate::{cache, music_brainz, rate::agent};
+use crate::{cache, music_brainz};
+
+use super::super::agent;
 
 use super::Client;
 

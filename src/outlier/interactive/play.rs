@@ -6,7 +6,7 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use crate::entry::Entry;
+use crate::library;
 
 const PLAYER: &str = "mpc";
 
@@ -28,7 +28,7 @@ impl Player {
 	}
 
 	fn uri(&mut self, mbid: &str) -> hmerr::Result<String> {
-		let path = Entry::path_from_source(mbid);
+		let path = library::recording::path(mbid);
 		let path = path
 			.canonicalize()
 			.map_err(|e| ioe!(path.to_string_lossy(), e))?;

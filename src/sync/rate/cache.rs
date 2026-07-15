@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use ansi::abbrev::R;
 use hmerr::{ge, ioe};
 
-use crate::entry::Source;
+use crate::declaration::Source;
 
 use super::value::Value;
 

@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use ansi::{DIM, abbrev::D};
 use id3::{Tag, TagLike};
 
-use crate::entry::{Entry, Source};
+use crate::{
+	declaration::{Entry, Source},
+	library,
+};
 
 pub(super) type Meta = HashMap<Source, (String, String)>;
 
@@ -14,7 +17,7 @@ pub(super) fn declared(list: &[Entry]) -> Meta {
 }
 
 pub(super) fn read(mbid: &str) -> Option<(String, String)> {
-	let tag = Tag::read_from_path(Entry::path_from_source(mbid)).ok()?;
+	let tag = Tag::read_from_path(library::recording::path(mbid)).ok()?;
 
 	let title = tag.title().unwrap_or_default().trim().to_string();
 	let artist = tag.artist().unwrap_or_default().trim().to_string();

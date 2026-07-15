@@ -3,7 +3,7 @@ use std::{
 	collections::{BTreeMap, HashMap, HashSet},
 };
 
-use crate::entry::{Entry, Q, Source};
+use crate::declaration::{Entry, Q, Source};
 
 use super::{age::Age, fetch::ListenCount, meta::Meta, song::Song};
 

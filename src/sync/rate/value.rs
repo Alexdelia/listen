@@ -1,7 +1,7 @@
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::entry::Q;
+use crate::declaration::Q;
 
 pub type Value = u8;
 

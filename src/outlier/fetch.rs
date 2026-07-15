@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R, Y};
 use hmerr::ge;
 use serde::{Deserialize, Serialize};
 
-use crate::entry::Source;
+use crate::declaration::Source;
 
 const RANGE: &str = "all_time";
 const PAGE: usize = 1000;

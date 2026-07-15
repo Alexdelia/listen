@@ -8,7 +8,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
-use crate::fetch::streaming_source::StreamingSource;
+use crate::streaming_source::StreamingSource;
 
 use super::verify::{self, Info};
 

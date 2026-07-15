@@ -7,7 +7,7 @@ use ansi::abbrev::{B, CYA, D, R};
 use hmerr::ioe;
 use ux::AskKey;
 
-use crate::{color, entry::Q};
+use crate::{color, declaration::Q};
 
 use super::{
 	analyze::{Analysis, Record},

@@ -1,5 +1,4 @@
 mod add;
-mod existing;
 mod remove;
 mod sort;
 
@@ -8,8 +7,8 @@ use std::{collections::HashMap, fs};
 use hmerr::ioe;
 
 use crate::{
-	entry::{Entry, Q, Source},
-	playlist,
+	declaration::{Entry, Q, Source},
+	library,
 };
 
 #[derive(Default, Debug)]
@@ -30,10 +29,15 @@ pub struct SyncEntry {
 pub fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
 
-	fs::create_dir_all(Entry::OUTPUT_DIR).map_err(|e| ioe!(Entry::OUTPUT_DIR, e))?;
-	fs::create_dir_all(playlist::OUTPUT_DIR).map_err(|e| ioe!(playlist::OUTPUT_DIR, e))?;
+	fs::create_dir_all(library::recording::DIR).map_err(|e| ioe!(library::recording::DIR, e))?;
+	fs::create_dir_all(library::playlist::DIR).map_err(|e| ioe!(library::playlist::DIR, e))?;
 
-	let mut existing = existing::get()?;
+	let m3u = library::playlist::existing()?;
+	let mut existing = GroupedEntry {
+		fs: library::recording::existing()?,
+		q: m3u.q,
+		playlist: m3u.playlist,
+	};
 
 	for entry in list {
 		add::fs(&mut existing.fs, &mut ret.fs.add, &entry);

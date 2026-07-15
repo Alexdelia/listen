@@ -8,7 +8,7 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use crate::entry::Source;
+use crate::declaration::Source;
 
 const COMMIT_TIMESTAMP_FORMAT: &str = "--format=%ct";
 const SOURCE_PREFIX: &str = "s: \"";

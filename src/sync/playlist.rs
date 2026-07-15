@@ -4,15 +4,17 @@ use async_std::channel::Sender;
 use hmerr::ioe;
 
 use crate::{
+	declaration::Q,
+	library::{self, playlist::parse_content},
+};
+
+use super::{
 	channel::{Action, Status, report},
-	entry::{Entry, Q},
 	filter::SyncEntry,
 };
 
-use super::{parse_content, playlist_path, q_path};
-
 pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
-	let path = q_path(q);
+	let path = library::playlist::q_path(q);
 	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
 
 	report(
@@ -26,7 +28,7 @@ pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
 }
 
 pub async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status>) {
-	let path = playlist_path(&playlist);
+	let path = library::playlist::path(&playlist);
 	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
 
 	report(
@@ -70,7 +72,7 @@ where
 
 	let recording_path = std::env::current_dir()
 		.map_err(|e| ioe!("current_dir", e))?
-		.join(Entry::OUTPUT_DIR);
+		.join(library::recording::DIR);
 	let recording_path = recording_path
 		.canonicalize()
 		.map_err(|e| ioe!(recording_path.to_string_lossy(), e))?;
@@ -80,7 +82,7 @@ where
 			.map(|entry| {
 				recording_path
 					.join(entry)
-					.with_extension(Entry::EXT)
+					.with_extension(library::recording::EXT)
 					.to_string_lossy()
 					.to_string()
 			})

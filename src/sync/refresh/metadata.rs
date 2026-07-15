@@ -2,19 +2,19 @@ use ansi::abbrev::{B, D, R};
 use indicatif::{ProgressBar, ProgressStyle};
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
-use crate::entry::Entry;
-use crate::metadata;
-use crate::music_brainz;
+use crate::{declaration::Entry, library, music_brainz};
+
+use super::super::tag;
 
 const TEMPLATE: &str =
 	"metadata {wide_bar:.green/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 
-pub async fn refresh(list: &[Entry]) -> hmerr::Result<()> {
+pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
 
 	let existing = list
 		.iter()
-		.filter(|entry| Entry::path_from_source(&entry.s).exists())
+		.filter(|entry| library::recording::path(&entry.s).exists())
 		.collect::<Vec<_>>();
 
 	let pb = ProgressBar::new(existing.len() as u64);
@@ -26,7 +26,7 @@ pub async fn refresh(list: &[Entry]) -> hmerr::Result<()> {
 	let mut err = vec![];
 
 	for entry in existing {
-		let path = Entry::path_from_source(&entry.s);
+		let path = library::recording::path(&entry.s);
 
 		match Recording::fetch()
 			.id(&entry.s)
@@ -37,7 +37,7 @@ pub async fn refresh(list: &[Entry]) -> hmerr::Result<()> {
 			.await
 		{
 			Ok(recording) => {
-				if let Err(e) = metadata::write(&path, &recording) {
+				if let Err(e) = tag::write(&path, &recording) {
 					err.push(e);
 				}
 			}

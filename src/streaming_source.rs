@@ -3,7 +3,7 @@ use std::{path::Path, process::Command};
 use hmerr::ioe;
 use musicbrainz_rs::entity::url::Url;
 
-use crate::{entry::Entry, env};
+use crate::{env, library};
 
 pub enum StreamingSource {
 	SoundCloud,
@@ -133,7 +133,7 @@ where
 			"--quiet",
 			"--extract-audio",
 			"--audio-format",
-			Entry::EXT,
+			library::recording::EXT,
 			"--add-metadata",
 			"--embed-thumbnail",
 			"--ppa",

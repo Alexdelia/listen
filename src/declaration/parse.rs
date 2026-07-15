@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use hmerr::{ioe, pfe, ple, pwe};
 
-use crate::entry::Entry;
+use super::Entry;
 
 pub fn parse<P>(path: P) -> hmerr::Result<Vec<Entry>>
 where

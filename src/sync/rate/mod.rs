@@ -6,10 +6,9 @@ mod value;
 
 use async_std::channel::Sender;
 
-use crate::{
-	channel::{Action, Status, report},
-	entry::{Entry, Source},
-};
+use crate::declaration::{Entry, Source};
+
+use super::channel::{Action, Status, report};
 
 use value::Value;
 

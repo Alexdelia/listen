@@ -1,5 +1,3 @@
-pub(crate) mod streaming_source;
-
 use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R, Y};
@@ -10,12 +8,13 @@ use musicbrainz_rs::{
 	entity::{recording::Recording, relations::RelationContent},
 };
 
-use streaming_source::StreamingSource;
+use crate::streaming_source::StreamingSource;
 
-use crate::{
+use crate::{library, music_brainz};
+
+use super::{
 	channel::{Action, Status, report},
-	entry::Entry,
-	metadata, music_brainz,
+	tag,
 };
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
@@ -125,7 +124,7 @@ async fn fetch_recording(
 		return None;
 	}
 
-	let path = Entry::path_from_source(entry);
+	let path = library::recording::path(entry);
 	let mut err: Option<String> = None;
 
 	urls.sort_by_key(|a| a.0.priority());
@@ -167,7 +166,7 @@ async fn fetch_recording(
 }
 
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
-	let status = metadata::write(&path, &recording);
+	let status = tag::write(&path, &recording);
 
 	report(
 		tx,

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::entry::{Q, Source};
+use crate::declaration::{Q, Source};
 
 use super::SyncEntry;
 

@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use ron::ser::PrettyConfig;
 
-use crate::entry::{Entry, Q};
+use crate::declaration::{Entry, Q};
 
 pub(super) fn set_q(path: &Path, mbid: &str, q: Q) -> hmerr::Result<()> {
 	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
