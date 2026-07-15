@@ -7,6 +7,7 @@ mod fetch;
 mod filter;
 mod r#match;
 mod metadata;
+mod music_brainz;
 mod open;
 mod outlier;
 mod parse;
@@ -63,16 +64,6 @@ enum Command {
 		interactive: bool,
 	},
 }
-
-const MUSIC_BRAINZ_CLIENT: &str = concat!(
-	"Alexdelia/",
-	env!("CARGO_PKG_NAME"),
-	"-",
-	env!("CARGO_PKG_VERSION"),
-);
-
-const MUSIC_BRAINZ_USER_AGENT: &str =
-	"Alexdelia's personal declarative listen/0.1.0 ( https://github.com/Alexdelia/listen )";
 
 fn main() -> hmerr::Result<()> {
 	let args = Args::parse();

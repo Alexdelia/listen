@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use serde::Deserialize;
 
-use crate::{MUSIC_BRAINZ_USER_AGENT, cache, rate::agent};
+use crate::{cache, music_brainz, rate::agent};
 
 use super::Client;
 
@@ -40,7 +40,7 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Tok
 fn request(form: &[(&str, &str)]) -> hmerr::Result<Token> {
 	let mut response = agent::build()
 		.post(ENDPOINT)
-		.header("user-agent", MUSIC_BRAINZ_USER_AGENT)
+		.header("user-agent", music_brainz::USER_AGENT)
 		.send_form(form.iter().copied())
 		.map_err(|e| ge!(format!("{R}failed to reach musicbrainz oauth{D}\n{e}")))?;
 

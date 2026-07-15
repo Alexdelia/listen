@@ -2,15 +2,15 @@ use ansi::abbrev::{B, D, R};
 use indicatif::{ProgressBar, ProgressStyle};
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
-use crate::MUSIC_BRAINZ_USER_AGENT;
 use crate::entry::Entry;
 use crate::metadata;
+use crate::music_brainz;
 
 const TEMPLATE: &str =
 	"metadata {wide_bar:.green/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 
 pub async fn refresh(list: &[Entry]) -> hmerr::Result<()> {
-	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
+	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
 
 	let existing = list
 		.iter()

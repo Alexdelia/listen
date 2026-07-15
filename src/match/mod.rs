@@ -15,10 +15,10 @@ use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
-use crate::{MUSIC_BRAINZ_USER_AGENT, open};
+use crate::{music_brainz, open};
 
 pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
-	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
+	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
 
 	let recording = Recording::fetch()
 		.id(mbid)

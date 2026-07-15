@@ -13,14 +13,13 @@ use musicbrainz_rs::{
 use streaming_source::StreamingSource;
 
 use crate::{
-	MUSIC_BRAINZ_USER_AGENT,
 	channel::{Action, Status, report},
 	entry::Entry,
-	metadata,
+	metadata, music_brainz,
 };
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
-	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
+	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
 
 	let mut handles = vec![];
 

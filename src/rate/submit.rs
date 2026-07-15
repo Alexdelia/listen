@@ -3,7 +3,7 @@ use std::{fmt::Write, time::Duration};
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::{MUSIC_BRAINZ_CLIENT, MUSIC_BRAINZ_USER_AGENT};
+use crate::music_brainz;
 
 use super::{Rating, agent};
 
@@ -16,8 +16,11 @@ const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
 pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
 	let mut response = agent::build()
-		.post(format!("{ENDPOINT}?client={MUSIC_BRAINZ_CLIENT}"))
-		.header("user-agent", MUSIC_BRAINZ_USER_AGENT)
+		.post(format!(
+			"{ENDPOINT}?client={client}",
+			client = music_brainz::CLIENT
+		))
+		.header("user-agent", music_brainz::USER_AGENT)
 		.header("content-type", CONTENT_TYPE)
 		.header("authorization", format!("Bearer {bearer}"))
 		.send(body(rating))
