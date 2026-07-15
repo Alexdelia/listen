@@ -21,12 +21,12 @@ impl Var {
 }
 
 pub fn load() -> hmerr::Result<()> {
-	let Err(e) = dotenv::dotenv() else {
+	let Err(e) = dotenvy::dotenv() else {
 		return Ok(());
 	};
 
 	match e {
-		dotenv::Error::Io(e) => Err(ioe!(
+		dotenvy::Error::Io(e) => Err(ioe!(
 			".env",
 			e,
 			h:format!("please {B}{G}copy {M}.env.example{D} to {B}{Y}{DOTENV_FILE}{D} and {B}{G}fill in the values{D}")
