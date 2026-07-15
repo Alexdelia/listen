@@ -6,7 +6,7 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use crate::library;
+use crate::{declaration::Source, library};
 
 const PLAYER: &str = "mpc";
 
@@ -19,7 +19,7 @@ impl Player {
 		Self { root: None }
 	}
 
-	pub(super) fn play(&mut self, mbid: &str) -> hmerr::Result<()> {
+	pub(super) fn play(&mut self, mbid: Source) -> hmerr::Result<()> {
 		let uri = self.uri(mbid)?;
 
 		mpc(&["insert", &uri])?;
@@ -27,7 +27,7 @@ impl Player {
 		mpc(&["play"])
 	}
 
-	fn uri(&mut self, mbid: &str) -> hmerr::Result<String> {
+	fn uri(&mut self, mbid: Source) -> hmerr::Result<String> {
 		let path = library::recording::path(mbid);
 		let path = path
 			.canonicalize()

@@ -66,8 +66,8 @@ pub(super) fn analyze(list: &[Entry], listen: &ListenCount, age: &Age, meta: &Me
 		.filter_map(|(entry, listen, days, rate)| {
 			let observed = nearest_q(&median, rate)?;
 
-			(observed != entry.q).then(|| Record {
-				mbid: entry.s.clone(),
+			(observed != entry.q).then_some(Record {
+				mbid: entry.s,
 				declared: entry.q,
 				observed,
 				listen,
@@ -186,7 +186,7 @@ fn undeclared(listen: &ListenCount, consumed: &HashSet<&Source>) -> Vec<Undeclar
 		.iter()
 		.filter(|(mbid, _)| !consumed.contains(mbid))
 		.map(|(mbid, l)| Undeclared {
-			mbid: mbid.clone(),
+			mbid: *mbid,
 			listen: l.count,
 			track: l.track.clone(),
 			artist: l.artist.clone(),
@@ -246,9 +246,15 @@ mod tests {
 
 	use crate::outlier::fetch::Listen;
 
+	fn id(name: &str) -> Source {
+		let mut bytes = [0; 16];
+		bytes[..name.len()].copy_from_slice(name.as_bytes());
+		Source::from_bytes(bytes)
+	}
+
 	fn entry(s: &str, q: Q) -> Entry {
 		Entry {
-			s: s.to_string(),
+			s: id(s),
 			q,
 			playlist: vec![],
 		}
@@ -279,30 +285,27 @@ mod tests {
 			.collect::<Vec<_>>();
 		let count = sample
 			.iter()
-			.map(|(s, _, c)| ((*s).to_string(), play(*c, "", "")))
+			.map(|(s, _, c)| (id(s), play(*c, "", "")))
 			.collect::<ListenCount>();
-		let age = sample
-			.iter()
-			.map(|(s, _, _)| ((*s).to_string(), 100))
-			.collect::<Age>();
+		let age = sample.iter().map(|(s, _, _)| (id(s), 100)).collect::<Age>();
 
 		let analysis = analyze(&list, &count, &age, &Meta::new());
 
 		let by_mbid = analysis
 			.outlier
 			.iter()
-			.map(|r| (r.mbid.as_str(), r))
-			.collect::<std::collections::HashMap<&str, &Record>>();
+			.map(|r| (r.mbid, r))
+			.collect::<std::collections::HashMap<Source, &Record>>();
 
 		assert_eq!(analysis.outlier.len(), 2);
-		assert_eq!(by_mbid["low-outlier"].observed, 4);
-		assert_eq!(by_mbid["high-outlier"].observed, 1);
+		assert_eq!(by_mbid[&id("low-outlier")].observed, 4);
+		assert_eq!(by_mbid[&id("high-outlier")].observed, 1);
 	}
 
 	#[test]
 	fn missing_listen_counts_as_zero() {
 		let list = vec![entry("declared", 4)];
-		let age = Age::from([("declared".to_string(), 100)]);
+		let age = Age::from([(id("declared"), 100)]);
 
 		let analysis = analyze(&list, &ListenCount::new(), &age, &Meta::new());
 
@@ -313,8 +316,8 @@ mod tests {
 	#[test]
 	fn young_entry_is_excluded() {
 		let list = vec![entry("fresh", 4)];
-		let count = ListenCount::from([("fresh".to_string(), play(1, "", ""))]);
-		let age = Age::from([("fresh".to_string(), MIN_DAY - 1)]);
+		let count = ListenCount::from([(id("fresh"), play(1, "", ""))]);
+		let age = Age::from([(id("fresh"), MIN_DAY - 1)]);
 
 		let analysis = analyze(&list, &count, &age, &Meta::new());
 
@@ -326,40 +329,42 @@ mod tests {
 	fn listen_matched_across_mbid() {
 		let list = vec![entry("a", 1), entry("b", 4), entry("hole", 4)];
 		let count = ListenCount::from([
-			("a".to_string(), play(1, "A", "X")),
-			("b".to_string(), play(100, "B", "Y")),
-			("scrobbled".to_string(), play(100, "Hole Song", "Z")),
+			(id("a"), play(1, "A", "X")),
+			(id("b"), play(100, "B", "Y")),
+			(id("scrobbled"), play(100, "Hole Song", "Z")),
 		]);
 		let age = sample_age(&["a", "b", "hole"]);
-		let meta = Meta::from([(
-			"hole".to_string(),
-			("Hole Song".to_string(), "Z".to_string()),
-		)]);
+		let meta = Meta::from([(id("hole"), ("Hole Song".to_string(), "Z".to_string()))]);
 
 		let analysis = analyze(&list, &count, &age, &meta);
 
-		assert!(analysis.undeclared.iter().all(|u| u.mbid != "scrobbled"));
-		assert!(analysis.outlier.iter().all(|o| o.mbid != "hole"));
+		assert!(
+			analysis
+				.undeclared
+				.iter()
+				.all(|u| u.mbid != id("scrobbled"))
+		);
+		assert!(analysis.outlier.iter().all(|o| o.mbid != id("hole")));
 	}
 
 	#[test]
 	fn version_listen_stays_on_its_own_version() {
 		let list = vec![entry("original", 1), entry("remix", 4)];
 		let count = ListenCount::from([
-			("play-original".to_string(), play(10, "Collide", "Hellberg")),
+			(id("play-original"), play(10, "Collide", "Hellberg")),
 			(
-				"play-remix".to_string(),
+				id("play-remix"),
 				play(100, "Collide (Astronaut & Barely Alive remix)", "Hellberg"),
 			),
 		]);
 		let age = sample_age(&["original", "remix"]);
 		let meta = Meta::from([
 			(
-				"original".to_string(),
+				id("original"),
 				("Collide".to_string(), "Hellberg".to_string()),
 			),
 			(
-				"remix".to_string(),
+				id("remix"),
 				(
 					"Collide (Astronaut & Barely Alive remix)".to_string(),
 					"Hellberg".to_string(),
@@ -377,12 +382,12 @@ mod tests {
 	fn wrong_artist_still_matches_a_unique_title() {
 		let list = vec![entry("declared", 3)];
 		let count = ListenCount::from([(
-			"mismatched".to_string(),
+			id("mismatched"),
 			play(30, "Gnossienne no. 1", "Pascal Rogé"),
 		)]);
 		let age = sample_age(&["declared"]);
 		let meta = Meta::from([(
-			"declared".to_string(),
+			id("declared"),
 			("Gnossienne no. 1".to_string(), "Otto Tolonen".to_string()),
 		)]);
 
@@ -395,21 +400,18 @@ mod tests {
 	#[test]
 	fn ambiguous_title_stays_undeclared() {
 		let list = vec![entry("cover-a", 2), entry("cover-b", 2)];
-		let count = ListenCount::from([(
-			"other-cover".to_string(),
-			play(9, "Bad Apple!!", "Mini Miku"),
-		)]);
+		let count = ListenCount::from([(id("other-cover"), play(9, "Bad Apple!!", "Mini Miku"))]);
 		let age = sample_age(&["cover-a", "cover-b"]);
 		let meta = Meta::from([
 			(
-				"cover-a".to_string(),
+				id("cover-a"),
 				(
 					"Bad Apple!!".to_string(),
 					"RichaadEB & Cristina Vee".to_string(),
 				),
 			),
 			(
-				"cover-b".to_string(),
+				id("cover-b"),
 				("Bad Apple".to_string(), "Cloudjumper & UN3H".to_string()),
 			),
 		]);
@@ -421,6 +423,6 @@ mod tests {
 	}
 
 	fn sample_age(mbid: &[&str]) -> Age {
-		mbid.iter().map(|s| ((*s).to_string(), 100)).collect()
+		mbid.iter().map(|s| (id(s), 100)).collect()
 	}
 }

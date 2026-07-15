@@ -12,8 +12,8 @@ pub const DIR: &str = "./output/recording";
 
 pub const EXT: &str = "mp3";
 
-pub fn path(source: &str) -> PathBuf {
-	Path::new(DIR).join(source).with_extension(EXT)
+pub fn path(source: Source) -> PathBuf {
+	Path::new(DIR).join(source.to_string()).with_extension(EXT)
 }
 
 pub fn existing() -> hmerr::Result<HashSet<Source>> {
@@ -28,11 +28,15 @@ pub fn existing() -> hmerr::Result<HashSet<Source>> {
 			continue;
 		}
 
-		let Some(source) = path.file_stem() else {
+		let Some(source) = path
+			.file_stem()
+			.and_then(|stem| stem.to_str())
+			.and_then(|stem| stem.parse().ok())
+		else {
 			continue;
 		};
 
-		existing.insert(source.to_string_lossy().to_string());
+		existing.insert(source);
 	}
 
 	Ok(existing)

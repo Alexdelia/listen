@@ -81,7 +81,7 @@ where
 		list.into_iter()
 			.map(|entry| {
 				recording_path
-					.join(entry)
+					.join(entry.to_string())
 					.with_extension(library::recording::EXT)
 					.to_string_lossy()
 					.to_string()

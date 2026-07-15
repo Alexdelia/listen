@@ -24,7 +24,7 @@ pub fn pending(list: &[Entry]) -> hmerr::Result<Pending> {
 
 	let rating = list
 		.iter()
-		.map(|entry| (entry.s.clone(), value::from_q(entry.q)))
+		.map(|entry| (entry.s, value::from_q(entry.q)))
 		.filter(|(source, value)| submitted.get(source) != Some(value))
 		.collect();
 
@@ -44,7 +44,7 @@ pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 
 		let status = submit::submit(&bearer, chunk)
 			.and_then(|()| {
-				submitted.extend(chunk.iter().cloned());
+				submitted.extend(chunk.iter().copied());
 				cache::write(&submitted)
 			})
 			.map_err(|e| e.to_string());

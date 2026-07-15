@@ -2,7 +2,7 @@ pub mod parse;
 
 use serde::{Deserialize, Deserializer, Serialize, de::Error};
 
-pub type Source = String;
+pub type Source = uuid::Uuid;
 pub type Q = u8;
 
 pub const Q_MAX: Q = 4;

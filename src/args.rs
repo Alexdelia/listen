@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+use crate::declaration::Source;
+
 #[derive(Parser)]
 #[command(about)]
 #[command(args_conflicts_with_subcommands = true)]
@@ -23,7 +25,7 @@ pub enum Command {
 	/// find the exact music.youtube.com match for a musicbrainz.org recording
 	Match {
 		/// musicbrainz.org recording MBID
-		mbid: String,
+		mbid: Source,
 	},
 	/// compare declared q against listenbrainz listen counts to surface outliers
 	Outlier {

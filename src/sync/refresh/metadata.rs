@@ -14,7 +14,7 @@ pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
 
 	let existing = list
 		.iter()
-		.filter(|entry| library::recording::path(&entry.s).exists())
+		.filter(|entry| library::recording::path(entry.s).exists())
 		.collect::<Vec<_>>();
 
 	let pb = ProgressBar::new(existing.len() as u64);
@@ -26,10 +26,10 @@ pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	let mut err = vec![];
 
 	for entry in existing {
-		let path = library::recording::path(&entry.s);
+		let path = library::recording::path(entry.s);
 
 		match Recording::fetch()
-			.id(&entry.s)
+			.id(&entry.s.to_string())
 			.with_artists()
 			.with_genres()
 			.with_tags()

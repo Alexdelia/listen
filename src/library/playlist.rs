@@ -46,11 +46,15 @@ pub fn parse_content(content: &str) -> HashSet<Source> {
 			continue;
 		}
 
-		let Some(stem) = Path::new(line).file_stem() else {
+		let Some(source) = Path::new(line)
+			.file_stem()
+			.and_then(|stem| stem.to_str())
+			.and_then(|stem| stem.parse().ok())
+		else {
 			continue;
 		};
 
-		set.insert(stem.to_string_lossy().to_string());
+		set.insert(source);
 	}
 
 	set
