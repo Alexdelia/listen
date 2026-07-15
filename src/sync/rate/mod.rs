@@ -17,13 +17,9 @@ pub type Rating = (Source, Value);
 pub fn pending(list: &[Entry]) -> hmerr::Result<Vec<Rating>> {
 	let submitted = cache::read()?;
 
-	let rating = list
+	Ok(list
 		.iter()
-		.map(|entry| value::from_q(entry.q).map(|value| (entry.s.clone(), value)))
-		.collect::<hmerr::Result<Vec<Rating>>>()?;
-
-	Ok(rating
-		.into_iter()
+		.map(|entry| (entry.s.clone(), value::from_q(entry.q)))
 		.filter(|(source, value)| submitted.get(source) != Some(value))
 		.collect())
 }
