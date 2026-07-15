@@ -1,5 +1,5 @@
 [package]
-name = "fl"
+name = "declarative_listen"
 version = "0.1.0"
 edition = "2024"
 authors = ["adelille <alexandre.delille.57@gmail.com>"]
