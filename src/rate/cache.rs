@@ -5,12 +5,12 @@ use hmerr::{ge, ioe};
 
 use crate::entry::Source;
 
-use super::star::Star;
+use super::value::Value;
 
 const FILE: &str = "rating";
 const EXT: &str = "json";
 
-pub(super) type Submitted = HashMap<Source, Star>;
+pub(super) type Submitted = HashMap<Source, Value>;
 
 pub(super) fn read() -> hmerr::Result<Submitted> {
 	let path = path()?;

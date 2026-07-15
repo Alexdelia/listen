@@ -1,8 +1,8 @@
 mod agent;
 pub mod auth;
 mod cache;
-mod star;
 mod submit;
+mod value;
 
 use async_std::channel::Sender;
 
@@ -11,21 +11,21 @@ use crate::{
 	entry::{Entry, Source},
 };
 
-use star::Star;
+use value::Value;
 
-pub type Rating = (Source, Star);
+pub type Rating = (Source, Value);
 
 pub fn pending(list: &[Entry]) -> hmerr::Result<Vec<Rating>> {
 	let submitted = cache::read()?;
 
 	let rating = list
 		.iter()
-		.map(|entry| star::from_q(entry.q).map(|star| (entry.s.clone(), star)))
+		.map(|entry| value::from_q(entry.q).map(|value| (entry.s.clone(), value)))
 		.collect::<hmerr::Result<Vec<Rating>>>()?;
 
 	Ok(rating
 		.into_iter()
-		.filter(|(source, star)| submitted.get(source) != Some(star))
+		.filter(|(source, value)| submitted.get(source) != Some(value))
 		.collect())
 }
 

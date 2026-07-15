@@ -13,7 +13,6 @@ pub(super) const RATE_LIMIT: Duration = Duration::from_secs(1);
 const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 
 const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
-const STAR_API_SCALE: u8 = 20;
 
 pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
 	let mut response = agent::build()
@@ -38,11 +37,10 @@ pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
 
 fn body(rating: &[Rating]) -> String {
 	let mut recording = String::new();
-	for (source, star) in rating {
+	for (source, value) in rating {
 		let _ = write!(
 			recording,
 			"<recording id=\"{source}\"><user-rating>{value}</user-rating></recording>",
-			value = star * STAR_API_SCALE,
 		);
 	}
 
