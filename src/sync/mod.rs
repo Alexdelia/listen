@@ -30,7 +30,7 @@ pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 
 	let list = parse::parse(path)?;
 
-	let rating = rate::pending(&list)?;
+	let pending = rate::pending(&list)?;
 
 	let sync = filter::sync(list)?;
 
@@ -45,7 +45,7 @@ pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 		}
 	}
 
-	let bearer = if rating.is_empty() {
+	let bearer = if pending.rating.is_empty() {
 		None
 	} else {
 		rate::auth::acquire()?
@@ -55,25 +55,29 @@ pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 		fetch: sync.fs.add.len(),
 		remove: sync.fs.remove.len(),
 		playlist: sync.q.len() + sync.playlist.len(),
-		rating: if bearer.is_some() { rating.len() } else { 0 },
+		rating: if bearer.is_some() {
+			pending.rating.len()
+		} else {
+			0
+		},
 	};
 
 	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
-	process(sync, bearer.map(|bearer| (bearer, rating)), tx);
+	process(sync, bearer.map(|bearer| (bearer, pending)), tx);
 	println!();
 	progress::render(total, &rx)
 }
 
 fn process(
 	sync: GroupedEntry<SyncEntry>,
-	rating: Option<(String, Vec<rate::Rating>)>,
+	rating: Option<(String, rate::Pending)>,
 	tx: Sender<Status>,
 ) {
-	if let Some((bearer, rating)) = rating {
+	if let Some((bearer, pending)) = rating {
 		let txc = tx.clone();
 		thread::spawn(move || {
-			block_on(rate::sync(bearer, rating, txc).into_future());
+			block_on(rate::sync(bearer, pending, txc).into_future());
 		});
 	}
 

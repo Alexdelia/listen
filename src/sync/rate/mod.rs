@@ -14,33 +14,30 @@ use value::Value;
 
 pub type Rating = (Source, Value);
 
-pub fn pending(list: &[Entry]) -> hmerr::Result<Vec<Rating>> {
+pub struct Pending {
+	submitted: cache::Submitted,
+	pub rating: Vec<Rating>,
+}
+
+pub fn pending(list: &[Entry]) -> hmerr::Result<Pending> {
 	let submitted = cache::read()?;
 
-	Ok(list
+	let rating = list
 		.iter()
 		.map(|entry| (entry.s.clone(), value::from_q(entry.q)))
 		.filter(|(source, value)| submitted.get(source) != Some(value))
-		.collect())
+		.collect();
+
+	Ok(Pending { submitted, rating })
 }
 
-pub async fn sync(bearer: String, pending: Vec<Rating>, tx: Sender<Status>) {
-	let mut submitted = match cache::read() {
-		Ok(submitted) => submitted,
-		Err(e) => {
-			report(
-				&tx,
-				Status {
-					action: Action::SubmitRating(pending.len()),
-					status: Err(e.to_string()),
-				},
-			)
-			.await;
-			return;
-		}
-	};
+pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
+	let Pending {
+		mut submitted,
+		rating,
+	} = pending;
 
-	for (index, chunk) in pending.chunks(submit::CHUNK).enumerate() {
+	for (index, chunk) in rating.chunks(submit::CHUNK).enumerate() {
 		if index > 0 {
 			async_std::task::sleep(submit::RATE_LIMIT).await;
 		}
