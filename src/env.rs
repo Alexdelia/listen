@@ -6,12 +6,16 @@ const DOTENV_FILE: &str = ".env";
 #[derive(Clone, Copy)]
 pub enum Var {
 	SoundcloudClientId,
+	MusicBrainzClientId,
+	MusicBrainzClientSecret,
 }
 
 impl Var {
 	pub fn key(self) -> &'static str {
 		match self {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
+			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",
+			Self::MusicBrainzClientSecret => "MUSICBRAINZ_CLIENT_SECRET",
 		}
 	}
 }
@@ -29,6 +33,10 @@ pub fn load() -> hmerr::Result<()> {
 		))?,
 		_ => Err(e.into()),
 	}
+}
+
+pub fn get_opt(key: Var) -> Option<String> {
+	std::env::var(key.key()).ok().filter(|v| !v.is_empty())
 }
 
 pub fn get(key: Var) -> hmerr::Result<String> {

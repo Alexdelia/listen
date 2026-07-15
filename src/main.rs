@@ -1,3 +1,4 @@
+mod cache;
 mod channel;
 mod color;
 mod entry;
@@ -6,9 +7,11 @@ mod fetch;
 mod filter;
 mod r#match;
 mod metadata;
+mod open;
 mod outlier;
 mod parse;
 mod playlist;
+mod rate;
 mod refresh;
 mod remove;
 mod report;
@@ -61,6 +64,13 @@ enum Command {
 	},
 }
 
+const MUSIC_BRAINZ_CLIENT: &str = concat!(
+	"Alexdelia/",
+	env!("CARGO_PKG_NAME"),
+	"-",
+	env!("CARGO_PKG_VERSION"),
+);
+
 const MUSIC_BRAINZ_USER_AGENT: &str =
 	"Alexdelia's personal declarative listen/0.1.0 ( https://github.com/Alexdelia/listen )";
 
@@ -89,6 +99,8 @@ fn main() -> hmerr::Result<()> {
 
 	let list = parse::parse(args.path)?;
 
+	let rating = rate::pending(&list)?;
+
 	let sync = filter::sync(list)?;
 
 	let remove = report::report(&sync);
@@ -102,20 +114,38 @@ fn main() -> hmerr::Result<()> {
 		}
 	}
 
+	let bearer = if rating.is_empty() {
+		None
+	} else {
+		rate::auth::acquire()?
+	};
+
 	let total = Count {
 		fetch: sync.fs.add.len(),
 		remove: sync.fs.remove.len(),
 		playlist: sync.q.len() + sync.playlist.len(),
+		rating: if bearer.is_some() { rating.len() } else { 0 },
 	};
 
 	let (tx, rx) = async_std::channel::unbounded::<Status>();
 
-	process(sync, tx);
+	process(sync, bearer.map(|bearer| (bearer, rating)), tx);
 	println!();
 	progress(total, &rx)
 }
 
-fn process(sync: GroupedEntry<SyncEntry>, tx: Sender<Status>) {
+fn process(
+	sync: GroupedEntry<SyncEntry>,
+	rating: Option<(String, Vec<rate::Rating>)>,
+	tx: Sender<Status>,
+) {
+	if let Some((bearer, rating)) = rating {
+		let txc = tx.clone();
+		thread::spawn(move || {
+			block_on(rate::sync(bearer, rating, txc).into_future());
+		});
+	}
+
 	let txc = tx.clone();
 	thread::spawn(move || {
 		block_on(fetch::fetch(&sync.fs.add, txc).into_future());
@@ -146,6 +176,7 @@ struct Count {
 	fetch: usize,
 	remove: usize,
 	playlist: usize,
+	rating: usize,
 }
 
 fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
@@ -169,6 +200,12 @@ fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	pb_playlist.set_style(template("playlist", "magenta")?);
 	if total.playlist > 0 {
 		pb_playlist.tick();
+	}
+
+	let pb_rating = mp.add(indicatif::ProgressBar::new(total.rating as u64));
+	pb_rating.set_style(template("rating", "yellow")?);
+	if total.rating > 0 {
+		pb_rating.tick();
 	}
 
 	let pb_remove = mp.add(indicatif::ProgressBar::new(total.remove as u64));
@@ -210,6 +247,7 @@ fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 			}
 			Action::RemoveFile => pb_remove.inc(1),
 			Action::SyncPlaylist => pb_playlist.inc(1),
+			Action::SubmitRating(count) => pb_rating.inc(count as u64),
 		}
 
 		if let Err(e) = status.status {
@@ -228,6 +266,9 @@ fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	}
 	if total.playlist > 0 {
 		pb_playlist.finish();
+	}
+	if total.rating > 0 {
+		pb_rating.finish();
 	}
 
 	if !err.is_empty() {

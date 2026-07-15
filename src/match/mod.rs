@@ -3,7 +3,6 @@ mod find;
 mod keep;
 mod link;
 mod no_link;
-mod open;
 mod output;
 mod record;
 mod redirect;
@@ -16,7 +15,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
 
-use crate::MUSIC_BRAINZ_USER_AGENT;
+use crate::{MUSIC_BRAINZ_USER_AGENT, open};
 
 pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);

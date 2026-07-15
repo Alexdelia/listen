@@ -12,10 +12,12 @@ use musicbrainz_rs::{
 
 use streaming_source::StreamingSource;
 
-use crate::MUSIC_BRAINZ_USER_AGENT;
-use crate::channel::{Action, Status, report};
-use crate::entry::Entry;
-use crate::metadata;
+use crate::{
+	MUSIC_BRAINZ_USER_AGENT,
+	channel::{Action, Status, report},
+	entry::Entry,
+	metadata,
+};
 
 pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
