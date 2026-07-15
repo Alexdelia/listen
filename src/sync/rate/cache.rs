@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use ansi::abbrev::R;
+use ansi::abbrev::{B, D, R, Y};
 use hmerr::{ge, ioe};
 
 use crate::declaration::Source;
@@ -21,7 +21,13 @@ pub(super) fn read() -> hmerr::Result<Submitted> {
 
 	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
-	Ok(serde_json::from_str(&content).unwrap_or_default())
+	Ok(serde_json::from_str(&content).unwrap_or_else(|e| {
+		eprintln!(
+			"{Y}corrupt rating cache {B}{path}{D}{Y}, treating as empty{D}\n{e}",
+			path = path.to_string_lossy()
+		);
+		Submitted::new()
+	}))
 }
 
 pub(super) fn write(submitted: &Submitted) -> hmerr::Result<()> {
