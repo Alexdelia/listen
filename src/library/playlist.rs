@@ -79,7 +79,8 @@ pub fn existing() -> hmerr::Result<Existing> {
 			continue;
 		};
 
-		let list = parse_content(&fs::read_to_string(&path)?);
+		let list =
+			parse_content(&fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?);
 
 		let name = name.to_string_lossy();
 		if name.starts_with(PREFIX) {
