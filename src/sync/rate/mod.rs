@@ -15,11 +15,16 @@ use value::Value;
 pub type Rating = (Source, Value);
 
 pub struct Pending {
+	client: auth::Client,
 	submitted: cache::Submitted,
 	pub rating: Vec<Rating>,
 }
 
-pub fn pending(list: &[Entry]) -> hmerr::Result<Pending> {
+pub fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
+	let Some(client) = auth::client() else {
+		return Ok(None);
+	};
+
 	let submitted = cache::read()?;
 
 	let rating = list
@@ -28,13 +33,22 @@ pub fn pending(list: &[Entry]) -> hmerr::Result<Pending> {
 		.filter(|(source, value)| submitted.get(source) != Some(value))
 		.collect();
 
-	Ok(Pending { submitted, rating })
+	Ok(Some(Pending {
+		client,
+		submitted,
+		rating,
+	}))
+}
+
+pub fn acquire(pending: &Pending) -> hmerr::Result<Option<String>> {
+	auth::acquire(&pending.client)
 }
 
 pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 	let Pending {
 		mut submitted,
 		rating,
+		..
 	} = pending;
 
 	for (index, chunk) in rating.chunks(submit::CHUNK).enumerate() {

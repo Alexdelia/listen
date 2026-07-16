@@ -2,7 +2,7 @@ use ansi::abbrev::{B, D, Y};
 
 use crate::env::{self, Var};
 
-pub(super) struct Client {
+pub(in crate::sync::rate) struct Client {
 	pub id: String,
 	pub secret: String,
 }

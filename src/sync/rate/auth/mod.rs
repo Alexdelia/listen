@@ -4,15 +4,15 @@ mod token;
 
 use ansi::abbrev::{D, Y};
 
-use client::Client;
+pub(in crate::sync::rate) use client::Client;
 
-pub fn acquire() -> hmerr::Result<Option<String>> {
-	let Some(client) = Client::from_env() else {
-		return Ok(None);
-	};
+pub(super) fn client() -> Option<Client> {
+	Client::from_env()
+}
 
+pub(super) fn acquire(client: &Client) -> hmerr::Result<Option<String>> {
 	if let Some(stored) = token::stored()? {
-		match token::refresh(&client, &stored) {
+		match token::refresh(client, &stored) {
 			Ok(token) => {
 				if let Some(refresh) = &token.refresh {
 					token::store(refresh)?;
@@ -23,5 +23,5 @@ pub fn acquire() -> hmerr::Result<Option<String>> {
 		}
 	}
 
-	login::run(&client)
+	login::run(client)
 }

@@ -16,7 +16,7 @@ use hmerr::ioe;
 
 use crate::{declaration::parse, env};
 
-use channel::Status;
+use channel::{Action, Status};
 use filter::{GroupedEntry, SyncEntry};
 use progress::Count;
 
@@ -45,28 +45,68 @@ pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 		}
 	}
 
-	let bearer = if pending.rating.is_empty() {
-		None
-	} else {
-		rate::auth::acquire()?
-	};
+	let (tx, rx) = async_std::channel::unbounded::<Status>();
+
+	let rating = acquire_rating(pending, &tx);
 
 	let total = Count {
 		fetch: sync.fs.add.len(),
 		remove: sync.fs.remove.len(),
 		playlist: sync.q.len() + sync.playlist.len(),
-		rating: if bearer.is_some() {
-			pending.rating.len()
-		} else {
-			0
-		},
+		rating: rating.count(),
 	};
 
-	let (tx, rx) = async_std::channel::unbounded::<Status>();
-
-	process(sync, bearer.map(|bearer| (bearer, pending)), tx);
+	process(sync, rating.submit(), tx);
 	println!();
 	progress::render(total, &rx)
+}
+
+enum Rating {
+	Submit(String, rate::Pending),
+	Failed(usize),
+	Skip,
+}
+
+impl Rating {
+	fn count(&self) -> usize {
+		match self {
+			Self::Submit(_, pending) => pending.rating.len(),
+			Self::Failed(count) => *count,
+			Self::Skip => 0,
+		}
+	}
+
+	fn submit(self) -> Option<(String, rate::Pending)> {
+		match self {
+			Self::Submit(bearer, pending) => Some((bearer, pending)),
+			_ => None,
+		}
+	}
+}
+
+fn acquire_rating(pending: Option<rate::Pending>, tx: &Sender<Status>) -> Rating {
+	let Some(pending) = pending else {
+		return Rating::Skip;
+	};
+
+	if pending.rating.is_empty() {
+		return Rating::Skip;
+	}
+
+	match rate::acquire(&pending) {
+		Ok(Some(bearer)) => Rating::Submit(bearer, pending),
+		Ok(None) => Rating::Skip,
+		Err(e) => {
+			block_on(channel::report(
+				tx,
+				Status {
+					action: Action::SubmitRating(0),
+					status: Err(e.to_string()),
+				},
+			));
+			Rating::Failed(pending.rating.len())
+		}
+	}
 }
 
 fn process(
