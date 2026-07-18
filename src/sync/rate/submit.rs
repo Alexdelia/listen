@@ -14,7 +14,7 @@ const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
 pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
-	let mut response = agent::build()
+	let mut response = agent::get()
 		.post(format!(
 			"{ENDPOINT}?client={client}",
 			client = music_brainz::CLIENT
