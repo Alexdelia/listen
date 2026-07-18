@@ -2,11 +2,11 @@ use ansi::abbrev::{B, D, R};
 use chrono::{DateTime, Utc};
 use hmerr::ge;
 use serde::Deserialize;
+use ureq::http::StatusCode;
 
 use crate::{declaration::Source, meta_brainz};
 
 const PAGE: usize = 20;
-const NO_CONTENT: u16 = 204;
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
@@ -33,7 +33,7 @@ pub(super) fn page(username: &str, offset: usize) -> hmerr::Result<Page> {
 		))
 	})?;
 
-	if response.status().as_u16() == NO_CONTENT {
+	if response.status() == StatusCode::NO_CONTENT {
 		return Err(ge!(
 			format!("{R}no recommendation computed for {B}{username}{D}"),
 			h: "recommendations are computed periodically, come back later"
