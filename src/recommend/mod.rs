@@ -2,7 +2,7 @@ mod fetch;
 
 use std::{collections::HashSet, ops::ControlFlow, path::Path};
 
-use ansi::abbrev::{B, D};
+use ansi::abbrev::{B, CYA, D, Y};
 use hmerr::ioe;
 
 use crate::{cache, declaration::Source, r#match};
@@ -45,7 +45,7 @@ async fn consider(
 	unlistened: bool,
 	declared: &mut HashSet<Source>,
 ) -> hmerr::Result<ControlFlow<()>> {
-	if unlistened && recommendation.listened {
+	if unlistened && recommendation.latest_listened_at.is_some() {
 		return Ok(ControlFlow::Continue(()));
 	}
 
@@ -54,7 +54,15 @@ async fn consider(
 	}
 
 	let mbid = recommendation.mbid.to_string();
-	eprintln!("\n{B}{mbid}{D}");
+	println!(
+		"\n{B}{mbid}{D} {Y}{score:.3}{D}{last}",
+		score = recommendation.score,
+		last = recommendation
+			.latest_listened_at
+			.as_deref()
+			.map(|at| format!(" {CYA}{at}{D}"))
+			.unwrap_or_default(),
+	);
 
 	if let Err(e) = r#match::run(path, &mbid).await {
 		eprintln!("{e}");

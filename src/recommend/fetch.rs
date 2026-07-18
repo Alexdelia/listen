@@ -9,7 +9,8 @@ const NO_CONTENT: u16 = 204;
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
-	pub listened: bool,
+	pub score: f32,
+	pub latest_listened_at: Option<String>,
 }
 
 pub(super) struct Page {
@@ -59,7 +60,8 @@ pub(super) fn page(username: &str, offset: usize) -> hmerr::Result<Page> {
 			.into_iter()
 			.map(|entry| Recommendation {
 				mbid: entry.recording_mbid,
-				listened: entry.latest_listened_at.is_some(),
+				score: entry.score,
+				latest_listened_at: entry.latest_listened_at,
 			})
 			.collect(),
 		fetched: payload.count,
@@ -76,11 +78,12 @@ struct Response {
 struct Payload {
 	count: usize,
 	total_mbid_count: usize,
-	mbids: Vec<Mbid>,
+	mbids: Vec<RankedRecording>,
 }
 
 #[derive(Deserialize)]
-struct Mbid {
+struct RankedRecording {
 	recording_mbid: Source,
+	score: f32,
 	latest_listened_at: Option<String>,
 }
