@@ -2,7 +2,10 @@ mod clipboard;
 
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, R};
+use ansi::{
+	DIM,
+	abbrev::{B, CYA, D, R},
+};
 use hmerr::{ge, ioe};
 
 use super::{duration, open, verify::Info};
@@ -10,17 +13,16 @@ use super::{duration, open, verify::Info};
 const LIST_CLOSE: char = ']';
 
 pub(super) fn found(info: &Info, length: i64) {
+	let delta_str = info.duration.map_or(String::default(), |dur| {
+		let delta = dur - length;
+		format!(" {R}{delta:+}{DIM}s{D}")
+	});
+
 	eprintln!(
-		"{B}{track}{D} - {artist}, {dur} ({delta:+}s){album}",
+		"{B}{track}{D} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}{delta_str}",
 		track = info.track.as_deref().unwrap_or("?"),
 		artist = info.artist.as_deref().unwrap_or("?"),
 		dur = duration::fmt(info.duration),
-		delta = info.duration.unwrap_or(length) - length,
-		album = info
-			.album
-			.as_deref()
-			.map(|a| format!(", {a}"))
-			.unwrap_or_default(),
 	);
 }
 
