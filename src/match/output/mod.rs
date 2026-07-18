@@ -15,6 +15,10 @@ const LIST_CLOSE: char = ']';
 pub(super) fn found(info: &Info, length: i64) {
 	let delta_str = info.duration.map_or(String::default(), |dur| {
 		let delta = dur - length;
+		if delta == 0 {
+			return String::default();
+		}
+
 		format!(" {R}{delta:+}{DIM}s{D}")
 	});
 
