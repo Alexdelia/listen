@@ -1,4 +1,5 @@
 use ansi::abbrev::{B, D, R};
+use chrono::{DateTime, Utc};
 use hmerr::ge;
 use serde::Deserialize;
 
@@ -10,7 +11,7 @@ const NO_CONTENT: u16 = 204;
 pub(super) struct Recommendation {
 	pub mbid: Source,
 	pub score: f32,
-	pub latest_listened_at: Option<String>,
+	pub latest_listened_at: Option<DateTime<Utc>>,
 }
 
 pub(super) struct Page {
@@ -85,5 +86,5 @@ struct Payload {
 struct RankedRecording {
 	recording_mbid: Source,
 	score: f32,
-	latest_listened_at: Option<String>,
+	latest_listened_at: Option<DateTime<Utc>>,
 }

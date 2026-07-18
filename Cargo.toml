@@ -18,6 +18,10 @@ hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 async-std = { version = "1", features = ["tokio1"] }
+chrono = { version = "0.4", default-features = false, features = [
+	"serde",
+	"clock",
+] }
 dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
