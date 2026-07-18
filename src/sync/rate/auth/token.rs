@@ -15,31 +15,56 @@ pub(super) const REDIRECT_URI: &str = "urn:ietf:wg:oauth:2.0:oob";
 
 const FILE: &str = "musicbrainz-refresh-token";
 
+const INVALID_GRANT: &str = "invalid_grant";
+
 pub(super) struct Token {
 	pub access: String,
 	pub refresh: Option<String>,
 }
 
+pub(super) enum Refresh {
+	Token(Token),
+	Rejected,
+}
+
+enum Reply {
+	Token(Token),
+	Refused {
+		invalid_grant: bool,
+		error: Box<dyn std::error::Error>,
+	},
+}
+
 pub(super) fn exchange(client: &Client, code: &str) -> hmerr::Result<Token> {
-	request(&[
+	match request(&[
 		("grant_type", "authorization_code"),
 		("code", code),
 		("client_id", &client.id),
 		("client_secret", &client.secret),
 		("redirect_uri", REDIRECT_URI),
-	])
+	])? {
+		Reply::Token(token) => Ok(token),
+		Reply::Refused { error, .. } => Err(error),
+	}
 }
 
-pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Token> {
-	request(&[
+pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Refresh> {
+	match request(&[
 		("grant_type", "refresh_token"),
 		("refresh_token", refresh_token),
 		("client_id", &client.id),
 		("client_secret", &client.secret),
-	])
+	])? {
+		Reply::Token(token) => Ok(Refresh::Token(token)),
+		Reply::Refused {
+			invalid_grant: true,
+			..
+		} => Ok(Refresh::Rejected),
+		Reply::Refused { error, .. } => Err(error),
+	}
 }
 
-fn request(form: &[(&str, &str)]) -> hmerr::Result<Token> {
+fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
 	meta_brainz::block_ready();
 
 	let mut response = agent::build()
@@ -52,10 +77,13 @@ fn request(form: &[(&str, &str)]) -> hmerr::Result<Token> {
 	let body = response.body_mut().read_to_string().unwrap_or_default();
 
 	if !status.is_success() {
-		return Err(ge!(format!(
-			"{R}musicbrainz oauth refused the request{D} ({B}{status}{D})\n{body}"
-		))
-		.into());
+		return Ok(Reply::Refused {
+			invalid_grant: is_invalid_grant(&body),
+			error: ge!(format!(
+				"{R}musicbrainz oauth refused the request{D} ({B}{status}{D})\n{body}"
+			))
+			.into(),
+		});
 	}
 
 	let payload = serde_json::from_str::<Payload>(&body).map_err(|e| {
@@ -64,16 +92,25 @@ fn request(form: &[(&str, &str)]) -> hmerr::Result<Token> {
 		))
 	})?;
 
-	Ok(Token {
+	Ok(Reply::Token(Token {
 		access: payload.access_token,
 		refresh: payload.refresh_token,
-	})
+	}))
+}
+
+fn is_invalid_grant(body: &str) -> bool {
+	serde_json::from_str::<ErrorPayload>(body).is_ok_and(|e| e.error == INVALID_GRANT)
 }
 
 #[derive(Deserialize)]
 struct Payload {
 	access_token: String,
 	refresh_token: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ErrorPayload {
+	error: String,
 }
 
 pub(super) fn stored() -> hmerr::Result<Option<String>> {
