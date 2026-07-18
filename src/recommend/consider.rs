@@ -35,7 +35,7 @@ pub(super) async fn consider(
 			.unwrap_or_default(),
 	);
 
-	if let Err(e) = r#match::run(path, &mbid).await {
+	if let Err(e) = r#match::run(path, &mbid, true).await {
 		eprintln!("{e}");
 	}
 

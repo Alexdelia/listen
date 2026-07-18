@@ -17,7 +17,7 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
 
-pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
+pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
 	let client = music_brainz::client();
 
 	let recording = Recording::fetch()
@@ -55,6 +55,9 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 				match verify::verify(&id)? {
 					Some(info) if info.is_song() => {
 						break if dead.is_empty() {
+							if preview {
+								open::open(&verify::watch(&id))?;
+							}
 							keep::run(path, mbid, Some(&info), length)
 						} else {
 							let found = find::Found {
