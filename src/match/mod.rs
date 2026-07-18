@@ -51,7 +51,7 @@ pub async fn run(path: &Path, mbid: &str, prompt: Prompt) -> hmerr::Result<Contr
 	match link::streaming(&recording) {
 		None => no_link::run(&client, &recording, &title, length, path, mbid, prompt).await,
 		Some(link::Streaming::SoundCloud) => {
-			eprintln!("{B}soundcloud{D} link already on musicbrainz");
+			println!("{B}soundcloud{D} link already on musicbrainz");
 			keep::run(path, mbid, None, length)?;
 			Ok(ControlFlow::Continue(()))
 		}

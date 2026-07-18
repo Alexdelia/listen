@@ -18,7 +18,7 @@ pub(super) fn found(info: &Info, length: i64) {
 		format!(" {R}{delta:+}{DIM}s{D}")
 	});
 
-	eprintln!(
+	println!(
 		"{B}{track}{D} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}{delta_str}",
 		track = info.track.as_deref().unwrap_or("?"),
 		artist = info.artist.as_deref().unwrap_or("?"),
@@ -52,8 +52,7 @@ pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
 pub(super) fn musicbrainz(mbid: &str, url: &str) -> hmerr::Result<()> {
 	clipboard::copy(url)?;
 	open::open(&format!("https://musicbrainz.org/recording/{mbid}/edit"))?;
-	println!("{url}");
-	eprintln!("{B}musicbrainz{D} add free streaming relationship (copied)");
+	println!("{url}\n{B}musicbrainz{D} add free streaming relationship (copied)");
 
 	Ok(())
 }
