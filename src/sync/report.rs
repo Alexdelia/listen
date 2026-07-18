@@ -1,7 +1,8 @@
 use ansi::abbrev::{B, CYA, D, G, M, R};
 
 use crate::color;
-use crate::filter::{GroupedEntry, SyncEntry};
+
+use super::filter::{GroupedEntry, SyncEntry};
 
 pub fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 	let mut ret = false;

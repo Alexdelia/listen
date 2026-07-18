@@ -1,6 +1,6 @@
 use musicbrainz_rs::entity::{recording::Recording, relations::RelationContent};
 
-use crate::fetch::streaming_source::StreamingSource;
+use crate::streaming_source::StreamingSource;
 
 const FREE_STREAMING: &str = "free streaming";
 

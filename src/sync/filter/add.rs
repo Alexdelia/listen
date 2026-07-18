@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::entry::{Entry, Q, Source};
+use crate::declaration::{Entry, Q, Source};
 
 use super::SyncEntry;
 
@@ -8,7 +8,7 @@ pub fn fs(existing: &mut HashSet<Source>, add: &mut Vec<Source>, entry: &Entry) 
 	if existing.contains(&entry.s) {
 		existing.remove(&entry.s);
 	} else {
-		add.push(entry.s.clone());
+		add.push(entry.s);
 	}
 }
 
@@ -25,7 +25,7 @@ pub fn q(
 			continue;
 		}
 
-		add.entry(q).or_default().add.push(entry.s.clone());
+		add.entry(q).or_default().add.push(entry.s);
 	}
 }
 
@@ -42,9 +42,6 @@ pub fn playlist(
 			continue;
 		}
 
-		add.entry(playlist.clone())
-			.or_default()
-			.add
-			.push(entry.s.clone());
+		add.entry(playlist.clone()).or_default().add.push(entry.s);
 	}
 }

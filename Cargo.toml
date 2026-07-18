@@ -1,8 +1,8 @@
 [package]
-name = "fl"
+name = "declarative_listen"
 version = "0.1.0"
 edition = "2024"
-authors = ["adelille <alexandre.delille.57@gmail.com>"]
+authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "fetch declared listens and organize them"
 
 [profile.dev]
@@ -18,9 +18,10 @@ hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 async-std = { version = "1", features = ["tokio1"] }
-dotenv = "0.15"
+dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+uuid = { version = "1", features = ["serde"] }
 ron = "0.12"
 ureq = "3"
 clap = { version = "4", features = ["derive"] }
@@ -30,8 +31,10 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 	"rate_limit",
 	"rustls",
 ] }
+api_bindium = { version = "0.4", features = ["rate_limit"] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
+const_format = "0.2"
 
 [lints.clippy]
 unwrap_used = "deny"

@@ -4,9 +4,9 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use ron::ser::PrettyConfig;
 
-use crate::entry::{Entry, Q};
+use crate::declaration::{Entry, Q, Source};
 
-pub(super) fn set_q(path: &Path, mbid: &str, q: Q) -> hmerr::Result<()> {
+pub(super) fn set_q(path: &Path, mbid: Source, q: Q) -> hmerr::Result<()> {
 	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
 	let mut out = Vec::new();
@@ -40,7 +40,7 @@ pub(super) fn set_q(path: &Path, mbid: &str, q: Q) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn rewrite(line: &str, mbid: &str, q: Q) -> hmerr::Result<Option<String>> {
+fn rewrite(line: &str, mbid: Source, q: Q) -> hmerr::Result<Option<String>> {
 	let trimmed = line.trim();
 	let payload = trimmed.strip_suffix(',').unwrap_or(trimmed);
 
@@ -70,30 +70,49 @@ fn config() -> PrettyConfig {
 
 #[cfg(test)]
 mod tests {
+	use const_format::formatcp;
+
 	use super::*;
+
+	const ABC: &str = "abcabcab-abca-abca-abca-abcabcabcabc";
+	const OTHER: &str = "99999999-9999-9999-9999-999999999999";
+
+	fn id(mbid: &str) -> Source {
+		mbid.parse().unwrap_or_default()
+	}
 
 	#[test]
 	fn rewrite_pretty_entry() {
 		assert_eq!(
-			rewrite("\t(s: \"abc\", q: 4, playlist: [\"charged\"]),", "abc", 1).ok(),
-			Some(Some(
-				"\t(s: \"abc\", q: 1, playlist: [\"charged\"]),".to_string()
-			))
+			rewrite(
+				formatcp!("\t(s: \"{ABC}\", q: 4, playlist: [\"charged\"]),"),
+				id(ABC),
+				1
+			)
+			.ok(),
+			Some(Some(format!(
+				"\t(s: \"{ABC}\", q: 1, playlist: [\"charged\"]),"
+			)))
 		);
 	}
 
 	#[test]
 	fn rewrite_normalizes_odd_spacing() {
 		assert_eq!(
-			rewrite("\t(s:\"abc\",q:2,playlist:[]),", "abc", 3).ok(),
-			Some(Some("\t(s: \"abc\", q: 3, playlist: []),".to_string()))
+			rewrite(formatcp!("\t(s:\"{ABC}\",q:2,playlist:[]),"), id(ABC), 3).ok(),
+			Some(Some(format!("\t(s: \"{ABC}\", q: 3, playlist: []),")))
 		);
 	}
 
 	#[test]
 	fn other_mbid_is_left_alone() {
 		assert_eq!(
-			rewrite("\t(s: \"abc\", q: 4, playlist: []),", "xyz", 1).ok(),
+			rewrite(
+				formatcp!("\t(s: \"{ABC}\", q: 4, playlist: []),"),
+				id(OTHER),
+				1
+			)
+			.ok(),
 			Some(None)
 		);
 	}
@@ -101,13 +120,18 @@ mod tests {
 	#[test]
 	fn comment_is_left_alone() {
 		assert_eq!(
-			rewrite("\t// (s: \"abc\", q: 2, playlist: []),", "abc", 1).ok(),
+			rewrite(
+				formatcp!("\t// (s: \"{ABC}\", q: 2, playlist: []),"),
+				id(ABC),
+				1
+			)
+			.ok(),
 			Some(None)
 		);
 	}
 
 	#[test]
 	fn bracket_is_left_alone() {
-		assert_eq!(rewrite("[", "abc", 1).ok(), Some(None));
+		assert_eq!(rewrite("[", id(ABC), 1).ok(), Some(None));
 	}
 }

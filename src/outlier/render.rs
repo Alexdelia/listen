@@ -79,7 +79,7 @@ pub(super) fn line(record: &Record) {
 		days = record.days,
 		rate = record.rate,
 		mbid = record.mbid,
-		label = meta::label(&record.mbid),
+		label = meta::label(record.mbid),
 	);
 }
 

@@ -9,6 +9,8 @@ pub enum Action {
 	RemoveFile,
 
 	SyncPlaylist,
+
+	SubmitRating(usize),
 }
 
 #[derive(Debug)]

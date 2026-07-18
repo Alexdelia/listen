@@ -1,6 +1,6 @@
 use ansi::{abbrev::D, hex};
 
-use crate::entry::Q;
+use crate::declaration::Q;
 
 pub const Q0: &str = hex!(#d1ba47);
 pub const Q1: &str = hex!(#a1d147);

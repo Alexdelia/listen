@@ -1,30 +1,28 @@
-pub(crate) mod streaming_source;
-
 use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
 use musicbrainz_rs::{
-	Fetch, MusicBrainzClient,
+	Fetch,
 	entity::{recording::Recording, relations::RelationContent},
 };
 
-use streaming_source::StreamingSource;
+use crate::{declaration::Source, library, music_brainz, streaming_source::StreamingSource};
 
-use crate::MUSIC_BRAINZ_USER_AGENT;
-use crate::channel::{Action, Status, report};
-use crate::entry::Entry;
-use crate::metadata;
+use super::{
+	channel::{Action, Status, report},
+	tag,
+};
 
-pub async fn fetch(sync: &[String], tx: Sender<Status>) {
-	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
+pub async fn fetch(sync: &[Source], tx: Sender<Status>) {
+	let client = music_brainz::client();
 
 	let mut handles = vec![];
 
 	for entry in sync {
 		let res = Recording::fetch()
-			.id(entry)
+			.id(&entry.to_string())
 			.with_artists()
 			.with_genres()
 			.with_tags()
@@ -54,7 +52,7 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 		)
 		.await;
 
-		let entry = entry.clone();
+		let entry = *entry;
 
 		let tcx = tx.clone();
 		handles.push(task::spawn(async move {
@@ -72,7 +70,7 @@ pub async fn fetch(sync: &[String], tx: Sender<Status>) {
 }
 
 async fn fetch_recording(
-	entry: &str,
+	entry: &Source,
 	recording: &Recording,
 	tx: &Sender<Status>,
 ) -> Option<PathBuf> {
@@ -124,7 +122,7 @@ async fn fetch_recording(
 		return None;
 	}
 
-	let path = Entry::path_from_source(entry);
+	let path = library::recording::path(*entry);
 	let mut err: Option<String> = None;
 
 	urls.sort_by_key(|a| a.0.priority());
@@ -166,7 +164,7 @@ async fn fetch_recording(
 }
 
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
-	let status = metadata::write(&path, &recording);
+	let status = tag::write(&path, &recording);
 
 	report(
 		tx,

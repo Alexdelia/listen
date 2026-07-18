@@ -7,7 +7,7 @@ use ansi::abbrev::{B, CYA, D, R};
 use hmerr::ioe;
 use ux::AskKey;
 
-use crate::{color, entry::Q};
+use crate::{color, declaration::Q};
 
 use super::{
 	analyze::{Analysis, Record},
@@ -54,12 +54,12 @@ fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<Co
 			Answer::Quit => return Ok(ControlFlow::Break(())),
 			Answer::Skip => return Ok(ControlFlow::Continue(())),
 			Answer::Apply(q) => {
-				apply::set_q(path, &record.mbid, q)?;
+				apply::set_q(path, record.mbid, q)?;
 				println!("{B}{color}q{q}{D}", color = color::q(q));
 				return Ok(ControlFlow::Continue(()));
 			}
 			Answer::Play => {
-				if let Err(e) = player.play(&record.mbid) {
+				if let Err(e) = player.play(record.mbid) {
 					eprintln!("{e}");
 				}
 			}

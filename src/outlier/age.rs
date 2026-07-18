@@ -8,7 +8,7 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use crate::entry::Source;
+use crate::declaration::Source;
 
 const COMMIT_TIMESTAMP_FORMAT: &str = "--format=%ct";
 const SOURCE_PREFIX: &str = "s: \"";
@@ -97,44 +97,64 @@ fn split_source(content: &str) -> Option<(String, Source)> {
 
 	Some((
 		[&content[..start], &content[end..]].concat(),
-		content[start..end].to_string(),
+		content[start..end].parse().ok()?,
 	))
 }
 
 #[cfg(test)]
 mod tests {
+	use const_format::formatcp;
+
 	use super::*;
 
-	const LOG: &str = "\
+	const AAAA: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+	const BBBB: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+	const CCCC: &str = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+	const OLD: &str = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+	const SWAP: &str = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+	const BORN: &str = "ffffffff-ffff-ffff-ffff-ffffffffffff";
+
+	fn id(mbid: &str) -> Source {
+		mbid.parse().unwrap_or_default()
+	}
+
+	const LOG: &str = formatcp!(
+		"\
 100000
 diff --git a/listen.ron b/listen.ron
 --- a/listen.ron
 +++ b/listen.ron
 @@ -0,0 +1,3 @@
 +[
-+\t(s: \"aaaa\", q: 4, playlist: []),
-+\t// (s: \"cccc\", q: 2, playlist: []),
++\t(s: \"{AAAA}\", q: 4, playlist: []),
++\t// (s: \"{CCCC}\", q: 2, playlist: []),
 300000
 diff --git a/listen.ron b/listen.ron
 --- a/listen.ron
 +++ b/listen.ron
 @@ -1,3 +1,4 @@
--\t(s: \"aaaa\", q: 4, playlist: []),
-+\t(s: \"aaaa\", q: 2, playlist: []),
-+\t(s: \"bbbb\", q: 1, playlist: []),
-+\t(s: \"cccc\", q: 2, playlist: []),";
+-\t(s: \"{AAAA}\", q: 4, playlist: []),
++\t(s: \"{AAAA}\", q: 2, playlist: []),
++\t(s: \"{BBBB}\", q: 1, playlist: []),
++\t(s: \"{CCCC}\", q: 2, playlist: []),"
+	);
 
 	#[test]
 	fn extract_source() {
 		assert_eq!(
-			split_source("\t(s: \"aaaa\", q: 4"),
-			Some(("\t(s: \"\", q: 4".to_string(), "aaaa".to_string()))
+			split_source(formatcp!("\t(s: \"{AAAA}\", q: 4")),
+			Some(("\t(s: \"\", q: 4".to_string(), id(AAAA)))
 		);
 	}
 
 	#[test]
 	fn skip_comment() {
-		assert_eq!(split_source("// (s: \"cccc\", q: 2"), None);
+		assert_eq!(split_source(formatcp!("// (s: \"{CCCC}\", q: 2")), None);
+	}
+
+	#[test]
+	fn skip_invalid_mbid() {
+		assert_eq!(split_source("\t(s: \"not-an-mbid\", q: 4"), None);
 	}
 
 	#[test]
@@ -146,38 +166,40 @@ diff --git a/listen.ron b/listen.ron
 	fn edit_keeps_first_added_date() {
 		let age = parse_log(LOG, 300_000 + 5 * SECOND_PER_DAY);
 
-		assert_eq!(age.get("aaaa"), Some(&7));
-		assert_eq!(age.get("bbbb"), Some(&5));
+		assert_eq!(age.get(&id(AAAA)), Some(&7));
+		assert_eq!(age.get(&id(BBBB)), Some(&5));
 	}
 
 	#[test]
 	fn uncommenting_counts_as_added() {
 		let age = parse_log(LOG, 300_000 + 5 * SECOND_PER_DAY);
 
-		assert_eq!(age.get("cccc"), Some(&5));
+		assert_eq!(age.get(&id(CCCC)), Some(&5));
 	}
 
-	const SWAP_LOG: &str = "\
+	const SWAP_LOG: &str = formatcp!(
+		"\
 100000
 diff --git a/listen.ron b/listen.ron
 --- a/listen.ron
 +++ b/listen.ron
 @@ -0,0 +1,1 @@
-+\t(s: \"old0\", q: 2, playlist: [\"aggressive\"]),
++\t(s: \"{OLD}\", q: 2, playlist: [\"aggressive\"]),
 300000
 diff --git a/listen.ron b/listen.ron
 --- a/listen.ron
 +++ b/listen.ron
 @@ -1,1 +1,2 @@
--\t(s: \"old0\", q: 2, playlist: [\"aggressive\"]),
-+\t(s: \"swap0\", q: 2, playlist: [\"aggressive\"]),
-+\t(s: \"born0\", q: 2, playlist: []),";
+-\t(s: \"{OLD}\", q: 2, playlist: [\"aggressive\"]),
++\t(s: \"{SWAP}\", q: 2, playlist: [\"aggressive\"]),
++\t(s: \"{BORN}\", q: 2, playlist: []),"
+	);
 
 	#[test]
 	fn source_swap_inherits_first_added_date() {
 		let age = parse_log(SWAP_LOG, 300_000 + 5 * SECOND_PER_DAY);
 
-		assert_eq!(age.get("swap0"), Some(&7));
-		assert_eq!(age.get("born0"), Some(&5));
+		assert_eq!(age.get(&id(SWAP)), Some(&7));
+		assert_eq!(age.get(&id(BORN)), Some(&5));
 	}
 }

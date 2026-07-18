@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::entry::{Q, Source};
+use crate::declaration::{Q, Source};
 
 use super::SyncEntry;
 
 pub fn fs(existing: &HashSet<Source>, remove: &mut Vec<Source>) {
 	for source in existing {
-		remove.push(source.clone());
+		remove.push(*source);
 	}
 }
 
@@ -14,7 +14,7 @@ pub fn q(existing: &HashMap<Q, HashSet<Source>>, remove: &mut HashMap<Q, SyncEnt
 	for (q, set) in existing {
 		let entry = remove.entry(*q).or_default();
 		for source in set {
-			entry.remove.push(source.clone());
+			entry.remove.push(*source);
 		}
 	}
 }
@@ -26,7 +26,7 @@ pub fn playlist(
 	for (playlist, set) in existing {
 		let entry = remove.entry(playlist.clone()).or_default();
 		for source in set {
-			entry.remove.push(source.clone());
+			entry.remove.push(*source);
 		}
 	}
 }

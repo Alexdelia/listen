@@ -3,7 +3,7 @@ use std::process::Command;
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::fetch::streaming_source::StreamingSource;
+use crate::streaming_source::StreamingSource;
 
 const YT_DLP_ABSENT_FIELD: &str = "NA";
 

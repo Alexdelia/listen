@@ -3,7 +3,6 @@ mod find;
 mod keep;
 mod link;
 mod no_link;
-mod open;
 mod output;
 mod record;
 mod redirect;
@@ -14,12 +13,12 @@ use std::{collections::HashSet, path::Path};
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
-use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
+use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
-use crate::MUSIC_BRAINZ_USER_AGENT;
+use crate::{music_brainz, open};
 
 pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
-	let client = MusicBrainzClient::new(MUSIC_BRAINZ_USER_AGENT);
+	let client = music_brainz::client();
 
 	let recording = Recording::fetch()
 		.id(mbid)

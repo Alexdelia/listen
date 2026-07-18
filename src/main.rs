@@ -1,74 +1,26 @@
-mod channel;
+mod args;
+mod cache;
 mod color;
-mod entry;
+mod declaration;
 mod env;
-mod fetch;
-mod filter;
+mod library;
 mod r#match;
-mod metadata;
+mod meta_brainz;
+mod music_brainz;
+mod open;
 mod outlier;
-mod parse;
-mod playlist;
-mod refresh;
-mod remove;
-mod report;
+mod streaming_source;
+mod sync;
 
-use std::{future::IntoFuture, path::PathBuf, thread};
+use async_std::task::block_on;
 
-use async_std::{
-	channel::{Receiver, Sender},
-	task::block_on,
-};
-use channel::{Action, Status};
-use clap::Parser;
-use filter::{GroupedEntry, SyncEntry};
-use hmerr::ioe;
-use indicatif::{MultiProgress, ProgressStyle};
-
-#[derive(Parser)]
-#[command(about)]
-#[command(args_conflicts_with_subcommands = true)]
-pub struct Args {
-	#[command(subcommand)]
-	command: Option<Command>,
-
-	/// path to the ron file where the listens are declared
-	#[clap(default_value = "listen.ron")]
-	path: PathBuf,
-
-	/// refetch metadata from musicbrainz and rewrite tags for every downloaded recording
-	#[arg(long)]
-	refresh_metadata: bool,
-}
-
-#[derive(clap::Subcommand)]
-enum Command {
-	/// find the exact music.youtube.com match for a musicbrainz.org recording
-	Match {
-		/// musicbrainz.org recording MBID
-		mbid: String,
-	},
-	/// compare declared q against listenbrainz listen counts to surface outliers
-	Outlier {
-		/// listenbrainz.org username, cached and optional after the first use
-		username: Option<String>,
-		/// refetch listen stats instead of using the cache
-		#[arg(short, long)]
-		refresh: bool,
-		/// review each outlier and apply a new q to the ron file
-		#[arg(short, long)]
-		interactive: bool,
-	},
-}
-
-const MUSIC_BRAINZ_USER_AGENT: &str =
-	"Alexdelia's personal declarative listen/0.1.0 ( https://github.com/Alexdelia/listen )";
+use args::Command;
 
 fn main() -> hmerr::Result<()> {
-	let args = Args::parse();
+	let args = args::parse();
 
 	if let Some(Command::Match { mbid }) = &args.command {
-		return block_on(r#match::run(&args.path, mbid));
+		return block_on(r#match::run(&args.path, &mbid.to_string()));
 	}
 
 	if let Some(Command::Outlier {
@@ -80,163 +32,5 @@ fn main() -> hmerr::Result<()> {
 		return outlier::run(&args.path, username.as_deref(), *refresh, *interactive);
 	}
 
-	if args.refresh_metadata {
-		let list = parse::parse(&args.path)?;
-		return block_on(refresh::refresh(&list));
-	}
-
-	env::load()?;
-
-	let list = parse::parse(args.path)?;
-
-	let sync = filter::sync(list)?;
-
-	let remove = report::report(&sync);
-
-	if remove {
-		let yes = ux::ask_yn("do you want to proceed with this update?", true)
-			.map_err(|e| ioe!("stdin", e))?;
-
-		if !yes {
-			return Ok(());
-		}
-	}
-
-	let total = Count {
-		fetch: sync.fs.add.len(),
-		remove: sync.fs.remove.len(),
-		playlist: sync.q.len() + sync.playlist.len(),
-	};
-
-	let (tx, rx) = async_std::channel::unbounded::<Status>();
-
-	process(sync, tx);
-	println!();
-	progress(total, &rx)
-}
-
-fn process(sync: GroupedEntry<SyncEntry>, tx: Sender<Status>) {
-	let txc = tx.clone();
-	thread::spawn(move || {
-		block_on(fetch::fetch(&sync.fs.add, txc).into_future());
-	});
-	let txc = tx.clone();
-	thread::spawn(move || {
-		block_on(remove::remove(&sync.fs.remove, txc).into_future());
-	});
-
-	for (q, sync) in sync.q {
-		let txc = tx.clone();
-		thread::spawn(move || {
-			block_on(playlist::sync::q(q, sync, txc).into_future());
-		});
-	}
-	for (playlist, sync) in sync.playlist {
-		let txc = tx.clone();
-		thread::spawn(move || {
-			block_on(playlist::sync::playlist(playlist, sync, txc).into_future());
-		});
-	}
-
-	drop(tx);
-}
-
-#[derive(Default, Clone, Copy)]
-struct Count {
-	fetch: usize,
-	remove: usize,
-	playlist: usize,
-}
-
-fn progress(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
-	let mp = MultiProgress::new();
-
-	let template = |title: &str, color: &str| -> hmerr::Result<ProgressStyle> {
-		let title = format!("{title:>8}");
-		ProgressStyle::with_template(
-			&[
-				&title,
-				" {wide_bar:.",
-				color,
-				"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:>3.bold.blue}|{eta:3.bold.magenta}",
-			]
-			.join(""),
-		)
-		.map_err(|e| format!("failed to create progress style\n{e}").into())
-	};
-
-	let pb_playlist = mp.add(indicatif::ProgressBar::new(total.playlist as u64));
-	pb_playlist.set_style(template("playlist", "magenta")?);
-	if total.playlist > 0 {
-		pb_playlist.tick();
-	}
-
-	let pb_remove = mp.add(indicatif::ProgressBar::new(total.remove as u64));
-	pb_remove.set_style(template("remove", "red")?);
-	if total.remove > 0 {
-		pb_remove.tick();
-	}
-
-	let pb_fetch = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_fetch.set_style(template("fetch", "blue")?);
-	let pb_download = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_download.set_style(template("download", "cyan")?);
-	let pb_metadata = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_metadata.set_style(template("metadata", "green")?);
-	if total.fetch > 0 {
-		pb_fetch.tick();
-		pb_download.tick();
-		pb_metadata.tick();
-	}
-
-	let mut err = vec![];
-
-	while let Ok(status) = rx.recv_blocking() {
-		match status.action {
-			Action::FetchMusicBrainz => {
-				pb_fetch.inc(1);
-				pb_download.tick();
-				pb_metadata.tick();
-			}
-			Action::FetchStreaming => {
-				pb_fetch.tick();
-				pb_download.inc(1);
-				pb_metadata.tick();
-			}
-			Action::AddMetadata => {
-				pb_fetch.tick();
-				pb_download.tick();
-				pb_metadata.inc(1);
-			}
-			Action::RemoveFile => pb_remove.inc(1),
-			Action::SyncPlaylist => pb_playlist.inc(1),
-		}
-
-		if let Err(e) = status.status {
-			eprintln!("{e}\n");
-			err.push(e);
-		}
-	}
-
-	if total.fetch > 0 {
-		pb_fetch.finish();
-		pb_download.finish();
-		pb_metadata.finish();
-	}
-	if total.remove > 0 {
-		pb_remove.finish();
-	}
-	if total.playlist > 0 {
-		pb_playlist.finish();
-	}
-
-	if !err.is_empty() {
-		eprint!("\n\nerrors:\n\n");
-		for e in err {
-			eprintln!("{e}");
-		}
-		eprint!("\n\n\n");
-	}
-
-	Ok(())
+	sync::run(&args.path, args.refresh_metadata)
 }
