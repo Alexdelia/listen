@@ -38,6 +38,14 @@ pub enum Command {
 		#[arg(short, long)]
 		interactive: bool,
 	},
+	/// resolve listenbrainz recommendations to matches and append new ones
+	Recommend {
+		/// listenbrainz.org username, cached and optional after the first use
+		username: Option<String>,
+		/// skip recommendations already listened to
+		#[arg(short, long)]
+		unlistened: bool,
+	},
 }
 
 pub fn parse() -> Args {
