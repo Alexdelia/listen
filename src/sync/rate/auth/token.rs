@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use serde::Deserialize;
 
-use crate::{cache, music_brainz};
+use crate::{cache, meta_brainz, music_brainz};
 
 use super::super::agent;
 
@@ -40,6 +40,8 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Tok
 }
 
 fn request(form: &[(&str, &str)]) -> hmerr::Result<Token> {
+	meta_brainz::block_ready();
+
 	let mut response = agent::build()
 		.post(ENDPOINT)
 		.header("user-agent", music_brainz::USER_AGENT)

@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R, Y};
 use hmerr::ge;
 use serde::{Deserialize, Serialize};
 
-use crate::declaration::Source;
+use crate::{declaration::Source, meta_brainz};
 
 const RANGE: &str = "all_time";
 const PAGE: usize = 1000;
@@ -59,6 +59,8 @@ fn page(username: &str, offset: usize) -> hmerr::Result<Payload> {
 	let url = format!(
 		"https://api.listenbrainz.org/1/stats/user/{username}/recordings?range={RANGE}&count={PAGE}&offset={offset}"
 	);
+
+	meta_brainz::block_ready();
 
 	let body = ureq::get(&url)
 		.call()

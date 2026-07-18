@@ -31,6 +31,7 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 	"rate_limit",
 	"rustls",
 ] }
+api_bindium = { version = "0.4", features = ["rate_limit"] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
 const_format = "0.2"

@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
 use musicbrainz_rs::{
-	Fetch, MusicBrainzClient,
+	Fetch,
 	entity::{recording::Recording, relations::RelationContent},
 };
 
@@ -16,7 +16,7 @@ use super::{
 };
 
 pub async fn fetch(sync: &[Source], tx: Sender<Status>) {
-	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
+	let client = music_brainz::client();
 
 	let mut handles = vec![];
 

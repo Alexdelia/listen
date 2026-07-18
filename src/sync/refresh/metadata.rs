@@ -1,6 +1,6 @@
 use ansi::abbrev::{B, D, R};
 use indicatif::{ProgressBar, ProgressStyle};
-use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
+use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{declaration::Entry, library, music_brainz};
 
@@ -10,7 +10,7 @@ const TEMPLATE: &str =
 	"metadata {wide_bar:.green/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 
 pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
-	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
+	let client = music_brainz::client();
 
 	let existing = list
 		.iter()

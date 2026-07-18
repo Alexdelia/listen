@@ -1,4 +1,4 @@
-use std::{fmt::Write, time::Duration};
+use std::fmt::Write;
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
@@ -8,7 +8,6 @@ use crate::music_brainz;
 use super::{Rating, agent};
 
 pub(super) const CHUNK: usize = 200;
-pub(super) const RATE_LIMIT: Duration = Duration::from_secs(1);
 
 const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 

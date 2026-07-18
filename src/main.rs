@@ -5,6 +5,7 @@ mod declaration;
 mod env;
 mod library;
 mod r#match;
+mod meta_brainz;
 mod music_brainz;
 mod open;
 mod outlier;

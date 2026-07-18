@@ -6,7 +6,10 @@ mod value;
 
 use async_std::channel::Sender;
 
-use crate::declaration::{Entry, Source};
+use crate::{
+	declaration::{Entry, Source},
+	meta_brainz,
+};
 
 use super::channel::{Action, Status, report};
 
@@ -51,10 +54,8 @@ pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 		..
 	} = pending;
 
-	for (index, chunk) in rating.chunks(submit::CHUNK).enumerate() {
-		if index > 0 {
-			async_std::task::sleep(submit::RATE_LIMIT).await;
-		}
+	for chunk in rating.chunks(submit::CHUNK) {
+		meta_brainz::ready().await;
 
 		let status = submit::submit(&bearer, chunk)
 			.and_then(|()| {

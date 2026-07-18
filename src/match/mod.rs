@@ -13,12 +13,12 @@ use std::{collections::HashSet, path::Path};
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
-use musicbrainz_rs::{Fetch, MusicBrainzClient, entity::recording::Recording};
+use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
 
 pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
-	let client = MusicBrainzClient::new(music_brainz::USER_AGENT);
+	let client = music_brainz::client();
 
 	let recording = Recording::fetch()
 		.id(mbid)
