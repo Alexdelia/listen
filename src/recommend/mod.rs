@@ -1,19 +1,15 @@
+mod consider;
+mod declared;
 mod fetch;
 
-use std::{collections::HashSet, ops::ControlFlow, path::Path};
+use std::path::Path;
 
-use ansi::abbrev::{B, CYA, D, Y};
-use chrono::{DateTime, Months, Utc};
-use hmerr::ioe;
-
-use crate::{cache, declaration::Source, r#match};
-
-use fetch::Recommendation;
+use crate::cache;
 
 pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr::Result<()> {
 	let username = cache::username::resolve(username)?;
 
-	let mut declared = declared(path)?;
+	let mut declared = declared::sources(path)?;
 
 	let mut offset = 0;
 	loop {
@@ -23,7 +19,7 @@ pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr
 		}
 
 		for recommendation in &page.recommendation {
-			if consider(path, recommendation, unlistened, &mut declared)
+			if consider::consider(path, recommendation, unlistened, &mut declared)
 				.await?
 				.is_break()
 			{
@@ -38,66 +34,4 @@ pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr
 	}
 
 	Ok(())
-}
-
-async fn consider(
-	path: &Path,
-	recommendation: &Recommendation,
-	unlistened: bool,
-	declared: &mut HashSet<Source>,
-) -> hmerr::Result<ControlFlow<()>> {
-	if unlistened && recommendation.latest_listened_at.is_some() {
-		return Ok(ControlFlow::Continue(()));
-	}
-
-	if !declared.insert(recommendation.mbid) {
-		return Ok(ControlFlow::Continue(()));
-	}
-
-	let mbid = recommendation.mbid.to_string();
-	println!(
-		"\n{B}{mbid}{D} {Y}{score:.3}{D}{last}",
-		score = recommendation.score,
-		last = recommendation
-			.latest_listened_at
-			.map(|at| format!(" {CYA}{at}{D}", at = listened(at)))
-			.unwrap_or_default(),
-	);
-
-	match r#match::run(path, &mbid, r#match::Prompt::Review).await {
-		Ok(flow) => return Ok(flow),
-		Err(e) => {
-			eprintln!("{e}");
-			if !ux::ask_yn("no match, continue", true).map_err(|e| ioe!("stdin", e))? {
-				return Ok(ControlFlow::Break(()));
-			}
-		}
-	}
-
-	Ok(ControlFlow::Continue(()))
-}
-
-const DATE_FORMAT: &str = "%Y-%m-%d";
-const TIME_FORMAT: &str = "%H:%M";
-
-fn listened(at: DateTime<Utc>) -> String {
-	let recent = Utc::now()
-		.checked_sub_months(Months::new(1))
-		.is_some_and(|cutoff| at >= cutoff);
-
-	let date_str = at.format(DATE_FORMAT).to_string();
-
-	if recent {
-		let time_str = at.format(TIME_FORMAT).to_string();
-		format!("{date_str} {time_str}")
-	} else {
-		date_str
-	}
-}
-
-fn declared(path: &Path) -> hmerr::Result<HashSet<Source>> {
-	Ok(crate::declaration::parse::parse(path)?
-		.into_iter()
-		.map(|entry| entry.s)
-		.collect())
 }
