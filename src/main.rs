@@ -21,12 +21,7 @@ fn main() -> hmerr::Result<()> {
 	let args = args::parse();
 
 	if let Some(Command::Match { mbid }) = &args.command {
-		let _ = block_on(r#match::run(
-			&args.path,
-			&mbid.to_string(),
-			r#match::Prompt::Confirm,
-		))?;
-		return Ok(());
+		return block_on(r#match::run(&args.path, &mbid.to_string()));
 	}
 
 	if let Some(Command::Outlier {

@@ -35,17 +35,16 @@ pub(super) async fn consider(
 			.unwrap_or_default(),
 	);
 
-	match r#match::run(path, &mbid, r#match::Prompt::Review).await {
-		Ok(flow) => return Ok(flow),
-		Err(e) => {
-			eprintln!("{e}");
-			if !ux::ask_yn("no match, continue", true).map_err(|e| ioe!("stdin", e))? {
-				return Ok(ControlFlow::Break(()));
-			}
-		}
+	if let Err(e) = r#match::run(path, &mbid).await {
+		eprintln!("{e}");
 	}
 
-	Ok(ControlFlow::Continue(()))
+	println!();
+	if ux::ask_yn("continue", true).map_err(|e| ioe!("stdin", e))? {
+		Ok(ControlFlow::Continue(()))
+	} else {
+		Ok(ControlFlow::Break(()))
+	}
 }
 
 fn listened(at: DateTime<Utc>) -> String {
