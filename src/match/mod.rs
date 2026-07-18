@@ -54,18 +54,20 @@ pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
 			loop {
 				match verify::verify(&id)? {
 					Some(info) if info.is_song() => {
-						break if dead.is_empty() {
+						if dead.is_empty() {
+							let url = verify::watch(&id);
+							keep::run(path, mbid, Some((&info, &url)), length)?;
 							if preview {
-								open::open(&verify::watch(&id))?;
+								open::open(&url)?;
 							}
-							keep::run(path, mbid, Some(&info), length)
 						} else {
 							let found = find::Found {
 								url: verify::watch(&id),
 								info,
 							};
-							record::run(path, mbid, &found, length)
-						};
+							record::run(path, mbid, &found, length)?;
+						}
+						break Ok(());
 					}
 					Some(_video) => {
 						break upgrade::run(&client, &recording, &title, length, path, mbid).await;

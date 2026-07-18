@@ -16,6 +16,7 @@ pub(super) async fn run(
 	let found = find::song(client, recording, title, length).await?;
 
 	output::found(&found.info, length);
+	output::url(&found.url);
 	open::open(&found.url)?;
 
 	if !ux::ask_yn("does this song match", true).map_err(|e| ioe!("stdin", e))? {

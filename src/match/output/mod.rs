@@ -53,10 +53,14 @@ pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	Ok(())
 }
 
+pub(super) fn url(url: &str) {
+	println!("{url}");
+}
+
 pub(super) fn musicbrainz(mbid: &str, url: &str) -> hmerr::Result<()> {
 	clipboard::copy(url)?;
 	open::open(&format!("https://musicbrainz.org/recording/{mbid}/edit"))?;
-	println!("{url}\n{B}musicbrainz{D} add free streaming relationship (copied)");
+	println!("{B}musicbrainz{D} add free streaming relationship (copied)");
 
 	Ok(())
 }
