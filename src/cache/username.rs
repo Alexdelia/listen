@@ -7,9 +7,11 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
+use super::{prepare, root};
+
 const FILE: &str = "username";
 
-pub(in crate::outlier) fn resolve(username: Option<&str>) -> hmerr::Result<String> {
+pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
 	if let Some(username) = username {
 		store(username)?;
 		return Ok(username.to_string());
@@ -26,7 +28,7 @@ pub(in crate::outlier) fn resolve(username: Option<&str>) -> hmerr::Result<Strin
 }
 
 fn path() -> hmerr::Result<PathBuf> {
-	Ok(super::root()?.join(FILE))
+	Ok(root()?.join(FILE))
 }
 
 fn read() -> hmerr::Result<Option<String>> {
@@ -44,7 +46,7 @@ fn read() -> hmerr::Result<Option<String>> {
 
 fn store(username: &str) -> hmerr::Result<()> {
 	let path = path()?;
-	super::prepare(&path)?;
+	prepare(&path)?;
 
 	fs::write(&path, username).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 

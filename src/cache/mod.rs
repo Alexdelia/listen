@@ -1,3 +1,5 @@
+pub mod username;
+
 use std::{
 	env,
 	ffi::OsString,

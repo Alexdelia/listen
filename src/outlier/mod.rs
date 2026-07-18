@@ -21,7 +21,7 @@ pub fn run(
 	refresh: bool,
 	interactive: bool,
 ) -> hmerr::Result<()> {
-	let username = cache::username::resolve(username)?;
+	let username = crate::cache::username::resolve(username)?;
 
 	let list = parse::parse(path)?;
 	let listen = listen(&username, refresh)?;

@@ -9,7 +9,7 @@ mod redirect;
 mod upgrade;
 mod verify;
 
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, ops::ControlFlow, path::Path};
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
@@ -17,7 +17,13 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
 
-pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
+#[derive(Clone, Copy)]
+pub enum Prompt {
+	Confirm,
+	Review,
+}
+
+pub async fn run(path: &Path, mbid: &str, prompt: Prompt) -> hmerr::Result<ControlFlow<()>> {
 	let client = music_brainz::client();
 
 	let recording = Recording::fetch()
@@ -43,10 +49,11 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 	let length = duration::round_sec(length);
 
 	match link::streaming(&recording) {
-		None => no_link::run(&client, &recording, &title, length, path, mbid).await,
+		None => no_link::run(&client, &recording, &title, length, path, mbid, prompt).await,
 		Some(link::Streaming::SoundCloud) => {
-			eprintln!("{B}soundcloud{D} link already on musicbrainz");
-			keep::run(path, mbid, None, length)
+			println!("{B}soundcloud{D} link already on musicbrainz");
+			keep::run(path, mbid, None, length)?;
+			Ok(ControlFlow::Continue(()))
 		}
 		Some(link::Streaming::YouTubeMusic(mut id)) => {
 			let mut dead = HashSet::new();
@@ -54,18 +61,20 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 			loop {
 				match verify::verify(&id)? {
 					Some(info) if info.is_song() => {
-						break if dead.is_empty() {
-							keep::run(path, mbid, Some(&info), length)
+						if dead.is_empty() {
+							keep::run(path, mbid, Some(&info), length)?;
 						} else {
 							let found = find::Found {
 								url: verify::watch(&id),
 								info,
 							};
-							record::run(path, mbid, &found, length)
-						};
+							record::run(path, mbid, &found, length)?;
+						}
+						break Ok(ControlFlow::Continue(()));
 					}
 					Some(_video) => {
-						break upgrade::run(&client, &recording, &title, length, path, mbid).await;
+						upgrade::run(&client, &recording, &title, length, path, mbid).await?;
+						break Ok(ControlFlow::Continue(()));
 					}
 					None => {
 						dead.insert(id.clone());
@@ -74,7 +83,7 @@ pub async fn run(path: &Path, mbid: &str) -> hmerr::Result<()> {
 							Some(replacement) if !dead.contains(&replacement) => id = replacement,
 							_ => {
 								break no_link::run(
-									&client, &recording, &title, length, path, mbid,
+									&client, &recording, &title, length, path, mbid, prompt,
 								)
 								.await;
 							}

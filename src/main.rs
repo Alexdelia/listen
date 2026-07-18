@@ -9,6 +9,7 @@ mod meta_brainz;
 mod music_brainz;
 mod open;
 mod outlier;
+mod recommend;
 mod streaming_source;
 mod sync;
 
@@ -20,7 +21,12 @@ fn main() -> hmerr::Result<()> {
 	let args = args::parse();
 
 	if let Some(Command::Match { mbid }) = &args.command {
-		return block_on(r#match::run(&args.path, &mbid.to_string()));
+		let _ = block_on(r#match::run(
+			&args.path,
+			&mbid.to_string(),
+			r#match::Prompt::Confirm,
+		))?;
+		return Ok(());
 	}
 
 	if let Some(Command::Outlier {
@@ -30,6 +36,14 @@ fn main() -> hmerr::Result<()> {
 	}) = &args.command
 	{
 		return outlier::run(&args.path, username.as_deref(), *refresh, *interactive);
+	}
+
+	if let Some(Command::Recommend {
+		username,
+		unlistened,
+	}) = &args.command
+	{
+		return block_on(recommend::run(&args.path, username.as_deref(), *unlistened));
 	}
 
 	sync::run(&args.path, args.refresh_metadata)
