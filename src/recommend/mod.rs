@@ -64,10 +64,13 @@ async fn consider(
 			.unwrap_or_default(),
 	);
 
-	if let Err(e) = r#match::run(path, &mbid).await {
-		eprintln!("{e}");
-		if !ux::ask_yn("no match, continue", true).map_err(|e| ioe!("stdin", e))? {
-			return Ok(ControlFlow::Break(()));
+	match r#match::run(path, &mbid, r#match::Prompt::Review).await {
+		Ok(flow) => return Ok(flow),
+		Err(e) => {
+			eprintln!("{e}");
+			if !ux::ask_yn("no match, continue", true).map_err(|e| ioe!("stdin", e))? {
+				return Ok(ControlFlow::Break(()));
+			}
 		}
 	}
 
