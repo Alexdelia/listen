@@ -29,6 +29,7 @@ pkgs.mkShell {
         (pkgs.writers.writeBashBin "run" {} "${run} -- $@")
         (pkgs.writers.writeBashBin "match" {} "${run} -- match $@")
         (pkgs.writers.writeBashBin "outlier" {} "${run} -- outlier $@")
+        (pkgs.writers.writeBashBin "recommend" {} "${run} -- recommend $@")
         (pkgs.writers.writeBashBin "push" {} "${push}")
         (pkgs.writers.writeBashBin "add" {} "$EDITOR listen.ron && ${push}")
       ]
