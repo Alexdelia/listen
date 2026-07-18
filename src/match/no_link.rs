@@ -12,7 +12,8 @@ pub(super) async fn run(
 	length: i64,
 	path: &Path,
 	mbid: &str,
-) -> hmerr::Result<()> {
+	recommend: bool,
+) -> hmerr::Result<bool> {
 	let found = find::song(client, recording, title, length).await?;
 
 	output::found(&found.info, length);
@@ -20,9 +21,14 @@ pub(super) async fn run(
 	open::open(&found.url)?;
 
 	if !ux::ask_yn("does this song match", true).map_err(|e| ioe!("stdin", e))? {
-		return Ok(());
+		return Ok(false);
 	}
-
 	output::musicbrainz(mbid, &found.url)?;
-	output::entry(path, mbid)
+
+	if recommend && !ux::ask_yn("declare", true).map_err(|e| ioe!("stdin", e))? {
+		return Ok(false);
+	}
+	output::entry(path, mbid)?;
+
+	Ok(true)
 }

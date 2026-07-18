@@ -17,7 +17,7 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
 
-pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
+pub async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool> {
 	let client = music_brainz::client();
 
 	let recording = Recording::fetch()
@@ -43,10 +43,10 @@ pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
 	let length = duration::round_sec(length);
 
 	match link::streaming(&recording) {
-		None => no_link::run(&client, &recording, &title, length, path, mbid).await,
+		None => no_link::run(&client, &recording, &title, length, path, mbid, recommend).await,
 		Some(link::Streaming::SoundCloud) => {
 			println!("{B}soundcloud{D} link already on musicbrainz");
-			keep::run(path, mbid, None, length)
+			keep::run(path, mbid, None, length, recommend)
 		}
 		Some(link::Streaming::YouTubeMusic(mut id)) => {
 			let mut dead = HashSet::new();
@@ -54,23 +54,22 @@ pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
 			loop {
 				match verify::verify(&id)? {
 					Some(info) if info.is_song() => {
-						if dead.is_empty() {
+						break if dead.is_empty() {
 							let url = verify::watch(&id);
-							keep::run(path, mbid, Some((&info, &url)), length)?;
-							if preview {
-								open::open(&url)?;
-							}
+							keep::run(path, mbid, Some((&info, &url)), length, recommend)
 						} else {
 							let found = find::Found {
 								url: verify::watch(&id),
 								info,
 							};
-							record::run(path, mbid, &found, length)?;
-						}
-						break Ok(());
+							record::run(path, mbid, &found, length, recommend)
+						};
 					}
 					Some(_video) => {
-						break upgrade::run(&client, &recording, &title, length, path, mbid).await;
+						break upgrade::run(
+							&client, &recording, &title, length, path, mbid, recommend,
+						)
+						.await;
 					}
 					None => {
 						dead.insert(id.clone());
@@ -79,7 +78,7 @@ pub async fn run(path: &Path, mbid: &str, preview: bool) -> hmerr::Result<()> {
 							Some(replacement) if !dead.contains(&replacement) => id = replacement,
 							_ => {
 								break no_link::run(
-									&client, &recording, &title, length, path, mbid,
+									&client, &recording, &title, length, path, mbid, recommend,
 								)
 								.await;
 							}

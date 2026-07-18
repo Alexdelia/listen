@@ -6,7 +6,7 @@ use hmerr::ioe;
 
 use crate::{declaration::Source, r#match};
 
-use super::fetch::Recommendation;
+use super::{declined, fetch::Recommendation};
 
 const DATE_FORMAT: &str = "%Y-%m-%d";
 const TIME_FORMAT: &str = "%H:%M";
@@ -15,13 +15,13 @@ pub(super) async fn consider(
 	path: &Path,
 	recommendation: &Recommendation,
 	unlistened: bool,
-	declared: &mut HashSet<Source>,
+	skip: &mut HashSet<Source>,
 ) -> hmerr::Result<ControlFlow<()>> {
 	if unlistened && recommendation.latest_listened_at.is_some() {
 		return Ok(ControlFlow::Continue(()));
 	}
 
-	if !declared.insert(recommendation.mbid) {
+	if !skip.insert(recommendation.mbid) {
 		return Ok(ControlFlow::Continue(()));
 	}
 
@@ -35,8 +35,10 @@ pub(super) async fn consider(
 			.unwrap_or_default(),
 	);
 
-	if let Err(e) = r#match::run(path, &mbid, true).await {
-		eprintln!("{e}");
+	match r#match::run(path, &mbid, true).await {
+		Ok(true) => {}
+		Ok(false) => declined::add(recommendation.mbid)?,
+		Err(e) => eprintln!("{e}"),
 	}
 
 	println!();

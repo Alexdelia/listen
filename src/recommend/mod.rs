@@ -1,5 +1,6 @@
 mod consider;
 mod declared;
+mod declined;
 mod fetch;
 
 use std::path::Path;
@@ -9,7 +10,8 @@ use crate::cache;
 pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr::Result<()> {
 	let username = cache::username::resolve(username)?;
 
-	let mut declared = declared::sources(path)?;
+	let mut skip = declared::sources(path)?;
+	skip.extend(declined::load()?);
 
 	let mut offset = 0;
 	loop {
@@ -19,7 +21,7 @@ pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr
 		}
 
 		for recommendation in &page.recommendation {
-			if consider::consider(path, recommendation, unlistened, &mut declared)
+			if consider::consider(path, recommendation, unlistened, &mut skip)
 				.await?
 				.is_break()
 			{
