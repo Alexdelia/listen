@@ -870,4 +870,7 @@
 	(s: "c4b0920b-70f3-42c5-8377-25ff30f19d79", q: 2, playlist: ["charged"]),
 	(s: "e8b32cd0-f354-4956-8ffe-2f9675ba18a2", q: 1, playlist: ["normie"]),
 	(s: "a2082882-cb38-4077-b162-919d3528f5f6", q: 1, playlist: []),
+	(s: "70595637-9310-45f2-a266-58f8de4874a7", q: 0, playlist: []),
+	(s: "bac003dd-b76a-4084-a11c-648316bf4948", q: 2, playlist: []),
+	(s: "ed8a6890-6999-4d51-9fd1-74896eeb1d6b", q: 4, playlist: ["charged"]),
 ]
