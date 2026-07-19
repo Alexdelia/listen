@@ -6,7 +6,7 @@ use ureq::http::StatusCode;
 
 use crate::{declaration::Source, meta_brainz};
 
-const PAGE: usize = 20;
+const PAGE: usize = 50;
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
