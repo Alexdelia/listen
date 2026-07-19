@@ -1,5 +1,6 @@
 mod form;
 mod matching;
+mod miss;
 mod query;
 mod search;
 mod text;
@@ -10,6 +11,7 @@ use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
 use crate::streaming_source::StreamingSource;
 
+use self::miss::Miss;
 use super::verify::{self, Info};
 
 pub(super) struct Found {
@@ -22,27 +24,37 @@ pub(super) async fn song(
 	recording: &Recording,
 	title: &str,
 	length: i64,
+	mbid: &str,
 ) -> hmerr::Result<Found> {
 	let title_form = form::title(recording, title);
 	let artist = form::artist(client, recording).await;
 	let accepted = form::accepted_title(&title_form);
+
+	let mut miss = Vec::new();
 
 	for id in search::search(&query::build(&title_form, &artist))? {
 		let Some(info) = verify::verify(&id)? else {
 			continue;
 		};
 
-		if matching::is_match(&accepted, length, &info) {
-			return Ok(Found {
+		match matching::check(&accepted, length, &info) {
+			None => {
+				return Ok(Found {
+					url: verify::watch(&id),
+					info,
+				});
+			}
+			Some(reason) => miss.push(Miss {
 				url: verify::watch(&id),
-				info,
-			});
+				reason,
+			}),
 		}
 	}
 
 	Err(ge!(format!(
-		"{R}no exact {host} match for {B}{title}{D}",
-		host = StreamingSource::YouTubeMusic.host()
+		"{R}no exact {host} match for {B}{title}{D}\nhttps://musicbrainz.org/recording/{mbid}{block}",
+		host = StreamingSource::YouTubeMusic.host(),
+		block = miss::block(miss),
 	)))?
 }
 

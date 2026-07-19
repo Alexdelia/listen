@@ -19,6 +19,7 @@ pub(super) struct Info {
 	pub(super) track: Option<String>,
 	pub(super) artist: Option<String>,
 	pub(super) duration: Option<i64>,
+	pub(super) media_type: Option<String>,
 	// pub(super) album: Option<String>,
 }
 
@@ -34,7 +35,7 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 			"--skip-download",
 			"--no-warnings",
 			"--print",
-			"%(track,title)s\t%(artist)s\t%(duration)s\t%(album)s",
+			"%(track,title)s\t%(artist)s\t%(duration)s\t%(media_type)s\t%(album)s",
 			&watch(id),
 		])
 		.output()
@@ -55,6 +56,7 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 		track: none_if_na(field.next().unwrap_or_default()),
 		artist: none_if_na(field.next().unwrap_or_default()),
 		duration: field.next().unwrap_or_default().trim().parse().ok(),
+		media_type: none_if_na(field.next().unwrap_or_default()),
 		// album: none_if_na(field.next().unwrap_or_default()),
 	}))
 }

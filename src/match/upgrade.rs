@@ -13,7 +13,7 @@ pub(super) async fn run(
 	mbid: &str,
 	recommend: bool,
 ) -> hmerr::Result<bool> {
-	let found = find::song(client, recording, title, length).await?;
+	let found = find::song(client, recording, title, length, mbid).await?;
 
 	record::run(path, mbid, &found, length, recommend)
 }

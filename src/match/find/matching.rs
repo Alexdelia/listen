@@ -3,23 +3,44 @@ use super::text::normalize_title;
 
 const DURATION_TOLERANCE_SEC: i64 = 1;
 
-pub(super) fn is_match(accepted_title: &[String], length: i64, info: &Info) -> bool {
+pub(super) enum Mismatch {
+	NotSong(Option<String>),
+	NoTitle,
+	Title,
+	NoDuration,
+	Duration(i64),
+}
+
+impl Mismatch {
+	pub(super) fn rank(&self) -> (u8, i64) {
+		match self {
+			Self::Duration(delta) => (0, delta.abs()),
+			Self::NoDuration => (1, 0),
+			Self::Title => (2, 0),
+			Self::NoTitle => (3, 0),
+			Self::NotSong(_) => (4, 0),
+		}
+	}
+}
+
+pub(super) fn check(accepted_title: &[String], length: i64, info: &Info) -> Option<Mismatch> {
 	if !info.is_song() {
-		return false;
+		return Some(Mismatch::NotSong(info.media_type.clone()));
 	}
 
 	let Some(track) = info.track.as_deref() else {
-		return false;
+		return Some(Mismatch::NoTitle);
 	};
 	if !title_match(accepted_title, track) {
-		return false;
+		return Some(Mismatch::Title);
 	}
 
 	let Some(duration) = info.duration else {
-		return false;
+		return Some(Mismatch::NoDuration);
 	};
 
-	(length - duration).abs() <= DURATION_TOLERANCE_SEC
+	let delta = duration - length;
+	(delta.abs() > DURATION_TOLERANCE_SEC).then_some(Mismatch::Duration(delta))
 }
 
 fn title_match(accepted_title: &[String], track: &str) -> bool {
