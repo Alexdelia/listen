@@ -1,6 +1,9 @@
 use std::fmt::Write;
 
-use ansi::abbrev::{B, D, R};
+use ansi::{
+	DIM,
+	abbrev::{B, D, R},
+};
 
 use super::matching::Mismatch;
 
@@ -30,7 +33,7 @@ pub(super) fn block(mut miss: Vec<Miss>) -> String {
 
 fn reason(mismatch: &Mismatch) -> String {
 	match mismatch {
-		Mismatch::Duration(delta) => format!("{B}{R}{delta:+}s{D}"),
+		Mismatch::Duration(delta) => format!("{B}{R}{delta:+}{DIM}s{D}"),
 		Mismatch::NoDuration => format!("{B}{R}no duration{D}"),
 		Mismatch::Title => format!("{B}{R}title{D}"),
 		Mismatch::NoTitle => format!("{B}{R}no title{D}"),
