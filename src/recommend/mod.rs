@@ -20,8 +20,10 @@ pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr
 			break;
 		}
 
-		for recommendation in &page.recommendation {
-			if consider::consider(path, recommendation, unlistened, &mut skip)
+		for (i, recommendation) in page.recommendation.iter().enumerate() {
+			let index = offset + i;
+
+			if consider::consider(path, index, recommendation, unlistened, &mut skip)
 				.await?
 				.is_break()
 			{
