@@ -99,8 +99,8 @@ with timer(os.path.basename(__file__)):
         plt.xlim(min_x, max_x)
         plt.ylim(min_y, max_y + 1)
 
-        min_x_edge = min_x.replace(tzinfo=None) + timedelta(days=15)
-        max_x_edge = max_x.replace(tzinfo=None) - timedelta(days=15)
+        min_x_edge = min_x.replace(tzinfo=None) + timedelta(days=30)
+        max_x_edge = max_x.replace(tzinfo=None) - timedelta(days=30)
         xticks = []
         for tick in plt.gca().get_xticks():
             tick = num2date(tick).replace(tzinfo=None)
