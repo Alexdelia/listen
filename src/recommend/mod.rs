@@ -1,40 +1,51 @@
+mod collaborative_filtering;
 mod consider;
 mod declared;
 mod declined;
-mod fetch;
+mod feed;
+mod recommendation;
+mod selection;
+mod skip;
+mod stream;
+mod weekly;
 
 use std::path::Path;
 
-use crate::cache;
+use crate::{args::RecommendSource, cache};
 
-pub async fn run(path: &Path, username: Option<&str>, unlistened: bool) -> hmerr::Result<()> {
+use feed::Feed;
+use skip::Skip;
+use stream::Stream;
+
+pub async fn run(
+	path: &Path,
+	username: Option<&str>,
+	unlistened: bool,
+	source: RecommendSource,
+) -> hmerr::Result<()> {
 	let username = cache::username::resolve(username)?;
 
-	let mut skip = declared::sources(path)?;
-	skip.extend(declined::load()?);
+	let weekly = weekly::feed(&username, source)?;
+	let collaborative_filtering =
+		selection::collaborative_filtering(source).then(|| collaborative_filtering::feed(username));
 
-	let mut offset = 0;
-	loop {
-		let page = fetch::page(&username, offset)?;
-		if page.recommendation.is_empty() {
-			break;
+	let mut skip = Skip::load(path)?;
+	let mut stream = Stream::new(
+		weekly.map(|feed| Box::new(feed) as Box<dyn Feed>),
+		collaborative_filtering.map(|feed| Box::new(feed) as Box<dyn Feed>),
+		unlistened,
+	);
+
+	let mut index = 0;
+	while let Some(recommendation) = stream.next(&mut skip)? {
+		if consider::consider(path, index, &recommendation)
+			.await?
+			.is_break()
+		{
+			return Ok(());
 		}
 
-		for (i, recommendation) in page.recommendation.iter().enumerate() {
-			let index = offset + i;
-
-			if consider::consider(path, index, recommendation, unlistened, &mut skip)
-				.await?
-				.is_break()
-			{
-				return Ok(());
-			}
-		}
-
-		offset += page.fetched;
-		if page.fetched == 0 || offset >= page.total {
-			break;
-		}
+		index += 1;
 	}
 
 	Ok(())

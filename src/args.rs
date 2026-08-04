@@ -45,7 +45,24 @@ pub enum Command {
 		/// skip recommendations already listened to
 		#[arg(short, long)]
 		unlistened: bool,
+		/// which listenbrainz recommendation to walk through
+		#[arg(short, long, default_value = "all")]
+		source: RecommendSource,
 	},
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum RecommendSource {
+	/// alternate between weekly exploration and collaborative filtering
+	All,
+	/// the raw collaborative filtering recording list
+	CollaborativeFiltering,
+	/// both kept weekly exploration playlists, last week first
+	WeeklyExploration,
+	/// the second to last weekly exploration playlist
+	WeeklyExplorationLastWeek,
+	/// the latest weekly exploration playlist
+	WeeklyExplorationCurrentWeek,
 }
 
 pub fn parse() -> Args {

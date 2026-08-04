@@ -4,15 +4,13 @@ use hmerr::ge;
 use serde::Deserialize;
 use ureq::http::StatusCode;
 
-use crate::{declaration::Source, meta_brainz};
+use crate::{
+	declaration::Source,
+	meta_brainz,
+	recommend::recommendation::{Origin, Recommendation},
+};
 
 const PAGE: usize = 50;
-
-pub(super) struct Recommendation {
-	pub mbid: Source,
-	pub score: f32,
-	pub latest_listened_at: Option<DateTime<Utc>>,
-}
 
 pub(super) struct Page {
 	pub recommendation: Vec<Recommendation>,
@@ -61,8 +59,10 @@ pub(super) fn page(username: &str, offset: usize) -> hmerr::Result<Page> {
 			.into_iter()
 			.map(|entry| Recommendation {
 				mbid: entry.recording_mbid,
-				score: entry.score,
-				latest_listened_at: entry.latest_listened_at,
+				origin: Origin::CollaborativeFiltering {
+					score: entry.score,
+					latest_listened_at: entry.latest_listened_at,
+				},
 			})
 			.collect(),
 		fetched: payload.count,
