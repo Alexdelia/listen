@@ -4,6 +4,7 @@ use crate::declaration::Source;
 
 const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
+const LISTEN_BRAINZ: &str = "listenbrainz";
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
@@ -20,6 +21,11 @@ pub(super) enum Origin {
 		week: NaiveDate,
 		position: usize,
 	},
+	ListenCount {
+		listen: u64,
+		user: u64,
+		position: usize,
+	},
 }
 
 impl Origin {
@@ -27,13 +33,15 @@ impl Origin {
 		match self {
 			Self::CollaborativeFiltering { .. } => COLLABORATIVE_FILTERING.to_string(),
 			Self::WeeklyExploration { week, .. } => format!("{WEEKLY_EXPLORATION} {week}"),
+			Self::ListenCount { .. } => LISTEN_BRAINZ.to_string(),
 		}
 	}
 
 	pub(super) fn position(&self) -> usize {
 		match self {
 			Self::CollaborativeFiltering { position, .. }
-			| Self::WeeklyExploration { position, .. } => *position,
+			| Self::WeeklyExploration { position, .. }
+			| Self::ListenCount { position, .. } => *position,
 		}
 	}
 
@@ -42,7 +50,7 @@ impl Origin {
 			Self::CollaborativeFiltering {
 				latest_listened_at, ..
 			} => *latest_listened_at,
-			Self::WeeklyExploration { .. } => None,
+			Self::WeeklyExploration { .. } | Self::ListenCount { .. } => None,
 		}
 	}
 }
@@ -56,6 +64,14 @@ mod tests {
 			position,
 			score: 1.0,
 			latest_listened_at: None,
+		}
+	}
+
+	fn listen_count(position: usize) -> Origin {
+		Origin::ListenCount {
+			listen: 1_259_231,
+			user: 85_027,
+			position,
 		}
 	}
 
@@ -80,8 +96,14 @@ mod tests {
 	}
 
 	#[test]
+	fn a_listen_count_source_is_just_listenbrainz() {
+		assert_eq!(listen_count(0).source(), "listenbrainz");
+	}
+
+	#[test]
 	fn the_position_comes_from_the_source_it_was_read_from() {
 		assert_eq!(weekly(7).position(), 7);
 		assert_eq!(collaborative_filtering(51).position(), 51);
+		assert_eq!(listen_count(3).position(), 3);
 	}
 }

@@ -4,7 +4,6 @@ mod fetch;
 #[cfg(test)]
 mod fixture;
 mod jspf;
-mod queue;
 mod track;
 
 use ansi::abbrev::{B, D, R, Y};
@@ -12,11 +11,10 @@ use hmerr::ge;
 
 use crate::args::RecommendSource;
 
-use super::selection;
+use super::{queue::Queue, selection};
 
 use choose::choose;
 use exploration::explorations;
-use queue::Queue;
 use track::tracks;
 
 pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Option<Queue>> {

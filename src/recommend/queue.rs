@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use crate::recommend::{feed::Feed, recommendation::Recommendation};
+use super::{feed::Feed, recommendation::Recommendation};
 
-pub(in crate::recommend) struct Queue(VecDeque<Recommendation>);
+pub(super) struct Queue(VecDeque<Recommendation>);
 
 impl Queue {
 	pub(super) fn new(recommendation: Vec<Recommendation>) -> Self {
@@ -20,8 +20,9 @@ impl Feed for Queue {
 mod tests {
 	use chrono::NaiveDate;
 
+	use super::super::recommendation::Origin;
 	use super::*;
-	use crate::{declaration::Source, recommend::recommendation::Origin};
+	use crate::declaration::Source;
 
 	fn recommendation(nibble: u8) -> Recommendation {
 		Recommendation {

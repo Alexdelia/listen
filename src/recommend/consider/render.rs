@@ -32,6 +32,9 @@ fn label(origin: &Origin) -> String {
 				.unwrap_or_default(),
 		),
 		Origin::WeeklyExploration { .. } => String::new(),
+		Origin::ListenCount { listen, user, .. } => {
+			format!(" {Y}{listen} listen{D} {CYA}{user} user{D}")
+		}
 	}
 }
 
@@ -136,6 +139,18 @@ mod tests {
 			"{shown}"
 		);
 		assert!(!shown.contains(&at.format("%H:%M").to_string()), "{shown}");
+	}
+
+	#[test]
+	fn a_listen_count_recommendation_shows_its_listen_and_user_count() {
+		let shown = label(&Origin::ListenCount {
+			listen: 1_259_231,
+			user: 85_027,
+			position: 0,
+		});
+
+		assert!(shown.contains("1259231 listen"), "{shown}");
+		assert!(shown.contains("85027 user"), "{shown}");
 	}
 
 	#[test]

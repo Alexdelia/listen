@@ -40,8 +40,8 @@ pub enum Command {
 	},
 	/// resolve listenbrainz recommendations to matches and append new ones
 	Recommend {
-		/// listenbrainz.org username, cached and optional after the first use
-		username: Option<String>,
+		/// listenbrainz.org username, or a musicbrainz.org artist MBID
+		target: Option<String>,
 		/// skip recommendations already listened to
 		#[arg(short, long)]
 		unlistened: bool,
@@ -53,10 +53,13 @@ pub enum Command {
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum RecommendSource {
-	/// alternate between weekly exploration and collaborative filtering
+	/// alternate between every source that fits the target
 	All,
 	/// the raw collaborative filtering recording list
 	CollaborativeFiltering,
+	/// the most listened recording of an artist, needs an MBID
+	#[value(name = "listenbrainz")]
+	ListenBrainz,
 	/// both kept weekly exploration playlists, last week first
 	WeeklyExploration,
 	/// the second to last weekly exploration playlist

@@ -4,7 +4,7 @@ use super::exploration::{CURRENT_WEEK, Exploration, LAST_WEEK};
 
 pub(super) fn choose(found: &[Exploration], source: RecommendSource) -> Vec<&Exploration> {
 	match source {
-		RecommendSource::CollaborativeFiltering => Vec::new(),
+		RecommendSource::CollaborativeFiltering | RecommendSource::ListenBrainz => Vec::new(),
 		RecommendSource::All | RecommendSource::WeeklyExploration => found.iter().rev().collect(),
 		RecommendSource::WeeklyExplorationLastWeek => found.get(LAST_WEEK).into_iter().collect(),
 		RecommendSource::WeeklyExplorationCurrentWeek => {

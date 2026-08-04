@@ -35,14 +35,14 @@ fn main() -> hmerr::Result<()> {
 	}
 
 	if let Some(Command::Recommend {
-		username,
+		target,
 		unlistened,
 		source,
 	}) = &args.command
 	{
 		return block_on(recommend::run(
 			&args.path,
-			username.as_deref(),
+			target.as_deref(),
 			*unlistened,
 			*source,
 		));
