@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::recommend::{feed::Feed, recommendation::Recommendation};
 
-use super::page::Page;
+use super::payload::Page;
 
 pub(super) struct Cursor<F> {
 	fetch: F,
@@ -59,6 +59,7 @@ mod tests {
 		Recommendation {
 			mbid: Source::from_bytes([nibble; 16]),
 			origin: Origin::CollaborativeFiltering {
+				position: nibble.into(),
 				score: 1.0,
 				latest_listened_at: None,
 			},

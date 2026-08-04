@@ -7,7 +7,7 @@ use crate::recommend::recommendation::{Origin, Recommendation};
 use super::jspf::Wrapper;
 
 const RECORDING_PREFIX: &str = "https://musicbrainz.org/recording/";
-const FIRST_POSITION: usize = 1;
+const FIRST_POSITION: usize = 0;
 
 pub(super) fn tracks(body: &str, week: NaiveDate) -> hmerr::Result<Vec<Recommendation>> {
 	let playlist = serde_json::from_str::<Wrapper>(body)
@@ -41,10 +41,7 @@ mod tests {
 	use crate::recommend::recommendation::Origin;
 
 	fn position(recommendation: &Recommendation) -> usize {
-		match recommendation.origin {
-			Origin::WeeklyExploration { position, .. } => position,
-			Origin::CollaborativeFiltering { .. } => 0,
-		}
+		recommendation.origin.position()
 	}
 
 	#[test]
@@ -64,7 +61,7 @@ mod tests {
 	fn a_track_without_recording_identifier_keeps_the_playlist_position() {
 		let found = tracks(PLAYLIST, date(2026, 7, 12)).unwrap_or_default();
 
-		assert_eq!(found.iter().map(position).collect::<Vec<_>>(), vec![1, 3]);
+		assert_eq!(found.iter().map(position).collect::<Vec<_>>(), vec![0, 2]);
 	}
 
 	#[test]

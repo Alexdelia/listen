@@ -20,6 +20,7 @@ pub(super) struct Stream {
 	collaborative_filtering: Option<Box<dyn Feed>>,
 	turn: Turn,
 	unlistened: bool,
+	read: usize,
 }
 
 impl Stream {
@@ -33,15 +34,23 @@ impl Stream {
 			collaborative_filtering,
 			turn: Turn::Weekly,
 			unlistened,
+			read: 0,
 		}
 	}
 
-	pub(super) fn next(&mut self, skip: &mut Skip) -> hmerr::Result<Option<Recommendation>> {
+	pub(super) fn next(
+		&mut self,
+		skip: &mut Skip,
+	) -> hmerr::Result<Option<(usize, Recommendation)>> {
 		while let Some(turn) = self.living() {
 			let Some(recommendation) = self.pull(turn)? else {
 				*self.feed(turn) = None;
 				continue;
 			};
+
+			let index = self.read;
+			self.read += 1;
+			self.turn = turn.other();
 
 			if self.unlistened && recommendation.origin.latest_listened_at().is_some() {
 				continue;
@@ -51,9 +60,7 @@ impl Stream {
 				continue;
 			}
 
-			self.turn = turn.other();
-
-			return Ok(Some(recommendation));
+			return Ok(Some((index, recommendation)));
 		}
 
 		Ok(None)
@@ -122,6 +129,7 @@ mod tests {
 		Recommendation {
 			mbid: mbid(nibble),
 			origin: Origin::CollaborativeFiltering {
+				position: nibble.into(),
 				score: 1.0,
 				latest_listened_at: None,
 			},
@@ -132,6 +140,7 @@ mod tests {
 		Recommendation {
 			mbid: mbid(nibble),
 			origin: Origin::CollaborativeFiltering {
+				position: nibble.into(),
 				score: 1.0,
 				latest_listened_at: Some(Utc::now()),
 			},
@@ -145,11 +154,35 @@ mod tests {
 	fn drain(stream: &mut Stream, skip: &mut Skip) -> Vec<u8> {
 		let mut seen = Vec::new();
 
-		while let Ok(Some(recommendation)) = stream.next(skip) {
+		while let Ok(Some((_, recommendation))) = stream.next(skip) {
 			seen.push(recommendation.mbid.as_bytes()[0]);
 		}
 
 		seen
+	}
+
+	fn drain_index(stream: &mut Stream, skip: &mut Skip) -> Vec<usize> {
+		let mut seen = Vec::new();
+
+		while let Ok(Some((index, _))) = stream.next(skip) {
+			seen.push(index);
+		}
+
+		seen
+	}
+
+	#[test]
+	fn the_index_counts_every_entry_the_stream_reads() {
+		let mut skip = Skip::default();
+		skip.fresh(mbid(4));
+
+		let mut stream = Stream::new(
+			Some(canned(vec![weekly(1), weekly(2)])),
+			Some(canned(vec![cf(4), cf(5)])),
+			false,
+		);
+
+		assert_eq!(drain_index(&mut stream, &mut skip), vec![0, 2, 3]);
 	}
 
 	#[test]
@@ -189,7 +222,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_skipped_recommendation_does_not_spend_a_turn() {
+	fn a_skipped_recommendation_still_spends_its_turn() {
 		let mut skip = Skip::default();
 		skip.fresh(mbid(4));
 
@@ -199,7 +232,7 @@ mod tests {
 			false,
 		);
 
-		assert_eq!(drain(&mut stream, &mut skip), vec![1, 5, 2]);
+		assert_eq!(drain(&mut stream, &mut skip), vec![1, 2, 5]);
 	}
 
 	#[test]
@@ -221,7 +254,7 @@ mod tests {
 			true,
 		);
 
-		assert_eq!(drain(&mut stream, &mut Skip::default()), vec![1, 5, 2]);
+		assert_eq!(drain(&mut stream, &mut Skip::default()), vec![1, 2, 5]);
 	}
 
 	#[test]

@@ -36,16 +36,13 @@ pub async fn run(
 		unlistened,
 	);
 
-	let mut index = 0;
-	while let Some(recommendation) = stream.next(&mut skip)? {
+	while let Some((index, recommendation)) = stream.next(&mut skip)? {
 		if consider::consider(path, index, &recommendation)
 			.await?
 			.is_break()
 		{
 			return Ok(());
 		}
-
-		index += 1;
 	}
 
 	Ok(())
