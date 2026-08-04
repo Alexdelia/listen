@@ -913,4 +913,12 @@
 	(s: "8d1bac76-d4c0-4efd-b95f-02206bd7df85", q: 2, playlist: []),
 	(s: "788671d0-280d-4ac5-a21e-06116007336a", q: 1, playlist: ["normie"]),
 	(s: "498f8986-5e5f-4327-bf72-f2f4ddf8d848", q: 2, playlist: []),
+	(s: "851288af-23c4-409e-b501-bc4e618fb70e", q: 1, playlist: []),
+	(s: "dd5a5228-4601-4911-a5ca-ce35a10ba62d", q: 1, playlist: []),
+	(s: "ce3a5a96-e755-4742-9f20-2578600daa4c", q: 1, playlist: ["normie"]),
+	(s: "ffa430cc-82f8-4b98-82ed-762790f2d3c0", q: 0, playlist: []),
+	(s: "37af17a2-169b-46f9-a852-d2d38b543448", q: 1, playlist: []),
+	(s: "1fbc0c99-3094-410c-8c44-a3d2b87ec423", q: 1, playlist: []),
+	(s: "7aac2164-12f8-453d-a985-de46296425aa", q: 0, playlist: []),
+	(s: "7b2c3792-16e0-44b0-8e1f-4be0d5d97fa7", q: 2, playlist: ["aggressive"]),
 ]
