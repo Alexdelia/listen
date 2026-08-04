@@ -3,7 +3,7 @@ use hmerr::ge;
 
 use crate::{declaration::Source, meta_brainz};
 
-const COUNT: usize = 100;
+const COUNT: usize = 1000;
 
 pub(super) fn created_for(username: &str) -> hmerr::Result<String> {
 	body(
