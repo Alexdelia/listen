@@ -125,7 +125,7 @@ mod tests {
 			let res = parse_q(&format!("+q{i}"));
 			match res {
 				Ok(q) => assert_eq!(q, i),
-				Err(e) => panic!("{:?}", e),
+				Err(e) => panic!("{e:?}"),
 			}
 		}
 	}
