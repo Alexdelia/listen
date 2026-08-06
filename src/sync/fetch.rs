@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use ansi::abbrev::{B, D, R, Y};
 
 use async_std::{channel::Sender, task};
-use musicbrainz_rs::{
-	Fetch,
-	entity::{recording::Recording, relations::RelationContent},
-};
+use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
-use crate::{declaration::Source, library, music_brainz, streaming_source::StreamingSource};
+use crate::{
+	declaration::Source,
+	library, music_brainz,
+	streaming_source::{self, StreamingSource},
+};
 
 use super::{
 	channel::{Action, Status, report},
@@ -89,23 +90,9 @@ async fn fetch_recording(
 		return None;
 	};
 
-	let mut urls = Vec::with_capacity(4);
-
-	for relation in relations {
-		if relation.relation_type != "free streaming" {
-			continue;
-		}
-
-		let RelationContent::Url(url) = &relation.content else {
-			continue;
-		};
-
-		let Ok(streaming_source) = StreamingSource::try_from(url.resource.as_str()) else {
-			continue;
-		};
-
-		urls.push((streaming_source, url.resource.clone()));
-	}
+	let mut urls = streaming_source::streaming_url(recording)
+		.filter_map(|url| Some((StreamingSource::try_from(url).ok()?, url.to_string())))
+		.collect::<Vec<_>>();
 
 	if urls.is_empty() {
 		report(

@@ -4,9 +4,23 @@ mod youtube;
 
 use std::path::Path;
 
-use musicbrainz_rs::entity::url::Url;
+use musicbrainz_rs::entity::{recording::Recording, relations::RelationContent, url::Url};
 
 use run::run;
+
+const STREAMING_RELATION: [&str; 2] = ["free streaming", "streaming"];
+
+pub fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {
+	recording
+		.relations
+		.iter()
+		.flatten()
+		.filter(|relation| STREAMING_RELATION.contains(&relation.relation_type.as_str()))
+		.filter_map(|relation| match &relation.content {
+			RelationContent::Url(url) => Some(url.resource.as_str()),
+			_ => None,
+		})
+}
 
 pub enum StreamingSource {
 	SoundCloud,
