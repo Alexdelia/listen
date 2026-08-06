@@ -33,7 +33,7 @@ fn label(origin: &Origin) -> String {
 		),
 		Origin::WeeklyExploration { .. } => String::new(),
 		Origin::ListenCount { listen, user, .. } => {
-			format!(" {Y}{listen} listen{D} {CYA}{user} user{D}")
+			format!(" {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}")
 		}
 	}
 }
