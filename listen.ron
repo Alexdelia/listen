@@ -927,4 +927,9 @@
 	(s: "5b90184d-326a-4479-ad7f-3ba8c2d86e83", q: 3, playlist: []),
 	(s: "e43a3cd7-448f-4991-a1bd-255b35463e24", q: 4, playlist: ["charged"]),
 	(s: "7c8ca692-d78a-4785-a7f4-7cc9ed0fb0f5", q: 4, playlist: ["charged"]),
+	(s: "6bfa509c-b1c9-4878-89a8-6d1119b6137d", q: 2, playlist: ["charged", "aggressive"]),
+	(s: "789e5343-a625-4127-9661-1daf471f955b", q: 2, playlist: ["aggressive"]),
+	(s: "f340c332-8ceb-4d59-998e-a3adef7f4a00", q: 1, playlist: []),
+	(s: "259a77d7-be8c-40a6-9267-54f93551202e", q: 2, playlist: []),
+	(s: "fbb4ccc1-2386-466e-a339-09594ac1bba6", q: 2, playlist: []),
 ]
