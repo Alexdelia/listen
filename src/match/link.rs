@@ -60,12 +60,17 @@ mod tests {
 	}
 
 	fn url_relation(relation_type: &str, resource: &str) -> String {
+		ended_url_relation(relation_type, resource, false)
+	}
+
+	fn ended_url_relation(relation_type: &str, resource: &str, ended: bool) -> String {
 		format!(
 			r#"{{
 				"type": "{relation_type}",
 				"type-id": "00000000-0000-0000-0000-000000000000",
 				"direction": "forward",
 				"target-type": "url",
+				"ended": {ended},
 				"url": {{
 					"id": "11111111-1111-1111-1111-111111111111",
 					"resource": "{resource}"
@@ -128,6 +133,38 @@ mod tests {
 		));
 
 		assert!(streaming(&recording).is_none());
+	}
+
+	#[test]
+	fn an_ended_streaming_link_is_ignored() {
+		let recording = recording(&ended_url_relation(
+			"free streaming",
+			"https://music.youtube.com/watch?v=-_jTtUZIufs",
+			true,
+		));
+
+		assert!(streaming(&recording).is_none());
+	}
+
+	#[test]
+	fn a_live_streaming_link_wins_over_an_ended_one_of_the_same_source() {
+		let recording = recording(&format!(
+			"{ended},{live}",
+			ended = ended_url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=-_jTtUZIufs",
+				true
+			),
+			live = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=LaZIDFaobMU"
+			),
+		));
+
+		assert!(matches!(
+			streaming(&recording),
+			Some(Streaming::YouTubeMusic(id)) if id == "LaZIDFaobMU"
+		));
 	}
 
 	#[test]

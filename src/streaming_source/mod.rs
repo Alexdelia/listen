@@ -16,6 +16,7 @@ pub fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {
 		.iter()
 		.flatten()
 		.filter(|relation| STREAMING_RELATION.contains(&relation.relation_type.as_str()))
+		.filter(|relation| !relation.ended.unwrap_or(false))
 		.filter_map(|relation| match &relation.content {
 			RelationContent::Url(url) => Some(url.resource.as_str()),
 			_ => None,
