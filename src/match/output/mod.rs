@@ -7,7 +7,9 @@ use ansi::{
 	abbrev::{B, CYA, D, R},
 };
 use hmerr::{ge, ioe};
-use musicbrainz_rs::entity::{alias::Alias, artist_credit::ArtistCredit, recording::Recording};
+use musicbrainz_rs::entity::{artist_credit::ArtistCredit, recording::Recording};
+
+use crate::alias;
 
 use super::{duration, open, verify::Info};
 
@@ -17,20 +19,11 @@ const UNKNOWN: &str = "?";
 pub(super) fn recording(recording: &Recording, title: &str, length: i64) {
 	println!(
 		"{B}{title}{D}{aka}{comment} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}",
-		aka = aside(other_name(recording.aliases.as_deref(), title)),
+		aka = aside(alias::other_name(recording.aliases.as_deref(), title)),
 		comment = aside(recording.disambiguation.as_deref()),
 		artist = credit_line(recording.artist_credit.as_deref()),
 		dur = duration::fmt(Some(length)),
 	);
-}
-
-fn other_name<'a>(alias: Option<&'a [Alias]>, title: &str) -> Option<&'a str> {
-	alias
-		.into_iter()
-		.flatten()
-		.filter(|a| a.primary == Some(true))
-		.map(|a| a.name.trim())
-		.find(|name| *name != title.trim())
 }
 
 fn aside(s: Option<&str>) -> String {
@@ -114,33 +107,6 @@ mod tests {
 	use musicbrainz_rs::entity::artist::Artist;
 
 	use super::*;
-
-	fn alias(name: &str, primary: bool) -> Alias {
-		Alias {
-			name: name.to_string(),
-			primary: Some(primary),
-			..Alias::default()
-		}
-	}
-
-	#[test]
-	fn the_primary_alias_that_is_not_the_title_is_the_other_name() {
-		let alias = [alias("ひみつ基地", true), alias("Secret base", true)];
-
-		assert_eq!(other_name(Some(&alias), "ひみつ基地"), Some("Secret base"));
-	}
-
-	#[test]
-	fn a_non_primary_alias_is_never_the_other_name() {
-		let alias = [alias("secret base", false)];
-
-		assert_eq!(other_name(Some(&alias), "ひみつ基地"), None);
-	}
-
-	#[test]
-	fn a_title_with_no_alias_stands_alone() {
-		assert_eq!(other_name(None, "Secret base"), None);
-	}
 
 	#[test]
 	fn an_aside_is_skipped_when_blank() {

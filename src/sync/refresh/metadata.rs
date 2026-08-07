@@ -30,6 +30,7 @@ pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
 
 		match Recording::fetch()
 			.id(&entry.s.to_string())
+			.with_aliases()
 			.with_artists()
 			.with_genres()
 			.with_tags()

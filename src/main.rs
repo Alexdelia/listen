@@ -1,3 +1,4 @@
+mod alias;
 mod args;
 mod cache;
 mod color;

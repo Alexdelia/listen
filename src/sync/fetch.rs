@@ -24,6 +24,7 @@ pub async fn fetch(sync: &[Source], tx: Sender<Status>) {
 	for entry in sync {
 		let res = Recording::fetch()
 			.id(&entry.to_string())
+			.with_aliases()
 			.with_artists()
 			.with_genres()
 			.with_tags()
