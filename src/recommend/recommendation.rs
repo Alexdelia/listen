@@ -24,6 +24,7 @@ pub(super) enum Origin {
 	ListenCount {
 		listen: u64,
 		user: u64,
+		released: Option<NaiveDate>,
 		position: usize,
 	},
 }
@@ -71,6 +72,7 @@ mod tests {
 		Origin::ListenCount {
 			listen: 1_259_231,
 			user: 85_027,
+			released: NaiveDate::from_ymd_opt(2010, 5, 24),
 			position,
 		}
 	}

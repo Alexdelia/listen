@@ -32,9 +32,17 @@ fn label(origin: &Origin) -> String {
 				.unwrap_or_default(),
 		),
 		Origin::WeeklyExploration { .. } => String::new(),
-		Origin::ListenCount { listen, user, .. } => {
-			format!(" {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}")
-		}
+		Origin::ListenCount {
+			listen,
+			user,
+			released,
+			..
+		} => format!(
+			" {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}{released}",
+			released = released
+				.map(|date| format!(" {Y}{date}{D}", date = date.format(DATE_FORMAT)))
+				.unwrap_or_default(),
+		),
 	}
 }
 
@@ -141,19 +149,41 @@ mod tests {
 		assert!(!shown.contains(&at.format("%H:%M").to_string()), "{shown}");
 	}
 
-	#[test]
-	fn a_listen_count_recommendation_shows_its_listen_and_user_count() {
-		let shown = label(&Origin::ListenCount {
+	fn listen_count(released: Option<NaiveDate>) -> Origin {
+		Origin::ListenCount {
 			listen: 1_259_231,
 			user: 85_027,
+			released,
 			position: 0,
-		});
+		}
+	}
+
+	#[test]
+	fn a_listen_count_recommendation_shows_its_listen_and_user_count() {
+		let shown = label(&listen_count(None));
 
 		assert!(
 			shown.contains(&format!("{M}1259231 {F}listen{D}")),
 			"{shown}"
 		);
 		assert!(shown.contains(&format!("{CYA}85027 {F}user{D}")), "{shown}");
+	}
+
+	#[test]
+	fn a_dated_listen_count_recommendation_shows_its_release_date() {
+		let shown = label(&listen_count(NaiveDate::from_ymd_opt(2010, 5, 24)));
+
+		assert!(shown.contains(&format!("{Y}2010-05-24{D}")), "{shown}");
+	}
+
+	#[test]
+	fn an_undated_listen_count_recommendation_ends_on_its_user_count() {
+		let shown = label(&listen_count(None));
+
+		assert!(
+			shown.ends_with(&format!("{CYA}85027 {F}user{D}")),
+			"{shown}"
+		);
 	}
 
 	#[test]

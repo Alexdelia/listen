@@ -48,6 +48,9 @@ pub enum Command {
 		/// which listenbrainz recommendation to walk through
 		#[arg(short, long, default_value = "all")]
 		source: RecommendSource,
+		/// in which order to walk the recordings of an artist
+		#[arg(long, default_value = "popularity")]
+		sort: RecommendSort,
 	},
 }
 
@@ -66,6 +69,14 @@ pub enum RecommendSource {
 	WeeklyExplorationLastWeek,
 	/// the latest weekly exploration playlist
 	WeeklyExplorationCurrentWeek,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum RecommendSort {
+	/// the most listened recording first
+	Popularity,
+	/// the most recently released recording first, an undated one last
+	Newest,
 }
 
 pub fn parse() -> Args {

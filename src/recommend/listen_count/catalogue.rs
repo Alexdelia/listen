@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use ansi::abbrev::{B, D, R};
+use chrono::NaiveDate;
 use hmerr::ge;
 use musicbrainz_rs::{
 	Browse, Fetch,
@@ -8,10 +11,13 @@ use musicbrainz_rs::{
 use crate::{declaration::Source, music_brainz};
 
 const PAGE: u8 = 100;
+const FIRST_MONTH: u32 = 1;
+const FIRST_DAY: u32 = 1;
 
 pub(super) struct Catalogue {
 	pub artist: String,
 	pub recording: Vec<Source>,
+	pub released: HashMap<Source, NaiveDate>,
 }
 
 pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
@@ -40,6 +46,7 @@ pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
 	};
 
 	let mut recording = Vec::new();
+	let mut released = HashMap::new();
 	let mut offset = 0;
 	loop {
 		let page = Recording::browse()
@@ -55,11 +62,21 @@ pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
 				))
 			})?;
 
-		recording.extend(
-			page.entities
-				.iter()
-				.filter_map(|entity| entity.id.parse::<Source>().ok()),
-		);
+		for entity in &page.entities {
+			let Ok(mbid) = entity.id.parse::<Source>() else {
+				continue;
+			};
+
+			recording.push(mbid);
+
+			if let Some(date) = entity
+				.first_release_date
+				.as_ref()
+				.and_then(|date| release_date(&date.0))
+			{
+				released.insert(mbid, date);
+			}
+		}
 
 		offset = offset.saturating_add(u16::from(PAGE));
 		if page.entities.is_empty() || i32::from(offset) >= page.count {
@@ -70,7 +87,22 @@ pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
 	Ok(Catalogue {
 		artist: artist.name,
 		recording,
+		released,
 	})
+}
+
+fn release_date(date: &str) -> Option<NaiveDate> {
+	let mut part = date.split('-');
+
+	let year = part.next()?.parse().ok()?;
+	let month = part.next().and_then(number).unwrap_or(FIRST_MONTH);
+	let day = part.next().and_then(number).unwrap_or(FIRST_DAY);
+
+	NaiveDate::from_ymd_opt(year, month, day)
+}
+
+fn number(part: &str) -> Option<u32> {
+	part.parse().ok()
 }
 
 fn confirmed(fetched: &str, id: &str) -> bool {
@@ -119,5 +151,34 @@ mod tests {
 	fn a_musicbrainz_error_payload_confirms_nothing() {
 		assert!(!confirmed(&Artist::default().id, ID));
 		assert!(!confirmed("", ID));
+	}
+
+	#[test]
+	fn a_full_date_is_read_as_it_is() {
+		assert_eq!(
+			release_date("2008-05-09"),
+			NaiveDate::from_ymd_opt(2008, 5, 9)
+		);
+	}
+
+	#[test]
+	fn a_partial_date_falls_back_to_the_start_of_what_it_gives() {
+		assert_eq!(release_date("2008"), NaiveDate::from_ymd_opt(2008, 1, 1));
+		assert_eq!(release_date("2008-05"), NaiveDate::from_ymd_opt(2008, 5, 1));
+		assert_eq!(
+			release_date("2008-??-09"),
+			NaiveDate::from_ymd_opt(2008, 1, 9)
+		);
+	}
+
+	#[test]
+	fn a_date_without_a_year_is_no_date() {
+		assert_eq!(release_date(""), None);
+		assert_eq!(release_date("????-05-09"), None);
+	}
+
+	#[test]
+	fn an_impossible_date_is_no_date() {
+		assert_eq!(release_date("2008-13-42"), None);
 	}
 }

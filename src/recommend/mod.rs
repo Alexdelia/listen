@@ -14,7 +14,7 @@ mod weekly;
 
 use std::path::Path;
 
-use crate::args::RecommendSource;
+use crate::args::{RecommendSort, RecommendSource};
 
 use feed::Feed;
 use skip::Skip;
@@ -26,9 +26,10 @@ pub async fn run(
 	target: Option<&str>,
 	unlistened: bool,
 	source: RecommendSource,
+	sort: RecommendSort,
 ) -> hmerr::Result<()> {
 	let target = target::resolve(target)?;
-	selection::ensure(source, &target)?;
+	selection::ensure(source, sort, &target)?;
 
 	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
 	if let Target::Username(username) = &target {
@@ -42,7 +43,7 @@ pub async fn run(
 	}
 
 	if let Target::Artist(mbid) = target {
-		feed.push(Box::new(listen_count::feed(mbid).await?));
+		feed.push(Box::new(listen_count::feed(mbid, sort).await?));
 	}
 
 	let mut skip = Skip::load(path)?;

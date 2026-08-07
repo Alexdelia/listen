@@ -3,7 +3,7 @@ use hmerr::ge;
 
 use clap::ValueEnum;
 
-use crate::args::RecommendSource;
+use crate::args::{RecommendSort, RecommendSource};
 
 use super::target::Target;
 
@@ -35,7 +35,11 @@ pub(super) fn tolerates_missing_weekly(source: RecommendSource) -> bool {
 	)
 }
 
-pub(super) fn ensure(source: RecommendSource, target: &Target) -> hmerr::Result<()> {
+pub(super) fn ensure(
+	source: RecommendSource,
+	sort: RecommendSort,
+	target: &Target,
+) -> hmerr::Result<()> {
 	let (fits, need) = match target {
 		Target::Username(_) => (
 			weekly(source) || collaborative_filtering(source),
@@ -44,19 +48,30 @@ pub(super) fn ensure(source: RecommendSource, target: &Target) -> hmerr::Result<
 		Target::Artist(_) => (listen_count(source), "a username, not an mbid"),
 	};
 
-	if fits {
-		return Ok(());
+	if !fits {
+		return Err(ge!(format!(
+			"{R}source {B}{source}{D}{R} needs {need}{D}",
+			source = name(&source)
+		))
+		.into());
 	}
 
-	Err(ge!(format!(
-		"{R}source {B}{source}{D}{R} needs {need}{D}",
-		source = name(source)
-	))
-	.into())
+	if sort != RecommendSort::Popularity && !matches!(target, Target::Artist(_)) {
+		return Err(ge!(
+			format!(
+				"{R}sort {B}{sort}{D}{R} needs an artist mbid, not a username{D}",
+				sort = name(&sort)
+			),
+			h: "only the recordings of an artist carry a release date to sort on"
+		)
+		.into());
+	}
+
+	Ok(())
 }
 
-fn name(source: RecommendSource) -> String {
-	source
+fn name<T: ValueEnum>(value: &T) -> String {
+	value
 		.to_possible_value()
 		.map_or_else(String::new, |value| value.get_name().to_string())
 }
@@ -72,6 +87,10 @@ mod tests {
 
 	fn username() -> Target {
 		Target::Username("alexdelia".to_string())
+	}
+
+	fn by_popularity(source: RecommendSource, target: &Target) -> hmerr::Result<()> {
+		ensure(source, RecommendSort::Popularity, target)
 	}
 
 	const USERNAME_SOURCE: [RecommendSource; 4] = [
@@ -135,26 +154,26 @@ mod tests {
 
 	#[test]
 	fn all_fits_every_target() {
-		assert!(ensure(RecommendSource::All, &username()).is_ok());
-		assert!(ensure(RecommendSource::All, &artist()).is_ok());
+		assert!(by_popularity(RecommendSource::All, &username()).is_ok());
+		assert!(by_popularity(RecommendSource::All, &artist()).is_ok());
 	}
 
 	#[test]
 	fn a_username_source_needs_a_username() {
 		for source in USERNAME_SOURCE {
-			assert!(ensure(source, &username()).is_ok());
-			assert!(ensure(source, &artist()).is_err());
+			assert!(by_popularity(source, &username()).is_ok());
+			assert!(by_popularity(source, &artist()).is_err());
 		}
 	}
 
 	#[test]
 	fn listenbrainz_needs_an_mbid() {
-		assert!(ensure(RecommendSource::ListenBrainz, &artist()).is_ok());
-		assert!(ensure(RecommendSource::ListenBrainz, &username()).is_err());
+		assert!(by_popularity(RecommendSource::ListenBrainz, &artist()).is_ok());
+		assert!(by_popularity(RecommendSource::ListenBrainz, &username()).is_err());
 	}
 
 	fn refusal(source: RecommendSource, target: &Target) -> String {
-		ensure(source, target)
+		by_popularity(source, target)
 			.err()
 			.map(|e| e.to_string())
 			.unwrap_or_default()
@@ -174,5 +193,40 @@ mod tests {
 
 		assert!(said.contains("listenbrainz"), "{said}");
 		assert!(said.contains("needs an artist mbid"), "{said}");
+	}
+
+	#[test]
+	fn newest_fits_an_artist() {
+		assert!(
+			ensure(
+				RecommendSource::ListenBrainz,
+				RecommendSort::Newest,
+				&artist()
+			)
+			.is_ok()
+		);
+		assert!(ensure(RecommendSource::All, RecommendSort::Newest, &artist()).is_ok());
+	}
+
+	#[test]
+	fn newest_asked_of_a_username_says_it_wants_an_mbid() {
+		let said = ensure(
+			RecommendSource::CollaborativeFiltering,
+			RecommendSort::Newest,
+			&username(),
+		)
+		.err()
+		.map(|e| e.to_string())
+		.unwrap_or_default();
+
+		assert!(said.contains("newest"), "{said}");
+		assert!(said.contains("needs an artist mbid"), "{said}");
+	}
+
+	#[test]
+	fn popularity_fits_a_username() {
+		for source in USERNAME_SOURCE {
+			assert!(ensure(source, RecommendSort::Popularity, &username()).is_ok());
+		}
 	}
 }

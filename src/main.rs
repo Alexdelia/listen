@@ -38,6 +38,7 @@ fn main() -> hmerr::Result<()> {
 		target,
 		unlistened,
 		source,
+		sort,
 	}) = &args.command
 	{
 		return block_on(recommend::run(
@@ -45,6 +46,7 @@ fn main() -> hmerr::Result<()> {
 			target.as_deref(),
 			*unlistened,
 			*source,
+			*sort,
 		));
 	}
 
