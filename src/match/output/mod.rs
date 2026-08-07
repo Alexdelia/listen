@@ -7,10 +7,44 @@ use ansi::{
 	abbrev::{B, CYA, D, R},
 };
 use hmerr::{ge, ioe};
+use musicbrainz_rs::entity::{artist_credit::ArtistCredit, recording::Recording};
 
 use super::{duration, open, verify::Info};
 
 const LIST_CLOSE: char = ']';
+const UNKNOWN: &str = "?";
+
+pub(super) fn recording(recording: &Recording, title: &str, length: i64) {
+	let disambiguation = recording
+		.disambiguation
+		.as_deref()
+		.map(str::trim)
+		.filter(|d| !d.is_empty())
+		.map_or(String::default(), |d| format!(" {DIM}({d}){D}"));
+
+	println!(
+		"{B}{title}{D}{disambiguation} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}",
+		artist = credit(recording.artist_credit.as_deref()),
+		dur = duration::fmt(Some(length)),
+	);
+}
+
+fn credit(credit: Option<&[ArtistCredit]>) -> String {
+	let mut out = String::new();
+
+	for c in credit.into_iter().flatten() {
+		out.push_str(&c.name);
+		out.push_str(c.joinphrase.as_deref().unwrap_or_default());
+	}
+
+	let out = out.trim();
+
+	if out.is_empty() {
+		UNKNOWN.to_string()
+	} else {
+		out.to_string()
+	}
+}
 
 pub(super) fn found(info: &Info, length: i64) {
 	let delta_str = info.duration.map_or(String::default(), |dur| {
@@ -24,8 +58,8 @@ pub(super) fn found(info: &Info, length: i64) {
 
 	println!(
 		"{B}{track}{D} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}{delta_str}",
-		track = info.track.as_deref().unwrap_or("?"),
-		artist = info.artist.as_deref().unwrap_or("?"),
+		track = info.track.as_deref().unwrap_or(UNKNOWN),
+		artist = info.artist.as_deref().unwrap_or(UNKNOWN),
 		dur = duration::fmt(info.duration),
 	);
 }
