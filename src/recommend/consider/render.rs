@@ -149,7 +149,10 @@ mod tests {
 			position: 0,
 		});
 
-		assert!(shown.contains(&format!("{M}1259231 {F}listen{D}")), "{shown}");
+		assert!(
+			shown.contains(&format!("{M}1259231 {F}listen{D}")),
+			"{shown}"
+		);
 		assert!(shown.contains(&format!("{CYA}85027 {F}user{D}")), "{shown}");
 	}
 
