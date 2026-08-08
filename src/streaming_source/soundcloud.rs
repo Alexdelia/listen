@@ -2,7 +2,7 @@ use std::{path::Path, process::Command};
 
 use crate::env;
 
-use super::StreamingSource;
+const PROGRAM: &str = "scdl";
 
 pub(super) fn command<P>(url: &str, path: P) -> hmerr::Result<Command>
 where
@@ -17,7 +17,7 @@ where
 		.file_stem()
 		.ok_or_else(|| format!("no file stem for {path}", path = path.to_string_lossy()))?;
 
-	let mut command = Command::new(StreamingSource::SoundCloud.downloader());
+	let mut command = Command::new(PROGRAM);
 	command.args([
 		"--hide-progress",
 		"--client-id",

@@ -2,13 +2,13 @@ use std::{path::Path, process::Command};
 
 use crate::library;
 
-use super::StreamingSource;
+const PROGRAM: &str = "yt-dlp";
 
 pub(super) fn command<P>(url: &str, path: P) -> Command
 where
 	P: AsRef<Path>,
 {
-	let mut command = Command::new(StreamingSource::YouTube.downloader());
+	let mut command = Command::new(PROGRAM);
 	command.args([
 		"--quiet",
 		"--extract-audio",

@@ -4,6 +4,7 @@ use crate::streaming_source::{self, StreamingSource};
 
 pub(super) enum Streaming {
 	SoundCloud,
+	Bandcamp,
 	YouTubeMusic(String),
 }
 
@@ -11,7 +12,16 @@ impl Streaming {
 	fn priority(&self) -> u8 {
 		match self {
 			Self::SoundCloud => StreamingSource::SoundCloud.priority(),
+			Self::Bandcamp => StreamingSource::Bandcamp.priority(),
 			Self::YouTubeMusic(_) => StreamingSource::YouTubeMusic.priority(),
+		}
+	}
+
+	pub(super) fn name(&self) -> &'static str {
+		match self {
+			Self::SoundCloud => "soundcloud",
+			Self::Bandcamp => "bandcamp",
+			Self::YouTubeMusic(_) => "youtube music",
 		}
 	}
 }
@@ -25,6 +35,7 @@ pub(super) fn streaming(recording: &Recording) -> Option<Streaming> {
 fn classify(url: &str) -> Option<Streaming> {
 	match StreamingSource::try_from(url).ok()? {
 		StreamingSource::SoundCloud => Some(Streaming::SoundCloud),
+		StreamingSource::Bandcamp => Some(Streaming::Bandcamp),
 		StreamingSource::YouTubeMusic => video_id(url).map(Streaming::YouTubeMusic),
 		StreamingSource::YouTube => None,
 	}
@@ -165,6 +176,63 @@ mod tests {
 			streaming(&recording),
 			Some(Streaming::YouTubeMusic(id)) if id == "LaZIDFaobMU"
 		));
+	}
+
+	#[test]
+	fn a_free_streaming_bandcamp_track_is_picked_up() {
+		let recording = recording(&url_relation(
+			"free streaming",
+			"https://swkabc.bandcamp.com/track/bad-apple",
+		));
+
+		assert!(matches!(streaming(&recording), Some(Streaming::Bandcamp)));
+	}
+
+	#[test]
+	fn a_bandcamp_album_is_not_a_streaming_source() {
+		let recording = recording(&url_relation(
+			"free streaming",
+			"https://swkabc.bandcamp.com/album/bad-apple",
+		));
+
+		assert!(streaming(&recording).is_none());
+	}
+
+	#[test]
+	fn youtube_music_wins_over_bandcamp() {
+		let recording = recording(&format!(
+			"{bandcamp},{youtube}",
+			bandcamp = url_relation(
+				"free streaming",
+				"https://swkabc.bandcamp.com/track/bad-apple"
+			),
+			youtube = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=YiMJM0Bthv4"
+			),
+		));
+
+		assert!(matches!(
+			streaming(&recording),
+			Some(Streaming::YouTubeMusic(id)) if id == "YiMJM0Bthv4"
+		));
+	}
+
+	#[test]
+	fn bandcamp_wins_over_plain_youtube() {
+		let recording = recording(&format!(
+			"{youtube},{bandcamp}",
+			youtube = url_relation(
+				"free streaming",
+				"https://www.youtube.com/watch?v=Xy6lZxoJ4ts"
+			),
+			bandcamp = url_relation(
+				"free streaming",
+				"https://swkabc.bandcamp.com/track/bad-apple"
+			),
+		));
+
+		assert!(matches!(streaming(&recording), Some(Streaming::Bandcamp)));
 	}
 
 	#[test]

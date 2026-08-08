@@ -46,8 +46,11 @@ pub async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool
 
 	match link::streaming(&recording) {
 		None => no_link::run(&client, &recording, &title, length, path, mbid, recommend).await,
-		Some(link::Streaming::SoundCloud) => {
-			println!("{B}soundcloud{D} link already on musicbrainz");
+		Some(already @ (link::Streaming::SoundCloud | link::Streaming::Bandcamp)) => {
+			println!(
+				"{B}{name}{D} link already on musicbrainz",
+				name = already.name()
+			);
 			keep::run(path, mbid, None, length, recommend)
 		}
 		Some(link::Streaming::YouTubeMusic(mut id)) => {

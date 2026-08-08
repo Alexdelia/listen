@@ -1,6 +1,7 @@
+mod bandcamp;
 mod run;
 mod soundcloud;
-mod youtube;
+mod yt_dlp;
 
 use std::path::Path;
 
@@ -27,7 +28,15 @@ pub enum StreamingSource {
 	SoundCloud,
 	YouTube,
 	YouTubeMusic,
+	Bandcamp,
 }
+
+const ALL: [StreamingSource; 4] = [
+	StreamingSource::SoundCloud,
+	StreamingSource::YouTube,
+	StreamingSource::YouTubeMusic,
+	StreamingSource::Bandcamp,
+];
 
 impl StreamingSource {
 	pub fn host(&self) -> &'static str {
@@ -35,6 +44,7 @@ impl StreamingSource {
 			Self::SoundCloud => "soundcloud.com",
 			Self::YouTube => "www.youtube.com",
 			Self::YouTubeMusic => "music.youtube.com",
+			Self::Bandcamp => bandcamp::HOST,
 		}
 	}
 
@@ -42,10 +52,10 @@ impl StreamingSource {
 		format!("https://{host}", host = self.host())
 	}
 
-	fn downloader(&self) -> &'static str {
+	fn serve(&self, url: &str) -> bool {
 		match self {
-			Self::SoundCloud => "scdl",
-			Self::YouTube | Self::YouTubeMusic => "yt-dlp",
+			Self::Bandcamp => bandcamp::is_track(url),
+			_ => url.starts_with(self.base_url().as_str()),
 		}
 	}
 
@@ -55,7 +65,7 @@ impl StreamingSource {
 	{
 		let mut command = match self {
 			Self::SoundCloud => soundcloud::command(url, path)?,
-			Self::YouTube | Self::YouTubeMusic => youtube::command(url, path),
+			Self::YouTube | Self::YouTubeMusic | Self::Bandcamp => yt_dlp::command(url, path),
 		};
 
 		run(&mut command, url)
@@ -65,7 +75,8 @@ impl StreamingSource {
 		match self {
 			Self::SoundCloud => 0,
 			Self::YouTubeMusic => 1,
-			Self::YouTube => 2,
+			Self::Bandcamp => 2,
+			Self::YouTube => 3,
 		}
 	}
 }
@@ -74,14 +85,9 @@ impl TryFrom<&str> for StreamingSource {
 	type Error = &'static str;
 
 	fn try_from(url: &str) -> Result<Self, Self::Error> {
-		match url {
-			url if url.starts_with(Self::SoundCloud.base_url().as_str()) => Ok(Self::SoundCloud),
-			url if url.starts_with(Self::YouTube.base_url().as_str()) => Ok(Self::YouTube),
-			url if url.starts_with(Self::YouTubeMusic.base_url().as_str()) => {
-				Ok(Self::YouTubeMusic)
-			}
-			_ => Err("unsupported streaming source"),
-		}
+		ALL.into_iter()
+			.find(|source| source.serve(url))
+			.ok_or("unsupported streaming source")
 	}
 }
 
