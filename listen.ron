@@ -982,4 +982,8 @@
 	(s: "f639dd52-8f76-46f9-a650-5236e8b2b20b", q: 0, playlist: ["aggressive"]),
 	(s: "4cc16a67-d1e8-4ec3-93f2-84b1d27cd283", q: 1, playlist: []),
 	(s: "5ab4e74e-ac0f-4251-89ff-c9fd0f06ced4", q: 1, playlist: []),
+	(s: "91a45ddc-b08a-48e8-949d-14979fa37ddb", q: 1, playlist: []),
+	(s: "c95724d1-7a8a-45b6-a96f-06d25ffd6a0e", q: 0, playlist: []),
+	(s: "1bf019df-a6ed-4aa6-85b4-6d526ad5ddc1", q: 2, playlist: ["charged"]),
+	(s: "96126e27-ba8c-4e32-a581-b2d3a4edad9b", q: 1, playlist: []),
 ]
