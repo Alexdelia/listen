@@ -3,9 +3,89 @@ use hmerr::ge;
 
 use clap::ValueEnum;
 
-use crate::args::{RecommendSort, RecommendSource};
+use crate::args::{IslandArg, RecommendSort, RecommendSource};
 
 use super::target::Target;
+
+pub(super) fn island(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::Island)
+}
+
+pub(super) fn ensure_island(
+	sort: RecommendSort,
+	target: Option<&str>,
+	arg: &IslandArg,
+) -> hmerr::Result<()> {
+	if let Some(target) = target {
+		return Err(ge!(
+			format!("{R}source {B}island{D}{R} takes no target, got {B}{target}{D}"),
+			h: "it reads the declaration and the local index, never a listenbrainz account"
+		)
+		.into());
+	}
+
+	if sort != RecommendSort::Popularity {
+		return Err(ge!(format!(
+			"{R}sort {B}{sort}{D}{R} needs an artist mbid, not source {B}island{D}",
+			sort = name(&sort)
+		))
+		.into());
+	}
+
+	if !arg.seed.is_empty() && arg.island.is_some() {
+		return Err(ge!(
+			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}--seed{D}"),
+			h: "--seed already says which recordings the island is made of"
+		)
+		.into());
+	}
+
+	if !arg.genre.is_empty() && arg.island.is_some() {
+		return Err(ge!(
+			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}--genre{D}"),
+			h: "--genre already says which recordings the island is made of"
+		)
+		.into());
+	}
+
+	if arg.alpha.is_some_and(|alpha| alpha < 0.0) {
+		return Err(ge!(
+			format!("{R}{B}--alpha{D}{R} damps popularity, so it cannot be negative{D}"),
+			h: "0 leaves popularity alone, 0.6 is the discovery setting"
+		)
+		.into());
+	}
+
+	if arg.resolution.is_some_and(|resolution| resolution <= 0.0) {
+		return Err(ge!(format!("{R}{B}--resolution{D}{R} has to be above zero{D}")).into());
+	}
+
+	Ok(())
+}
+
+pub(super) fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
+	let unusable = [
+		("--island", arg.island.is_some()),
+		("--ask", arg.ask),
+		("--seed", !arg.seed.is_empty()),
+		("--genre", !arg.genre.is_empty()),
+		("--alpha", arg.alpha.is_some()),
+		("--resolution", arg.resolution.is_some()),
+	];
+
+	let Some((flag, _)) = unusable.iter().find(|(_, given)| *given) else {
+		return Ok(());
+	};
+
+	Err(ge!(
+		format!(
+			"{R}{B}{flag}{D}{R} needs source {B}island{D}{R}, not {B}{source}{D}",
+			source = name(&source)
+		),
+		h: format!("run with {B}--source island{D}")
+	)
+	.into())
+}
 
 pub(super) fn weekly(source: RecommendSource) -> bool {
 	matches!(

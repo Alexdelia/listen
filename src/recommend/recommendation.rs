@@ -5,6 +5,7 @@ use crate::declaration::Source;
 const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
 const LISTEN_BRAINZ: &str = "listenbrainz";
+const ISLAND: &str = "island";
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
@@ -27,6 +28,14 @@ pub(super) enum Origin {
 		released: Option<NaiveDate>,
 		position: usize,
 	},
+	Island {
+		name: String,
+		member: usize,
+		score: f32,
+		backer: u32,
+		plays: u32,
+		position: usize,
+	},
 }
 
 impl Origin {
@@ -35,6 +44,7 @@ impl Origin {
 			Self::CollaborativeFiltering { .. } => COLLABORATIVE_FILTERING.to_string(),
 			Self::WeeklyExploration { week, .. } => format!("{WEEKLY_EXPLORATION} {week}"),
 			Self::ListenCount { .. } => LISTEN_BRAINZ.to_string(),
+			Self::Island { name, .. } => format!("{ISLAND} {name}"),
 		}
 	}
 
@@ -42,7 +52,8 @@ impl Origin {
 		match self {
 			Self::CollaborativeFiltering { position, .. }
 			| Self::WeeklyExploration { position, .. }
-			| Self::ListenCount { position, .. } => *position,
+			| Self::ListenCount { position, .. }
+			| Self::Island { position, .. } => *position,
 		}
 	}
 
@@ -51,7 +62,7 @@ impl Origin {
 			Self::CollaborativeFiltering {
 				latest_listened_at, ..
 			} => *latest_listened_at,
-			Self::WeeklyExploration { .. } | Self::ListenCount { .. } => None,
+			Self::WeeklyExploration { .. } | Self::ListenCount { .. } | Self::Island { .. } => None,
 		}
 	}
 }
