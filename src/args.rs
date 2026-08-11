@@ -51,6 +51,8 @@ pub enum Command {
 		/// in which order to walk the recordings of an artist
 		#[arg(long, default_value = "popularity")]
 		sort: RecommendSort,
+		#[command(flatten)]
+		island: IslandArg,
 	},
 	/// print the shell completion script for this command and its nix dev shell wrapper
 	Completion {
@@ -59,10 +61,34 @@ pub enum Command {
 	},
 }
 
+#[derive(clap::Args)]
+pub struct IslandArg {
+	/// how hard to damp popularity, 0 keeps scene hits, above 0.8 reaches the untrustworthy [0.6]
+	#[arg(long)]
+	pub alpha: Option<f32>,
+	/// island granularity, higher splits broad islands [1.0]
+	#[arg(long)]
+	pub resolution: Option<f32>,
+	/// pin the stream to the islands whose name contains this
+	#[arg(long)]
+	pub island: Option<String>,
+	/// ask after every recommendation whether the next one stays on the same island
+	#[arg(long)]
+	pub ask: bool,
+	/// build one island out of these declared recordings instead of detecting islands
+	#[arg(long)]
+	pub seed: Vec<Source>,
+	/// build one island out of every declared recording tagged with this local mp3 genre
+	#[arg(long)]
+	pub genre: Vec<String>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum RecommendSource {
 	/// alternate between every source that fits the target
 	All,
+	/// taste islands from the local listenbrainz index, needs a built index
+	Island,
 	/// the raw collaborative filtering recording list
 	CollaborativeFiltering,
 	/// the most listened recording of an artist, needs an MBID
