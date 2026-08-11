@@ -43,6 +43,15 @@ fn label(origin: &Origin) -> String {
 				.map(|date| format!(" {Y}{date}{D}", date = date.format(DATE_FORMAT)))
 				.unwrap_or_default(),
 		),
+		Origin::Island {
+			member,
+			score,
+			backer,
+			plays,
+			..
+		} => format!(
+			" {Y}{score:.1}{D} {CYA}{backer} {F}backer{D} {M}{plays} {F}play{D} {F}of {member} seed{D}"
+		),
 	}
 }
 

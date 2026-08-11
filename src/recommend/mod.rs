@@ -3,6 +3,7 @@ mod consider;
 mod declared;
 mod declined;
 mod feed;
+mod island;
 mod listen_count;
 mod queue;
 mod recommendation;
@@ -14,7 +15,7 @@ mod weekly;
 
 use std::path::Path;
 
-use crate::args::{RecommendSort, RecommendSource};
+use crate::args::{IslandArg, RecommendSort, RecommendSource};
 
 use feed::Feed;
 use skip::Skip;
@@ -27,23 +28,15 @@ pub async fn run(
 	unlistened: bool,
 	source: RecommendSource,
 	sort: RecommendSort,
+	arg: &IslandArg,
 ) -> hmerr::Result<()> {
-	let target = target::resolve(target)?;
-	selection::ensure(source, sort, &target)?;
-
 	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
-	if let Target::Username(username) = &target {
-		if let Some(weekly) = weekly::feed(username, source)? {
-			feed.push(Box::new(weekly));
-		}
 
-		if selection::collaborative_filtering(source) {
-			feed.push(Box::new(collaborative_filtering::feed(username.clone())));
-		}
-	}
-
-	if let Target::Artist(mbid) = target {
-		feed.push(Box::new(listen_count::feed(mbid, sort).await?));
+	if selection::island(source) {
+		selection::ensure_island(sort, target, arg)?;
+		feed.push(island::feed(path, arg)?);
+	} else {
+		feed = remote(target, source, sort, arg).await?;
 	}
 
 	let mut skip = Skip::load(path)?;
@@ -59,4 +52,33 @@ pub async fn run(
 	}
 
 	Ok(())
+}
+
+async fn remote(
+	target: Option<&str>,
+	source: RecommendSource,
+	sort: RecommendSort,
+	arg: &IslandArg,
+) -> hmerr::Result<Vec<Box<dyn Feed>>> {
+	let target = target::resolve(target)?;
+	selection::ensure(source, sort, &target)?;
+	selection::ensure_no_island_arg(source, arg)?;
+
+	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
+
+	if let Target::Username(username) = &target {
+		if let Some(weekly) = weekly::feed(username, source)? {
+			feed.push(Box::new(weekly));
+		}
+
+		if selection::collaborative_filtering(source) {
+			feed.push(Box::new(collaborative_filtering::feed(username.clone())));
+		}
+	}
+
+	if let Target::Artist(mbid) = target {
+		feed.push(Box::new(listen_count::feed(mbid, sort).await?));
+	}
+
+	Ok(feed)
 }
