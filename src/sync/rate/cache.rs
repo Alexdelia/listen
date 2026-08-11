@@ -3,9 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use ansi::abbrev::{B, D, R, Y};
 use hmerr::{ge, ioe};
 
-use crate::declaration::Source;
-
-use super::value::Value;
+use crate::declaration::{Source, value::Value};
 
 const FILE: &str = "rating";
 const EXT: &str = "json";
