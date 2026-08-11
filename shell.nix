@@ -1,6 +1,10 @@
-{pkgs ? import <nixpkgs> {}, ...}:
+{
+  pkgs ? import <nixpkgs> { },
+  ...
+}:
 pkgs.mkShell {
-  buildInputs = with pkgs;
+  buildInputs =
+    with pkgs;
     [
       git
 
@@ -20,55 +24,56 @@ pkgs.mkShell {
       yt-dlp
       wl-clipboard
       xdg-utils
+      duckdb
     ]
     ++ (
       let
         run = "cargo run --release";
         push = "git add listen.ron && git commit -m \"🎶\" && git push -q && ${run} -q";
-      in [
-        (pkgs.writers.writeBashBin "run" {} "${run} -- $@")
-        (pkgs.writers.writeBashBin "match" {} "${run} -- match $@")
-        (pkgs.writers.writeBashBin "outlier" {} "${run} -- outlier $@")
-        (pkgs.writers.writeBashBin "recommend" {} "${run} -- recommend $@")
-        (pkgs.writers.writeBashBin "push" {} "${push}")
-        (pkgs.writers.writeBashBin "add" {} "$EDITOR listen.ron && ${push}")
+      in
+      [
+        (pkgs.writers.writeBashBin "run" { } "${run} -- $@")
+        (pkgs.writers.writeBashBin "match" { } "${run} -- match $@")
+        (pkgs.writers.writeBashBin "outlier" { } "${run} -- outlier $@")
+        (pkgs.writers.writeBashBin "recommend" { } "${run} -- recommend $@")
+        (pkgs.writers.writeBashBin "push" { } "${push}")
+        (pkgs.writers.writeBashBin "add" { } "$EDITOR listen.ron && ${push}")
       ]
     );
 
   # LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
 
-  shellHook =
-    /*
-    bash
-    */
-    ''
-      unset LD_LIBRARY_PATH
+  DUCKDB_LIB_DIR = "${pkgs.lib.getLib pkgs.duckdb}/lib";
+  DUCKDB_INCLUDE_DIR = "${pkgs.lib.getDev pkgs.duckdb}/include";
 
-      git pull
+  shellHook = /* bash */ ''
+    unset LD_LIBRARY_PATH
 
-      # export PATH="$HOME/.cargo/bin:$PATH"
+    git pull
 
-      if [ ! -f .env ]; then
-      	cp .env.example .env
-      	printf "\n\n\t\033[1mplease edit the \033[35m.env\033[39m file\033[0m\n\n"
-      fi
+    # export PATH="$HOME/.cargo/bin:$PATH"
 
-      data_dir="$PWD/target/xdg"
-      completion_dir="$data_dir/bash-completion/completions"
-      bin="target/release/declarative_listen"
+    if [ ! -f .env ]; then
+    	cp .env.example .env
+    	printf "\n\n\t\033[1mplease edit the \033[35m.env\033[39m file\033[0m\n\n"
+    fi
 
-      if [ -x "$bin" ] && [ ! "$completion_dir/declarative_listen" -nt "$bin" ]; then
-      	mkdir -p "$completion_dir"
-      	if "$bin" completion bash >"$completion_dir/declarative_listen" 2>/dev/null; then
-      		for wrapper in run match outlier recommend; do
-      			ln -sf declarative_listen "$completion_dir/$wrapper"
-      		done
-      	fi
-      fi
+    data_dir="$PWD/target/xdg"
+    completion_dir="$data_dir/bash-completion/completions"
+    bin="target/release/declarative_listen"
 
-      case ":$XDG_DATA_DIRS:" in
-      	*":$data_dir:"*) ;;
-      	*) export XDG_DATA_DIRS="$data_dir:$XDG_DATA_DIRS" ;;
-      esac
-    '';
+    if [ -x "$bin" ] && [ ! "$completion_dir/declarative_listen" -nt "$bin" ]; then
+    	mkdir -p "$completion_dir"
+    	if "$bin" completion bash >"$completion_dir/declarative_listen" 2>/dev/null; then
+    		for wrapper in run match outlier recommend; do
+    			ln -sf declarative_listen "$completion_dir/$wrapper"
+    		done
+    	fi
+    fi
+
+    case ":$XDG_DATA_DIRS:" in
+    	*":$data_dir:"*) ;;
+    	*) export XDG_DATA_DIRS="$data_dir:$XDG_DATA_DIRS" ;;
+    esac
+  '';
 }
