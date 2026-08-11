@@ -17,6 +17,7 @@ panic = "abort"
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+const_format = "0.2"
 async-std = { version = "1", features = ["tokio1"] }
 chrono = { version = "0.4", default-features = false, features = [
 	"serde",
@@ -39,7 +40,7 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 api_bindium = { version = "0.4", features = ["rate_limit"] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
-const_format = "0.2"
+duckdb = "1"
 
 [lints.clippy]
 unwrap_used = "deny"
