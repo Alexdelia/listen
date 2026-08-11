@@ -2,6 +2,7 @@ mod alias;
 mod args;
 mod cache;
 mod color;
+mod completion;
 mod declaration;
 mod env;
 mod library;
@@ -20,6 +21,11 @@ use args::Command;
 
 fn main() -> hmerr::Result<()> {
 	let args = args::parse();
+
+	if let Some(Command::Completion { shell }) = &args.command {
+		completion::run(*shell);
+		return Ok(());
+	}
 
 	if let Some(Command::Match { mbid }) = &args.command {
 		block_on(r#match::run(&args.path, &mbid.to_string(), false))?;

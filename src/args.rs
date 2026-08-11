@@ -52,6 +52,11 @@ pub enum Command {
 		#[arg(long, default_value = "popularity")]
 		sort: RecommendSort,
 	},
+	/// print the shell completion script for this command and its nix dev shell wrapper
+	Completion {
+		#[arg(default_value = "bash")]
+		shell: clap_complete::Shell,
+	},
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
