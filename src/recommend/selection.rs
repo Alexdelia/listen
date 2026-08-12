@@ -8,6 +8,10 @@ use crate::args::{IslandArg, RecommendSort, RecommendSource};
 use super::target::Target;
 
 pub(super) fn island(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::All | RecommendSource::Island)
+}
+
+pub(super) fn island_only(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::Island)
 }
 

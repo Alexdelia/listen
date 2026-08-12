@@ -24,6 +24,11 @@ pkgs.mkShell {
       yt-dlp
       wl-clipboard
       xdg-utils
+
+      uutils-coreutils-noprefix
+      rsync
+      gnutar
+      bzip2
       duckdb
     ]
     ++ (

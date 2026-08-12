@@ -14,8 +14,19 @@ use hmerr::{GenericError, ge};
 
 use crate::args::IslandArg;
 
+pub(super) fn ready() -> bool {
+	index::ready()
+}
+
+pub(super) fn absent() {
+	println!(
+		"{F}no listen index yet, so this run stays on the listenbrainz sources.{D}\n\
+		{F}run {B}--source island{D}{F} once to set it up.{D}"
+	);
+}
+
 pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
-	let index = index::open()?;
+	let index = index::ensure(path)?;
 	let library = seed::load(path, &index)?;
 
 	report(&index.meta, &library);

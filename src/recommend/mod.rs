@@ -32,11 +32,25 @@ pub async fn run(
 ) -> hmerr::Result<()> {
 	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
 
-	if selection::island(source) {
+	if selection::island_only(source) {
 		selection::ensure_island(sort, target, arg)?;
 		feed.push(island::feed(path, arg)?);
 	} else {
-		feed = remote(target, source, sort, arg).await?;
+		if !selection::island(source) {
+			selection::ensure_no_island_arg(source, arg)?;
+		}
+
+		let target = target::resolve(target)?;
+		selection::ensure(source, sort, &target)?;
+		feed = remote(&target, source, sort).await?;
+
+		if selection::island(source) && matches!(target, Target::Username(_)) {
+			if island::ready() {
+				feed.push(island::feed(path, arg)?);
+			} else {
+				island::absent();
+			}
+		}
 	}
 
 	let mut skip = Skip::load(path)?;
@@ -55,18 +69,13 @@ pub async fn run(
 }
 
 async fn remote(
-	target: Option<&str>,
+	target: &Target,
 	source: RecommendSource,
 	sort: RecommendSort,
-	arg: &IslandArg,
 ) -> hmerr::Result<Vec<Box<dyn Feed>>> {
-	let target = target::resolve(target)?;
-	selection::ensure(source, sort, &target)?;
-	selection::ensure_no_island_arg(source, arg)?;
-
 	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
 
-	if let Target::Username(username) = &target {
+	if let Target::Username(username) = target {
 		if let Some(weekly) = weekly::feed(username, source)? {
 			feed.push(Box::new(weekly));
 		}
@@ -77,7 +86,7 @@ async fn remote(
 	}
 
 	if let Target::Artist(mbid) = target {
-		feed.push(Box::new(listen_count::feed(mbid, sort).await?));
+		feed.push(Box::new(listen_count::feed(*mbid, sort).await?));
 	}
 
 	Ok(feed)
