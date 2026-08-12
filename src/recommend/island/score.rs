@@ -17,11 +17,9 @@ pub(super) struct Candidate {
 pub(super) fn of(
 	index: &Index,
 	cohort: &[Vec<Member>],
-	shown: &[Source],
 	alpha: f32,
 ) -> hmerr::Result<Vec<Vec<Candidate>>> {
 	known_artist(index)?;
-	already_shown(index, shown)?;
 	enlist(index, cohort)?;
 
 	let mut candidate: Vec<Vec<Candidate>> = (0..cohort.len()).map(|_| Vec::new()).collect();
@@ -40,7 +38,6 @@ eligible as (
 	join recording r using (recording_id)
 	where b.backer >= ?
 		and not exists (select 1 from declared d where d.mbid::uuid = r.mbid)
-		and not exists (select 1 from shown s where s.mbid::uuid = r.mbid)
 		and not exists (
 			select 1 from recording_artist ra
 			semi join known_artist k on k.artist_mbid = ra.artist_mbid
@@ -120,20 +117,6 @@ fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
 		for member in cohort {
 			appender.append_row(duckdb::params![island as u64, member.user, member.weight])?;
 		}
-	}
-	appender.flush()?;
-
-	Ok(())
-}
-
-fn already_shown(index: &Index, shown: &[Source]) -> hmerr::Result<()> {
-	index
-		.db
-		.execute_batch("create or replace temp table shown (mbid varchar);")?;
-
-	let mut appender = index.db.appender("shown")?;
-	for mbid in shown {
-		appender.append_row(duckdb::params![mbid.to_string()])?;
 	}
 	appender.flush()?;
 

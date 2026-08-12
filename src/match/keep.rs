@@ -1,8 +1,6 @@
 use std::path::Path;
 
-use hmerr::ioe;
-
-use super::{open, output, verify::Info};
+use super::{declare, open, output, verify::Info};
 
 pub(super) fn run(
 	path: &Path,
@@ -20,11 +18,5 @@ pub(super) fn run(
 		}
 	}
 
-	if recommend && !ux::ask_yn("declare", true).map_err(|e| ioe!("stdin", e))? {
-		return Ok(false);
-	}
-
-	output::entry(path, mbid)?;
-
-	Ok(true)
+	declare::run(path, mbid, recommend)
 }

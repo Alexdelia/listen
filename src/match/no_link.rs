@@ -3,7 +3,7 @@ use std::path::Path;
 use hmerr::ioe;
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
-use super::{find, open, output};
+use super::{declare, find, open, output};
 
 pub(super) async fn run(
 	client: &MusicBrainzClient,
@@ -25,10 +25,5 @@ pub(super) async fn run(
 	}
 	output::musicbrainz(mbid, &found.url)?;
 
-	if recommend && !ux::ask_yn("declare", true).map_err(|e| ioe!("stdin", e))? {
-		return Ok(false);
-	}
-	output::entry(path, mbid)?;
-
-	Ok(true)
+	declare::run(path, mbid, recommend)
 }

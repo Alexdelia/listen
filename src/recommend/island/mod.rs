@@ -44,8 +44,7 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 
 	describe(&island, &cohort, &library);
 
-	let shown = log::shown(&log::path()?)?;
-	let candidate = score::of(&index, &cohort, &shown, alpha)?;
+	let candidate = score::of(&index, &cohort, alpha)?;
 
 	Ok(Box::new(select::stream(
 		island
