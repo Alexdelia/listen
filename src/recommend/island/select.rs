@@ -26,8 +26,8 @@ pub(super) struct Stream {
 	served: usize,
 	stay: bool,
 	ask: bool,
-	alpha: f32,
-	resolution: f64,
+	popularity_damp: f32,
+	granularity: f64,
 	log: PathBuf,
 }
 
@@ -35,8 +35,8 @@ pub(super) fn stream(
 	island: Vec<Island>,
 	candidate: Vec<Vec<Candidate>>,
 	ask: bool,
-	alpha: f32,
-	resolution: f64,
+	popularity_damp: f32,
+	granularity: f64,
 	log: PathBuf,
 ) -> Stream {
 	Stream {
@@ -47,8 +47,8 @@ pub(super) fn stream(
 		served: 0,
 		stay: true,
 		ask,
-		alpha,
-		resolution,
+		popularity_damp,
+		granularity,
 		log,
 	}
 }
@@ -85,8 +85,8 @@ impl feed::Feed for Stream {
 				score: candidate.score,
 				backer: candidate.backer,
 				plays: candidate.plays,
-				alpha: self.alpha,
-				resolution: self.resolution,
+				popularity_damp: self.popularity_damp,
+				granularity: self.granularity,
 				stay: self.stay,
 				shown_at: Utc::now(),
 			},

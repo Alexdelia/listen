@@ -31,10 +31,10 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 
 	report(&index.meta, &library);
 
-	let alpha = arg.alpha.unwrap_or(score::ALPHA);
-	let resolution = arg.resolution.map_or(partition::RESOLUTION, f64::from);
+	let damp = arg.popularity_damp.unwrap_or(score::POPULARITY_DAMP);
+	let granularity = arg.granularity.map_or(partition::GRANULARITY, f64::from);
 
-	let island = partition::of(&library, resolution, &request(arg))?;
+	let island = partition::of(&library, granularity, &request(arg))?;
 	let island = pin(island, arg.island.as_deref())?;
 
 	let cohort: Vec<Vec<cohort::Member>> = island
@@ -44,7 +44,7 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 
 	describe(&island, &cohort, &library);
 
-	let candidate = score::of(&index, &cohort, alpha)?;
+	let candidate = score::of(&index, &cohort, damp)?;
 
 	Ok(Box::new(select::stream(
 		island
@@ -56,8 +56,8 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 			.collect(),
 		candidate,
 		arg.ask,
-		alpha,
-		resolution,
+		damp,
+		granularity,
 		log::path()?,
 	)))
 }

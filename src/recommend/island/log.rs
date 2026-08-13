@@ -24,8 +24,8 @@ pub(super) struct Entry {
 	pub score: f32,
 	pub backer: u32,
 	pub plays: u32,
-	pub alpha: f32,
-	pub resolution: f64,
+	pub popularity_damp: f32,
+	pub granularity: f64,
 	pub stay: bool,
 	pub shown_at: DateTime<Utc>,
 }
@@ -60,8 +60,8 @@ mod tests {
 			score: 1993.2,
 			backer: 51,
 			plays: 7083,
-			alpha: 0.6,
-			resolution: 1.0,
+			popularity_damp: 0.6,
+			granularity: 1.0,
 			stay: true,
 			shown_at: DateTime::from_timestamp(0, 0).unwrap_or_default(),
 		}

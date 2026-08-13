@@ -10,7 +10,7 @@ use super::{
 	seed::{Library, Seed},
 };
 
-pub(super) const RESOLUTION: f64 = 1.0;
+pub(super) const GRANULARITY: f64 = 1.0;
 
 const THRESHOLD: f64 = 0.15;
 const MIN_MEMBER: usize = 10;
@@ -50,7 +50,7 @@ impl Island {
 
 pub(super) fn of(
 	library: &Library,
-	resolution: f64,
+	granularity: f64,
 	request: &Request,
 ) -> hmerr::Result<Vec<Island>> {
 	let genre: Vec<Vec<String>> = library
@@ -66,7 +66,7 @@ pub(super) fn of(
 	}
 
 	let similarity = cluster::similarity(&library.seed, library.user.len());
-	let label = cluster::detect(&similarity, THRESHOLD, resolution, MIN_MEMBER);
+	let label = cluster::detect(&similarity, THRESHOLD, granularity, MIN_MEMBER);
 
 	let mut member: Vec<Vec<usize>> = Vec::new();
 	for (seed, label) in label.iter().enumerate() {

@@ -52,16 +52,19 @@ pub(super) fn ensure_island(
 		.into());
 	}
 
-	if arg.alpha.is_some_and(|alpha| alpha < 0.0) {
+	if arg.popularity_damp.is_some_and(|damp| damp < 0.0) {
 		return Err(ge!(
-			format!("{R}{B}--alpha{D}{R} damps popularity, so it cannot be negative{D}"),
-			h: "0 leaves popularity alone, 0.6 is the discovery setting"
+			format!("{R}{B}--popularity-damp{D}{R} cannot be negative{D}"),
+			h: "0 leaves popularity alone, 0.6 is the discovery setting, higher digs further"
 		)
 		.into());
 	}
 
-	if arg.resolution.is_some_and(|resolution| resolution <= 0.0) {
-		return Err(ge!(format!("{R}{B}--resolution{D}{R} has to be above zero{D}")).into());
+	if arg
+		.granularity
+		.is_some_and(|granularity| granularity <= 0.0)
+	{
+		return Err(ge!(format!("{R}{B}--granularity{D}{R} has to be above zero{D}")).into());
 	}
 
 	Ok(())
@@ -73,8 +76,8 @@ pub(super) fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> 
 		("--ask", arg.ask),
 		("--seed", !arg.seed.is_empty()),
 		("--genre", !arg.genre.is_empty()),
-		("--alpha", arg.alpha.is_some()),
-		("--resolution", arg.resolution.is_some()),
+		("--popularity-damp", arg.popularity_damp.is_some()),
+		("--granularity", arg.granularity.is_some()),
 	];
 
 	let Some((flag, _)) = unusable.iter().find(|(_, given)| *given) else {

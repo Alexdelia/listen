@@ -65,10 +65,10 @@ pub enum Command {
 pub struct IslandArg {
 	/// how hard to damp popularity, 0 keeps scene hits, above 0.8 reaches the untrustworthy [0.6]
 	#[arg(long)]
-	pub alpha: Option<f32>,
-	/// island granularity, higher splits broad islands [1.0]
+	pub popularity_damp: Option<f32>,
+	/// island granularity, higher splits broad islands into narrower ones [1.0]
 	#[arg(long)]
-	pub resolution: Option<f32>,
+	pub granularity: Option<f32>,
 	/// pin the stream to the islands whose name contains this
 	#[arg(long)]
 	pub island: Option<String>,

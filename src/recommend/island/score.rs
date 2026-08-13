@@ -2,7 +2,7 @@ use crate::declaration::Source;
 
 use super::{cohort::Member, index::Index};
 
-pub(super) const ALPHA: f32 = 0.6;
+pub(super) const POPULARITY_DAMP: f32 = 0.6;
 pub(super) const MIN_BACKER: u32 = 5;
 
 const PER_ISLAND: usize = 200;
@@ -17,7 +17,7 @@ pub(super) struct Candidate {
 pub(super) fn of(
 	index: &Index,
 	cohort: &[Vec<Member>],
-	alpha: f32,
+	damp: f32,
 ) -> hmerr::Result<Vec<Vec<Candidate>>> {
 	known_artist(index)?;
 	enlist(index, cohort)?;
@@ -75,7 +75,7 @@ order by island, position
 
 	let mut row = statement.query(duckdb::params![
 		MIN_BACKER,
-		alpha,
+		damp,
 		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
 	])?;
 
