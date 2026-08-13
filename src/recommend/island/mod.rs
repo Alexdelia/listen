@@ -10,7 +10,7 @@ mod select;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, CYA, D, F, G, R, Y};
+use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
 use hmerr::{GenericError, ge};
 
 use crate::{
@@ -105,7 +105,7 @@ fn unknown(name: &str) -> GenericError {
 
 fn report(meta: &index::Meta, library: &seed::Library) {
 	println!(
-		"index {CYA}{built}{D}: {recording}{D} {F}recording{D} {listen} {F}listen{D} {user} {F}user{D}",
+		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {G}{F}listen{D} {CYA}{user} {G}{F}user{D}",
 		built = meta.built,
 		recording = human_readable_number::text(meta.recording),
 		listen = human_readable_number::text(meta.user_listen),
@@ -133,7 +133,7 @@ fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], librar
 	for (island, cohort) in island.iter().zip(cohort) {
 		let q = island.q(&library.seed);
 		println!(
-			"{name}{pad} {Y}{promise:.2} {F}promise {q_color}{q:.2}{D} {CYA}{size} {F}user {G}{member} {F}seed{D}",
+			"{name}{pad} {Y}{promise:.2} {F}promise  {q_color}{q:.2}{D} {CYA}{size:>4} {F}user{D} {G}{member:>4} {F}seed{D}",
 			name = genre_list::text(&island.name),
 			pad = genre_list::pad(&island.name, width),
 			promise = rank::promise(island, cohort.len(), library),
