@@ -4,12 +4,12 @@ mod recording;
 mod scan;
 mod seed;
 mod user_listen;
+mod work;
 
-use std::{fs, path::Path};
+use std::path::Path;
 
 use ansi::abbrev::{B, D, F, Y};
 use chrono::{DateTime, Local, NaiveDateTime, SubsecRound, Utc};
-use hmerr::ioe;
 
 use crate::declaration::parse;
 
@@ -17,12 +17,9 @@ use super::{dump::Listen, open};
 
 use scan::Scan;
 
-const WORK: &str = "build";
-
 pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Result<()> {
 	let declared = parse::parse(declaration)?;
-	let work = dir.join(WORK);
-	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
+	let work = work::open(dir, &dump.name)?;
 
 	let started = Utc::now();
 	announce(declared.len(), &started);
@@ -47,6 +44,9 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 			user_listen: row,
 		},
 	)?;
+
+	drop(scan);
+	work::release(&work);
 
 	println!(
 		"{F}index built in {B}{Y}{elapsed}{D}",
