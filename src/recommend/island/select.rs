@@ -9,10 +9,6 @@ use super::super::{
 };
 use super::{log, score::Candidate};
 
-const WIDE_QUOTA: usize = 3;
-const NARROW_QUOTA: usize = 2;
-const WIDE_ISLAND: usize = 6;
-
 pub(super) struct Island {
 	pub name: String,
 	pub member: usize,
@@ -22,7 +18,6 @@ pub(super) struct Stream {
 	island: Vec<Island>,
 	candidate: Vec<VecDeque<Candidate>>,
 	turn: usize,
-	spent: usize,
 	served: usize,
 	stay: bool,
 	ask: bool,
@@ -43,7 +38,6 @@ pub(super) fn stream(
 		island,
 		candidate: candidate.into_iter().map(VecDeque::from).collect(),
 		turn: 0,
-		spent: 0,
 		served: 0,
 		stay: true,
 		ask,
@@ -94,7 +88,6 @@ impl feed::Feed for Stream {
 
 		let position = self.served;
 		self.served += 1;
-		self.spent += 1;
 
 		Ok(Some(Recommendation {
 			mbid: candidate.mbid,
@@ -113,7 +106,7 @@ impl feed::Feed for Stream {
 impl Stream {
 	fn decide(&mut self) -> hmerr::Result<()> {
 		if self.served == 0 {
-			self.turn = self.living(self.turn);
+			self.turn = self.next_living(self.turn);
 			self.stay = true;
 
 			return Ok(());
@@ -123,18 +116,15 @@ impl Stream {
 			self.stay = self.alive(self.turn) && self.asked()?;
 
 			if !self.stay {
-				self.turn = self.living(self.turn + 1);
+				self.turn = self.next_living(self.turn + 1);
 			}
 
 			return Ok(());
 		}
 
-		self.stay = self.spent < self.quota() && self.alive(self.turn);
-
-		if !self.stay {
-			self.spent = 0;
-			self.turn = self.living(self.turn + 1);
-		}
+		let previous = self.turn;
+		self.turn = self.next_living(self.turn + 1);
+		self.stay = self.turn == previous;
 
 		Ok(())
 	}
@@ -149,27 +139,19 @@ impl Stream {
 		ux::ask_yn(&format!("stay on {name}"), true).map_err(|e| ioe!("stdin", e).into())
 	}
 
-	fn quota(&self) -> usize {
-		if self.turn < WIDE_ISLAND {
-			WIDE_QUOTA
-		} else {
-			NARROW_QUOTA
-		}
-	}
-
-	fn alive(&self, turn: usize) -> bool {
-		self.candidate
-			.get(turn)
-			.is_some_and(|candidate| !candidate.is_empty())
-	}
-
-	fn living(&self, from: usize) -> usize {
+	fn next_living(&self, from: usize) -> usize {
 		let count = self.candidate.len().max(1);
 
 		(0..count)
 			.map(|step| (from + step) % count)
 			.find(|turn| self.alive(*turn))
 			.unwrap_or(from % count)
+	}
+
+	fn alive(&self, turn: usize) -> bool {
+		self.candidate
+			.get(turn)
+			.is_some_and(|candidate| !candidate.is_empty())
 	}
 
 	fn drained(&self) -> bool {
@@ -181,6 +163,14 @@ impl Stream {
 mod tests {
 	use super::{super::super::feed::Feed, *};
 	use crate::declaration::Source;
+
+	const CYCLE: usize = 8;
+
+	fn every_island(each: usize) -> Vec<Vec<Candidate>> {
+		(0..CYCLE)
+			.map(|island| candidate(u8::try_from(island).unwrap_or_default(), each))
+			.collect()
+	}
 
 	fn candidate(nibble: u8, count: usize) -> Vec<Candidate> {
 		(0..count)
@@ -232,49 +222,47 @@ mod tests {
 	}
 
 	#[test]
-	fn the_top_island_spends_its_whole_quota_before_the_next_one() {
+	fn the_stream_leaves_the_island_after_every_recommendation() {
 		let mut stream = quiet(vec![candidate(1, 5), candidate(2, 5)]);
 
-		assert_eq!(drain(&mut stream, 6), vec![1, 1, 1, 2, 2, 2]);
-	}
-
-	fn round() -> usize {
-		WIDE_ISLAND * WIDE_QUOTA + (8 - WIDE_ISLAND) * NARROW_QUOTA
+		assert_eq!(drain(&mut stream, 6), vec![1, 2, 1, 2, 1, 2]);
 	}
 
 	#[test]
-	fn a_low_ranked_island_gets_the_narrow_quota_and_a_top_one_the_wide_quota() {
-		let candidate: Vec<Vec<Candidate>> = (0..8u8).map(|island| candidate(island, 4)).collect();
+	fn no_island_comes_up_twice_in_a_row_while_another_one_still_has_candidates() {
+		let mut stream = quiet(every_island(4));
+		let seen = drain(&mut stream, CYCLE * 2);
 
-		let mut stream = quiet(candidate);
-		let seen = drain(&mut stream, round());
-
-		assert_eq!(
-			seen.iter().filter(|island| **island == 0).count(),
-			WIDE_QUOTA,
-			"{seen:?}"
-		);
-		assert_eq!(
-			seen.iter().filter(|island| **island == 7).count(),
-			NARROW_QUOTA,
-			"{seen:?}"
-		);
+		assert!(seen.windows(2).all(|pair| pair[0] != pair[1]), "{seen:?}");
 	}
 
 	#[test]
-	fn a_spent_round_starts_another_one_instead_of_ending_the_stream() {
-		let candidate: Vec<Vec<Candidate>> = (0..8u8).map(|island| candidate(island, 4)).collect();
+	fn a_cycle_serves_every_island_once_in_rank_order() {
+		let mut stream = quiet(every_island(4));
+		let seen = drain(&mut stream, CYCLE * 2);
 
-		let mut stream = quiet(candidate);
+		assert_eq!(seen, vec![0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7]);
+	}
 
-		assert_eq!(drain(&mut stream, round() + 1).len(), round() + 1);
+	#[test]
+	fn a_spent_cycle_starts_another_one_instead_of_ending_the_stream() {
+		let mut stream = quiet(every_island(4));
+
+		assert_eq!(drain(&mut stream, CYCLE + 1).len(), CYCLE + 1);
 	}
 
 	#[test]
 	fn an_empty_island_is_skipped_without_spending_a_turn() {
 		let mut stream = quiet(vec![candidate(1, 3), Vec::new(), candidate(3, 3)]);
 
-		assert_eq!(drain(&mut stream, 6), vec![1, 1, 1, 3, 3, 3]);
+		assert_eq!(drain(&mut stream, 6), vec![1, 3, 1, 3, 1, 3]);
+	}
+
+	#[test]
+	fn a_drained_island_hands_its_turns_to_the_ones_left() {
+		let mut stream = quiet(vec![candidate(1, 1), candidate(2, 3)]);
+
+		assert_eq!(drain(&mut stream, 4), vec![1, 2, 2, 2]);
 	}
 
 	#[test]

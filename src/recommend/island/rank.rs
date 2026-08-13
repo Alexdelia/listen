@@ -61,7 +61,7 @@ mod tests {
 	fn cohort(size: usize) -> Vec<Member> {
 		(0..size)
 			.map(|user| Member {
-				user: user as i64,
+				user: i64::try_from(user).unwrap_or_default(),
 				weight: 1.0,
 			})
 			.collect()
