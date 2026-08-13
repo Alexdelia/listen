@@ -6,7 +6,7 @@ use std::{
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
 
-use super::{super::progress, rsync};
+use super::{super::progress, rsync, space};
 
 const MODULE: &str = "listenbrainz/fullexport";
 const PREFIX: &str = "listenbrainz-dump-";
@@ -63,6 +63,9 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 	let dump = rsync::newest_dir(MODULE, PREFIX, SUFFIX)?;
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::biggest(&url, EXT)?;
+	let tar = root.join(&archive.name);
+
+	space::require(root, space::unpacking(&tar, archive.size))?;
 
 	println!(
 		"\n{F}the listen dump {B}{dump}{D}{F} is {B}{Y}{size}{D}{F}, and needs {B}{Y}{size}{D}{F} more once unpacked.{D}\n\
@@ -74,7 +77,6 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		return Err(refused().into());
 	}
 
-	let tar = root.join(&archive.name);
 	let checksum = format!(
 		"{name}{ext}",
 		name = archive.name,

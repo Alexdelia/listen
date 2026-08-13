@@ -7,7 +7,7 @@ use std::{
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
 
-use super::{super::progress, rsync};
+use super::{super::progress, rsync, space};
 
 const MODULE: &str = "data/fullexport";
 const ARCHIVE: &str = "mbdump.tar.bz2";
@@ -27,6 +27,8 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		.into_iter()
 		.find(|entry| entry.name == ARCHIVE)
 		.ok_or_else(|| ge!(format!("{R}no {B}{ARCHIVE}{D}{R} inside {B}{dump}{D}")))?;
+
+	space::require(root, space::unpacking(&root.join(ARCHIVE), archive.size))?;
 
 	println!(
 		"\n{F}the artist relations come from the musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}.{D}\n\

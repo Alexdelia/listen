@@ -1,6 +1,7 @@
 mod listen;
 mod music_brainz;
 mod rsync;
+mod space;
 
 use std::path::{Path, PathBuf};
 
