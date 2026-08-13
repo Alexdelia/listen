@@ -32,14 +32,12 @@ pub async fn run(
 ) -> hmerr::Result<()> {
 	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
 
+	selection::ensure_arg(source, arg)?;
+
 	if selection::island_only(source) {
-		selection::ensure_island(sort, target, arg)?;
+		selection::ensure_island_target(sort, target)?;
 		feed.push(island::feed(path, arg)?);
 	} else {
-		if !selection::island(source) {
-			selection::ensure_no_island_arg(source, arg)?;
-		}
-
 		let target = target::resolve(target)?;
 		selection::ensure(source, sort, &target)?;
 		feed = remote(&target, source, sort).await?;
