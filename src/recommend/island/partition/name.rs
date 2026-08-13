@@ -6,6 +6,7 @@ use super::super::real;
 
 const TOKEN_IN_NAME: usize = 3;
 const MIN_TOKEN_OCCURRENCE: usize = 2;
+const MIN_TOKEN_SHARE: f32 = 0.05;
 
 pub(super) fn name(genre: &[Vec<String>], member: &[Vec<usize>]) -> Vec<String> {
 	let mut library: HashMap<&str, usize> = HashMap::new();
@@ -68,6 +69,10 @@ fn over_represented(
 			let overall = library.get(token)?;
 			let share = real::of(count) / real::of(size);
 			let base = real::of(*overall) / real::of(tagged);
+
+			if share < MIN_TOKEN_SHARE {
+				return None;
+			}
 
 			Some((token, share / base, count))
 		})
@@ -162,6 +167,19 @@ mod tests {
 		let name = over_represented(&[0, 1], &genre, &library, tagged).unwrap_or_default();
 
 		assert!(!name.contains("rare"), "{name}");
+	}
+
+	#[test]
+	fn a_token_too_few_of_the_island_carry_does_not_name_it() {
+		let mut token: Vec<&[&str]> = vec![&["quirk"], &["quirk"]];
+		token.extend(std::iter::repeat_n::<&[&str]>(&["pop"], 58));
+		let genre = genre(&token);
+		let (library, tagged) = library(&genre);
+
+		let name = over_represented(&(0..60).collect::<Vec<_>>(), &genre, &library, tagged)
+			.unwrap_or_default();
+
+		assert!(!name.contains("quirk"), "{name}");
 	}
 
 	#[test]
