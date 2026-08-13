@@ -89,10 +89,11 @@ pub(super) fn pull(url: &str, into: &Path, total: u64) -> hmerr::Result<()> {
 }
 
 fn prepare(into: &Path) -> hmerr::Result<()> {
-	let dir = if into.extension().is_some() {
-		into.parent().unwrap_or(into)
-	} else {
-		into
+	let Some(dir) = into
+		.parent()
+		.filter(|parent| !parent.as_os_str().is_empty())
+	else {
+		return Ok(());
 	};
 
 	fs::create_dir_all(dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
@@ -122,9 +123,9 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 }
 
 pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> {
-	small(&format!("{HOST}/{module}/{MARKER}"), into)?;
-
 	let marker = into.join(MARKER);
+	small(&format!("{HOST}/{module}/{MARKER}"), &marker)?;
+
 	let name = fs::read_to_string(&marker).map_err(|e| ioe!(marker.to_string_lossy(), e))?;
 	forget(into, &[MARKER])?;
 
