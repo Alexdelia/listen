@@ -7,7 +7,10 @@ use std::{
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
 
-use super::{super::progress, rsync, space};
+use super::{
+	super::{partial, progress},
+	rsync, space,
+};
 
 const MODULE: &str = "data/fullexport";
 const ARCHIVE: &str = "mbdump.tar.bz2";
@@ -111,8 +114,9 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 fn load(table: &Path, link: &Path) -> hmerr::Result<()> {
 	let db = duckdb::Connection::open_in_memory()?;
 
-	db.execute_batch(&format!(
-		r"
+	partial::write(link, |link| {
+		db.execute_batch(&format!(
+			r"
 copy (
 	with artist as (
 		select id, gid from read_csv('{table}/artist', {READ}, names={ARTIST_COLUMN})
@@ -131,11 +135,12 @@ copy (
 	select related_mbid, artist_mbid from edge
 ) to '{link}' (format parquet, compression zstd);
 ",
-		table = table.display(),
-		link = link.display()
-	))?;
+			table = table.display(),
+			link = link.display()
+		))?;
 
-	Ok(())
+		Ok(())
+	})
 }
 
 fn refused() -> GenericError {

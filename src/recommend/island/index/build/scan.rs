@@ -6,13 +6,11 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use super::super::progress;
+use super::super::{partial, progress};
 
 const MEMORY_LIMIT: &str = "5GB";
 const THREAD: usize = 3;
 const BATCH: usize = 16;
-
-const PARTIAL_EXT: &str = "writing";
 
 pub(super) struct Scan {
 	pub db: duckdb::Connection,
@@ -42,18 +40,16 @@ set preserve_insertion_order=false;
 	}
 
 	pub(super) fn copy(&self, into: &Path, select: &str) -> hmerr::Result<()> {
-		let partial = into.with_extension(PARTIAL_EXT);
-
-		self.db.execute_batch(&format!(
-			r"
+		partial::write(into, |partial| {
+			self.db.execute_batch(&format!(
+				r"
 copy ({select}) to '{partial}' (format parquet, compression zstd);
 ",
-			partial = partial.display()
-		))?;
+				partial = partial.display()
+			))?;
 
-		fs::rename(&partial, into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
-
-		Ok(())
+			Ok(())
+		})
 	}
 
 	pub(super) fn batched(
@@ -193,8 +189,16 @@ mod tests {
 
 		let _ = scan.copy(&into, "select 1 as one");
 
-		assert!(
-			!into.with_extension(PARTIAL_EXT).exists(),
+		let left: Vec<PathBuf> = fs::read_dir(&work)
+			.into_iter()
+			.flatten()
+			.filter_map(Result::ok)
+			.map(|entry| entry.path())
+			.collect();
+
+		assert_eq!(
+			left,
+			vec![into],
 			"a partial parquet must never survive a finished copy"
 		);
 		let _ = fs::remove_dir_all(&work);

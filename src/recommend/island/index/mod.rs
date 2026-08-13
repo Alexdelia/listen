@@ -1,6 +1,7 @@
 mod build;
 mod dump;
 mod open;
+mod partial;
 mod progress;
 
 use std::path::Path;
