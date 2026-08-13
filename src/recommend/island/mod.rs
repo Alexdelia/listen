@@ -2,6 +2,7 @@ mod cohort;
 mod index;
 mod log;
 mod partition;
+mod rank;
 mod real;
 mod score;
 mod seed;
@@ -41,6 +42,8 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 		.iter()
 		.map(|island| cohort::of(&library, island, cohort::SIZE))
 		.collect();
+
+	let (island, cohort) = rank::by_promise(island, cohort, &library);
 
 	describe(&island, &cohort, &library);
 
@@ -118,8 +121,9 @@ fn report(meta: &index::Meta, library: &seed::Library) {
 fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], library: &seed::Library) {
 	for (island, cohort) in island.iter().zip(cohort) {
 		println!(
-			"{B}{name}{D} {F}q{q:.2}, {member} seed, {size} user{D}",
+			"{B}{name}{D} {F}promise {promise:.2}, q{q:.2}, {member} seed, {size} user{D}",
 			name = island.name,
+			promise = rank::promise(island, cohort.len(), library),
 			q = island.q(&library.seed),
 			member = island.member.len(),
 			size = cohort.len(),

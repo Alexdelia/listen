@@ -77,13 +77,11 @@ pub(super) fn of(
 	}
 	member.retain(|member| !member.is_empty());
 
-	let mut island: Vec<Island> = name::name(&genre, &member)
+	let island: Vec<Island> = name::name(&genre, &member)
 		.into_iter()
 		.zip(member)
 		.map(|(name, member)| Island { name, member })
 		.collect();
-
-	island.sort_by(|a, b| b.q(&library.seed).total_cmp(&a.q(&library.seed)));
 
 	Ok(island)
 }

@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use crate::declaration::{Q, Source, parse, value};
 
-use super::index::Index;
+use super::{index::Index, real};
 
 const DELIBERATE_PLAY: i32 = 3;
 
@@ -28,6 +28,14 @@ pub(super) struct Library {
 impl Library {
 	pub(super) fn unsupported(&self) -> usize {
 		self.declared.len() - self.seed.len()
+	}
+
+	pub(super) fn q(&self) -> f32 {
+		if self.seed.is_empty() {
+			return 0.0;
+		}
+
+		self.seed.iter().map(|seed| f32::from(seed.q)).sum::<f32>() / real::of(self.seed.len())
 	}
 }
 
