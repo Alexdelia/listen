@@ -2,12 +2,12 @@ use ansi::abbrev::{B, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
-use crate::format::{DATE_FORMAT, TIME_FORMAT, genre_list};
+use crate::format::{DATE_FORMAT, TIME_FORMAT};
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
 		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
-		source = genre_list::text(&recommendation.origin.source()),
+		source = recommendation.origin.source(),
 		position = recommendation.origin.position(),
 		mbid = recommendation.mbid,
 		label = label(&recommendation.origin),
@@ -100,7 +100,8 @@ mod tests {
 		let head = line.next().unwrap_or_default();
 
 		assert!(head.contains('3'), "{head}");
-		assert!(head.contains("weekly-exploration 2026-07-12"), "{head}");
+		assert!(head.contains("weekly-exploration"), "{head}");
+		assert!(head.contains("2026-07-12"), "{head}");
 		assert!(head.ends_with(&format!("{F}{M}5{D}")), "{head}");
 
 		let body = line.next().unwrap_or_default();

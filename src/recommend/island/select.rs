@@ -161,6 +161,11 @@ impl Stream {
 
 #[cfg(test)]
 mod tests {
+	use ansi::{
+		WHITE,
+		abbrev::{B, D, F},
+	};
+
 	use super::{super::super::feed::Feed, *};
 	use crate::declaration::Source;
 
@@ -307,6 +312,12 @@ mod tests {
 			source.push(recommendation.origin.source());
 		}
 
-		assert_eq!(source, vec!["island isl0", "island isl1"]);
+		assert_eq!(
+			source,
+			vec![
+				format!("{B}{WHITE}island{D} {F}{WHITE}isl0{D}"),
+				format!("{B}{WHITE}island{D} {F}{WHITE}isl1{D}")
+			]
+		);
 	}
 }

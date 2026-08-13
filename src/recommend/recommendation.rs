@@ -80,7 +80,7 @@ fn text(origin: &str) -> String {
 }
 
 fn precise(origin: &str, precision: impl Display) -> String {
-	format!("{origin} {F}{WHITE}{precision}", origin = text(origin))
+	format!("{origin} {F}{WHITE}{precision}{D}", origin = text(origin))
 }
 
 #[cfg(test)]
@@ -113,20 +113,26 @@ mod tests {
 
 	#[test]
 	fn a_weekly_source_is_named_after_its_week() {
-		assert_eq!(weekly(0).source(), "weekly-exploration 2026-07-13");
+		assert_eq!(
+			weekly(0).source(),
+			format!("{B}{WHITE}weekly-exploration{D} {F}{WHITE}2026-07-13{D}")
+		);
 	}
 
 	#[test]
 	fn the_collaborative_filtering_source_has_no_date() {
 		assert_eq!(
 			collaborative_filtering(0).source(),
-			"collaborative-filtering"
+			format!("{B}{WHITE}collaborative-filtering{D}")
 		);
 	}
 
 	#[test]
 	fn a_listen_count_source_is_just_listenbrainz() {
-		assert_eq!(listen_count(0).source(), "listenbrainz");
+		assert_eq!(
+			listen_count(0).source(),
+			format!("{B}{WHITE}listenbrainz{D}")
+		);
 	}
 
 	#[test]
