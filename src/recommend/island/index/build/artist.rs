@@ -10,7 +10,7 @@ pub(super) fn of(scan: &Scan, dir: &Path, recording: &Path) -> hmerr::Result<()>
 			r"
 select distinct r.recording_id, unnest(l.artist_credit_mbids)::uuid as artist_mbid
 from read_parquet({shard}) l
-join read_parquet('{recording}') r on r.mbid = l.recording_mbid::uuid
+join read_parquet('{recording}') r on r.mbid::varchar = l.recording_mbid
 where l.artist_credit_mbids is not null
 "
 		)

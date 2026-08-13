@@ -27,7 +27,7 @@ pub(super) fn listen(scan: &Scan) -> hmerr::Result<PathBuf> {
 			r"
 select l.user_id, l.recording_mbid::uuid as mbid, count(*) as plays
 from read_parquet({shard}) l
-where l.recording_mbid::uuid in (select mbid from {TABLE})
+where l.recording_mbid in (select mbid::varchar from {TABLE})
 group by 1, 2
 "
 		)

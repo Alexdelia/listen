@@ -23,7 +23,7 @@ select
 	least(count(*), {PLAY_CEILING})::usmallint as plays
 from read_parquet({shard}) l
 semi join read_parquet('{pool}') u on u.user_id = l.user_id
-join read_parquet('{recording}') r on r.mbid = l.recording_mbid::uuid
+join read_parquet('{recording}') r on r.mbid::varchar = l.recording_mbid
 group by 1, 2
 "
 		)
