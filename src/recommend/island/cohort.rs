@@ -65,7 +65,7 @@ mod tests {
 					deliberate: listener.to_vec(),
 				})
 				.collect(),
-			user: (0..user).map(|user| user as i64).collect(),
+			user: (0..i64::try_from(user).unwrap_or_default()).collect(),
 			declared: Vec::new(),
 		}
 	}

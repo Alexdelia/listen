@@ -122,7 +122,7 @@ mod tests {
 			.collect()
 	}
 
-	fn library<'a>(genre: &'a [Vec<String>]) -> (HashMap<&'a str, usize>, usize) {
+	fn library(genre: &[Vec<String>]) -> (HashMap<&str, usize>, usize) {
 		let mut library: HashMap<&str, usize> = HashMap::new();
 		let mut tagged = 0;
 

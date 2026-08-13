@@ -377,7 +377,9 @@ mod tests {
 			.iter()
 			.enumerate()
 			.map(|(index, listener)| Seed {
-				mbid: crate::declaration::Source::from_bytes([index as u8; 16]),
+				mbid: crate::declaration::Source::from_bytes(
+					[u8::try_from(index).unwrap_or_default(); 16],
+				),
 				q: 2,
 				listener: listener.to_vec(),
 				deliberate: listener.to_vec(),
