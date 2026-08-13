@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use super::{feed::Feed, recommendation::Recommendation};
+use super::{feed::Feed, recommendation::Recommendation, skip::Skip};
 
 pub(super) struct Queue(VecDeque<Recommendation>);
 
@@ -11,7 +11,7 @@ impl Queue {
 }
 
 impl Feed for Queue {
-	fn next(&mut self) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
 		Ok(self.0.pop_front())
 	}
 }
@@ -39,7 +39,7 @@ mod tests {
 		let mut queue = Queue::new(vec![recommendation(1), recommendation(2)]);
 		let mut seen = Vec::new();
 
-		while let Ok(Some(recommendation)) = queue.next() {
+		while let Ok(Some(recommendation)) = queue.next(&Skip::default()) {
 			seen.push(recommendation.mbid.as_bytes()[0]);
 		}
 

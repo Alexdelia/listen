@@ -6,6 +6,7 @@ use hmerr::ioe;
 use super::super::{
 	feed,
 	recommendation::{Origin, Recommendation},
+	skip::Skip,
 };
 use super::{log, score::Candidate};
 
@@ -48,7 +49,9 @@ pub(super) fn stream(
 }
 
 impl feed::Feed for Stream {
-	fn next(&mut self) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+		self.forget(skip);
+
 		if self.drained() {
 			return Ok(None);
 		}
@@ -104,6 +107,12 @@ impl feed::Feed for Stream {
 }
 
 impl Stream {
+	fn forget(&mut self, skip: &Skip) {
+		for candidate in &mut self.candidate {
+			candidate.retain(|candidate| !skip.seen(candidate.mbid));
+		}
+	}
+
 	fn decide(&mut self) -> hmerr::Result<()> {
 		if self.served == 0 {
 			self.turn = self.next_living(self.turn);
@@ -217,7 +226,7 @@ mod tests {
 		let mut seen = Vec::new();
 
 		for _ in 0..take {
-			match stream.next() {
+			match stream.next(&Skip::default()) {
 				Ok(Some(recommendation)) => seen.push(recommendation.mbid.as_bytes()[0]),
 				_ => break,
 			}
@@ -292,11 +301,46 @@ mod tests {
 	}
 
 	#[test]
+	fn a_declined_candidate_is_neither_served_nor_logged() {
+		let log = std::env::temp_dir().join("declarative_listen_select_declined.jsonl");
+		let _ = std::fs::remove_file(&log);
+
+		let mut stream = stream(
+			island(1),
+			vec![candidate(1, 2)],
+			false,
+			0.6,
+			1.0,
+			log.clone(),
+		);
+		let mut skip = Skip::default();
+		let declined = Source::from_bytes({
+			let mut byte = [1; 16];
+			byte[1] = 0;
+			byte
+		});
+		skip.fresh(declined);
+
+		let mut seen = Vec::new();
+		while let Ok(Some(recommendation)) = stream.next(&skip) {
+			seen.push(recommendation.mbid);
+		}
+
+		assert_eq!(seen.len(), 1);
+		assert!(!seen.contains(&declined));
+
+		let logged = std::fs::read_to_string(&log).unwrap_or_default();
+
+		assert!(!logged.contains(&declined.to_string()), "{logged}");
+		let _ = std::fs::remove_file(&log);
+	}
+
+	#[test]
 	fn the_position_counts_every_recommendation_the_stream_served() {
 		let mut stream = quiet(vec![candidate(1, 2), candidate(2, 2)]);
 		let mut position = Vec::new();
 
-		while let Ok(Some(recommendation)) = stream.next() {
+		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
 			position.push(recommendation.origin.position());
 		}
 
@@ -308,7 +352,7 @@ mod tests {
 		let mut stream = quiet(vec![candidate(1, 1), candidate(2, 1)]);
 		let mut source = Vec::new();
 
-		while let Ok(Some(recommendation)) = stream.next() {
+		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
 			source.push(recommendation.origin.source());
 		}
 

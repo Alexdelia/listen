@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::recommend::{feed::Feed, recommendation::Recommendation};
+use crate::recommend::{feed::Feed, recommendation::Recommendation, skip::Skip};
 
 use super::payload::Page;
 
@@ -29,7 +29,7 @@ impl<F> Feed for Cursor<F>
 where
 	F: FnMut(usize) -> hmerr::Result<Page>,
 {
-	fn next(&mut self) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
 		if let Some(recommendation) = self.buffer.pop_front() {
 			return Ok(Some(recommendation));
 		}
@@ -80,7 +80,7 @@ mod tests {
 	{
 		let mut seen = Vec::new();
 
-		while let Ok(Some(recommendation)) = cursor.next() {
+		while let Ok(Some(recommendation)) = cursor.next(&Skip::default()) {
 			seen.push(recommendation.mbid.as_bytes()[0]);
 		}
 

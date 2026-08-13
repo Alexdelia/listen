@@ -18,4 +18,8 @@ impl Skip {
 	pub(super) fn fresh(&mut self, mbid: Source) -> bool {
 		self.0.insert(mbid)
 	}
+
+	pub(super) fn seen(&self, mbid: Source) -> bool {
+		self.0.contains(&mbid)
+	}
 }
