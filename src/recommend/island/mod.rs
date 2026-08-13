@@ -10,12 +10,12 @@ mod select;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, CYA, D, F, R};
+use ansi::abbrev::{B, CYA, D, F, G, R, Y};
 use hmerr::{GenericError, ge};
 
 use crate::{
 	args::IslandArg,
-	format::{genre_list, human_readable_number},
+	format::{self, genre_list, human_readable_number},
 };
 
 pub(super) fn ready() -> bool {
@@ -131,12 +131,13 @@ fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], librar
 		.unwrap_or_default();
 
 	for (island, cohort) in island.iter().zip(cohort) {
+		let q = island.q(&library.seed);
 		println!(
-			"{name}{pad} {F}promise {promise:.2}, q{q:.2}, {member} seed, {size} user{D}",
+			"{name}{pad} {Y}{promise:.2} {F}promise {q_color}{q:.2}{D} {CYA}{size} {F}user {G}{member} {F}seed{D}",
 			name = genre_list::text(&island.name),
 			pad = genre_list::pad(&island.name, width),
 			promise = rank::promise(island, cohort.len(), library),
-			q = island.q(&library.seed),
+			q_color = format::q_f32_color(q),
 			member = island.member.len(),
 			size = cohort.len(),
 		);

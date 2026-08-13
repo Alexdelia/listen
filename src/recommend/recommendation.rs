@@ -1,6 +1,12 @@
+use std::fmt::Display;
+
+use ansi::{
+	WHITE,
+	abbrev::{B, D, F},
+};
 use chrono::{DateTime, NaiveDate, Utc};
 
-use crate::declaration::Source;
+use crate::{declaration::Source, format::DATE_FORMAT};
 
 const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
@@ -41,10 +47,12 @@ pub(super) enum Origin {
 impl Origin {
 	pub(super) fn source(&self) -> String {
 		match self {
-			Self::CollaborativeFiltering { .. } => COLLABORATIVE_FILTERING.to_string(),
-			Self::WeeklyExploration { week, .. } => format!("{WEEKLY_EXPLORATION} {week}"),
-			Self::ListenCount { .. } => LISTEN_BRAINZ.to_string(),
-			Self::Island { name, .. } => format!("{ISLAND} {name}"),
+			Self::CollaborativeFiltering { .. } => text(COLLABORATIVE_FILTERING),
+			Self::WeeklyExploration { week, .. } => {
+				precise(WEEKLY_EXPLORATION, week.format(DATE_FORMAT))
+			}
+			Self::ListenCount { .. } => text(LISTEN_BRAINZ),
+			Self::Island { name, .. } => precise(ISLAND, name),
 		}
 	}
 
@@ -65,6 +73,14 @@ impl Origin {
 			Self::WeeklyExploration { .. } | Self::ListenCount { .. } | Self::Island { .. } => None,
 		}
 	}
+}
+
+fn text(origin: &str) -> String {
+	format!("{B}{WHITE}{origin}{D}")
+}
+
+fn precise(origin: &str, precision: impl Display) -> String {
+	format!("{origin} {F}{WHITE}{precision}", origin = text(origin))
 }
 
 #[cfg(test)]

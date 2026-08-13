@@ -7,7 +7,7 @@ use ansi::abbrev::{B, CYA, D, R};
 use hmerr::ioe;
 use ux::AskKey;
 
-use crate::{color, declaration::Q};
+use crate::{declaration::Q, format};
 
 use super::{
 	analyze::{Analysis, Record},
@@ -55,7 +55,7 @@ fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<Co
 			Answer::Skip => return Ok(ControlFlow::Continue(())),
 			Answer::Apply(q) => {
 				apply::set_q(path, record.mbid, q)?;
-				println!("{B}{color}q{q}{D}", color = color::q(q));
+				println!("{B}{color}q{q}{D}", color = format::q_color(q));
 				return Ok(ControlFlow::Continue(()));
 			}
 			Answer::Play => {
@@ -86,7 +86,10 @@ fn key(record: &Record) -> Vec<AskKey> {
 		'y',
 		Some("apply"),
 		true,
-		Some(format!("{B}{q_color}", q_color = color::q(record.observed))),
+		Some(format!(
+			"{B}{q_color}",
+			q_color = format::q_color(record.observed)
+		)),
 	));
 	key.push(AskKey::new('n', Some("skip"), true, Some(D)));
 	key.push(AskKey::new('p', Some("play"), true, Some(CYA)));
@@ -96,7 +99,7 @@ fn key(record: &Record) -> Vec<AskKey> {
 			char::from(b'0' + q),
 			None::<&str>,
 			false,
-			Some(color::q(q)),
+			Some(format::q_color(q)),
 		));
 	}
 

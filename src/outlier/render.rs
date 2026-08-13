@@ -3,7 +3,7 @@ use ansi::{
 	abbrev::{B, CYA, D, G, M, R},
 };
 
-use crate::color;
+use crate::format;
 
 use super::analyze::{Analysis, Record, Undeclared};
 use super::meta;
@@ -26,7 +26,7 @@ pub(super) fn matched(analysis: &Analysis) {
 pub(super) fn median(analysis: &Analysis) {
 	println!("\n{B}{M}median listen/day per q{D} {DIM}(declared){D}");
 	for (q, count) in &analysis.declared_per_q {
-		let color = color::q(*q);
+		let color = format::q_color(*q);
 		let percent = count * 100 / analysis.declared.max(1);
 
 		let head = format!("{B}{color}q{q}{D}:");
@@ -71,9 +71,9 @@ pub(super) fn line(record: &Record) {
 		"{B}{declared_color}{declared}{D}{B}{arrow}->{D}{B}{observed_color}{observed}{D}\
 {B}{listen_0}{listen:>4}{D}{DIM}/{D}{CYA}{days:<4}{D} {observed_color}{rate:.4}{D} \
 {DIM}{mbid}{D} {label}",
-		declared_color = color::q(record.declared),
+		declared_color = format::q_color(record.declared),
 		declared = record.declared,
-		observed_color = color::q(record.observed),
+		observed_color = format::q_color(record.observed),
 		observed = record.observed,
 		listen = record.listen,
 		days = record.days,

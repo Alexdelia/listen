@@ -1,7 +1,6 @@
 mod alias;
 mod args;
 mod cache;
-mod color;
 mod completion;
 mod declaration;
 mod env;

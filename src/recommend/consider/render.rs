@@ -1,11 +1,8 @@
-use ansi::abbrev::{B, CYA, D, F, M, Y};
+use ansi::abbrev::{B, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
-use crate::format::genre_list;
-
-const DATE_FORMAT: &str = "%Y-%m-%d";
-const TIME_FORMAT: &str = "%H:%M";
+use crate::format::{DATE_FORMAT, TIME_FORMAT, genre_list};
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
@@ -48,7 +45,7 @@ fn label(origin: &Origin) -> String {
 			plays,
 			..
 		} => format!(
-			" {Y}{score:.1}{D} {CYA}{backer} {F}backer{D} {M}{plays} {F}play{D} {F}of {member} seed{D}"
+			" {Y}{score:.1}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }
