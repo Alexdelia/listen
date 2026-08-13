@@ -1,18 +1,16 @@
-use ansi::{
-	WHITE,
-	abbrev::{B, CYA, D, F, M, Y},
-};
+use ansi::abbrev::{B, CYA, D, F, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
+use crate::format::genre_list;
 
 const DATE_FORMAT: &str = "%Y-%m-%d";
 const TIME_FORMAT: &str = "%H:%M";
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
-		"{B}{M}{index}{D} {F}{WHITE}{source}{D} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
-		source = recommendation.origin.source(),
+		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
+		source = genre_list::text(&recommendation.origin.source()),
 		position = recommendation.origin.position(),
 		mbid = recommendation.mbid,
 		label = label(&recommendation.origin),

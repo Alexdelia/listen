@@ -10,10 +10,13 @@ mod select;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F, R, Y};
+use ansi::abbrev::{B, CYA, D, F, R};
 use hmerr::{GenericError, ge};
 
-use crate::args::IslandArg;
+use crate::{
+	args::IslandArg,
+	format::{genre_list, human_readable_number},
+};
 
 pub(super) fn ready() -> bool {
 	index::ready()
@@ -102,27 +105,36 @@ fn unknown(name: &str) -> GenericError {
 
 fn report(meta: &index::Meta, library: &seed::Library) {
 	println!(
-		"{F}index {Y}{built}{D}{F}, {B}{recording}{D}{F} recording and {B}{listen}{D}{F} listen over {B}{user}{D}{F} user{D}",
+		"index {CYA}{built}{D}: {recording}{D} {F}recording{D} {listen} {F}listen{D} {user} {F}user{D}",
 		built = meta.built,
-		recording = meta.recording,
-		listen = meta.user_listen,
-		user = meta.user,
+		recording = human_readable_number::text(meta.recording),
+		listen = human_readable_number::text(meta.user_listen),
+		user = human_readable_number::text(meta.user),
 	);
 
 	let unsupported = library.unsupported();
 	if unsupported > 0 {
 		println!(
-			"{F}{unsupported} of {declared} declared recording have no listener in the index{D}",
+			"{unsupported}{F}/{D}{declared} {F}declared recording have no listener in the index{D}",
 			declared = library.declared.len(),
 		);
 	}
+
+	println!();
 }
 
 fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], library: &seed::Library) {
+	let width = island
+		.iter()
+		.map(|island| genre_list::width(&island.name))
+		.max()
+		.unwrap_or_default();
+
 	for (island, cohort) in island.iter().zip(cohort) {
 		println!(
-			"{B}{name}{D} {F}promise {promise:.2}, q{q:.2}, {member} seed, {size} user{D}",
-			name = island.name,
+			"{name}{pad} {F}promise {promise:.2}, q{q:.2}, {member} seed, {size} user{D}",
+			name = genre_list::text(&island.name),
+			pad = genre_list::pad(&island.name, width),
 			promise = rank::promise(island, cohort.len(), library),
 			q = island.q(&library.seed),
 			member = island.member.len(),

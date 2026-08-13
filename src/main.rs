@@ -5,6 +5,7 @@ mod color;
 mod completion;
 mod declaration;
 mod env;
+mod format;
 mod library;
 mod r#match;
 mod meta_brainz;
