@@ -3,13 +3,15 @@ use std::{fs, path::Path};
 use hmerr::ioe;
 
 use super::{
-	super::{open::USER_LISTEN, progress},
+	super::{
+		open::{self, BUCKET, USER_LISTEN},
+		progress,
+	},
 	scan::Scan,
 };
 
 pub(super) const NAME: &str = "listen";
 
-const BUCKET: u32 = 8;
 const PLAY_CEILING: u32 = 65535;
 
 pub(super) fn of(scan: &Scan, dir: &Path, pool: &Path, recording: &Path) -> hmerr::Result<u64> {
@@ -36,7 +38,7 @@ group by 1, 2
 
 	let bar = progress::step_bar(u64::from(BUCKET), "compact")?;
 	for bucket in 0..BUCKET {
-		let shard = into.join(format!("{bucket}.parquet"));
+		let shard = into.join(open::shard(bucket));
 
 		if !scan.done(&shard) {
 			scan.copy(
