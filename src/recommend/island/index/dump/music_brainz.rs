@@ -1,7 +1,7 @@
 use std::{
 	fs, io,
 	path::{Path, PathBuf},
-	process::{Command, Stdio},
+	process::{Command, ExitStatus, Stdio},
 };
 
 use ansi::abbrev::{B, D, F, R, Y};
@@ -86,21 +86,17 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{TAR}{D}\n{e}")))?;
 
 	let file = fs::File::open(&archive).map_err(|e| ioe!(archive.to_string_lossy(), e))?;
-	if let Some(mut sink) = child.stdin.take() {
-		io::copy(&mut bar.wrap_read(file), &mut sink).map_err(|e| ioe!(ARCHIVE, e))?;
-	}
+	let fed = match child.stdin.take() {
+		Some(mut sink) => io::copy(&mut bar.wrap_read(file), &mut sink),
+		None => Ok(0),
+	};
 
 	let status = child
 		.wait()
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{TAR}{D}\n{e}")))?;
 	bar.finish();
 
-	if !status.success() {
-		return Err(ge!(format!(
-			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}"
-		))
-		.into());
-	}
+	unpacked(status, fed)?;
 
 	for table in TABLE {
 		if !into.join(table).exists() {
@@ -109,6 +105,19 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	}
 
 	Ok(into)
+}
+
+fn unpacked(status: ExitStatus, fed: io::Result<u64>) -> hmerr::Result<()> {
+	if !status.success() {
+		return Err(ge!(format!(
+			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}"
+		))
+		.into());
+	}
+
+	fed.map_err(|e| ioe!(ARCHIVE, e))?;
+
+	Ok(())
 }
 
 fn load(table: &Path, link: &Path) -> hmerr::Result<()> {
@@ -148,4 +157,42 @@ fn refused() -> GenericError {
 		format!("{R}cancelled{D}"),
 		h: "the artist relations decide which artists count as already known, so they are required"
 	)
+}
+
+#[cfg(test)]
+mod tests {
+	use std::os::unix::process::ExitStatusExt;
+
+	use super::*;
+
+	fn exit(code: i32) -> ExitStatus {
+		ExitStatus::from_raw(code << 8)
+	}
+
+	fn broken_pipe() -> io::Result<u64> {
+		Err(io::Error::from(io::ErrorKind::BrokenPipe))
+	}
+
+	fn message(done: hmerr::Result<()>) -> String {
+		done.err().map(|e| format!("{e}")).unwrap_or_default()
+	}
+
+	#[test]
+	fn a_tar_that_died_is_what_broke_the_pipe() {
+		let said = message(unpacked(exit(2), broken_pipe()));
+
+		assert!(said.contains("could not unpack"), "{said}");
+	}
+
+	#[test]
+	fn a_pipe_that_broke_on_its_own_is_still_reported() {
+		let said = message(unpacked(exit(0), broken_pipe()));
+
+		assert!(said.contains("broken pipe"), "{said}");
+	}
+
+	#[test]
+	fn a_whole_archive_fed_to_a_happy_tar_is_unpacked() {
+		assert!(unpacked(exit(0), Ok(1 << 20)).is_ok());
+	}
 }
