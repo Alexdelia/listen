@@ -1,3 +1,4 @@
+mod declare;
 mod duration;
 mod find;
 mod keep;
@@ -16,6 +17,10 @@ use hmerr::ge;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
+
+pub fn declare(path: &Path, mbid: &str) -> hmerr::Result<bool> {
+	declare::run(path, mbid, true)
+}
 
 pub async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool> {
 	let client = music_brainz::client();

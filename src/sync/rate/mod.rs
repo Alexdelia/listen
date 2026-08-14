@@ -2,18 +2,18 @@ mod agent;
 pub mod auth;
 mod cache;
 mod submit;
-mod value;
 
 use async_std::channel::Sender;
 
 use crate::{
-	declaration::{Entry, Source},
+	declaration::{
+		Entry, Source,
+		value::{self, Value},
+	},
 	meta_brainz,
 };
 
 use super::channel::{Action, Status, report};
-
-use value::Value;
 
 pub type Rating = (Source, Value);
 

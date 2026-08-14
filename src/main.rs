@@ -1,10 +1,10 @@
 mod alias;
 mod args;
 mod cache;
-mod color;
 mod completion;
 mod declaration;
 mod env;
+mod format;
 mod library;
 mod r#match;
 mod meta_brainz;
@@ -46,6 +46,7 @@ fn main() -> hmerr::Result<()> {
 		unlistened,
 		source,
 		sort,
+		island,
 	}) = &args.command
 	{
 		return block_on(recommend::run(
@@ -54,6 +55,7 @@ fn main() -> hmerr::Result<()> {
 			*unlistened,
 			*source,
 			*sort,
+			island,
 		));
 	}
 

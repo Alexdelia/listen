@@ -1,17 +1,12 @@
-use ansi::{
-	WHITE,
-	abbrev::{B, CYA, D, F, M, Y},
-};
+use ansi::abbrev::{B, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
-
-const DATE_FORMAT: &str = "%Y-%m-%d";
-const TIME_FORMAT: &str = "%H:%M";
+use crate::format::{DATE_FORMAT, TIME_FORMAT};
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
-		"{B}{M}{index}{D} {F}{WHITE}{source}{D} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
+		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
 		source = recommendation.origin.source(),
 		position = recommendation.origin.position(),
 		mbid = recommendation.mbid,
@@ -42,6 +37,15 @@ fn label(origin: &Origin) -> String {
 			released = released
 				.map(|date| format!(" {Y}{date}{D}", date = date.format(DATE_FORMAT)))
 				.unwrap_or_default(),
+		),
+		Origin::Island {
+			member,
+			score,
+			backer,
+			plays,
+			..
+		} => format!(
+			" {Y}{score:.1}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }
@@ -96,7 +100,8 @@ mod tests {
 		let head = line.next().unwrap_or_default();
 
 		assert!(head.contains('3'), "{head}");
-		assert!(head.contains("weekly-exploration 2026-07-12"), "{head}");
+		assert!(head.contains("weekly-exploration"), "{head}");
+		assert!(head.contains("2026-07-12"), "{head}");
 		assert!(head.ends_with(&format!("{F}{M}5{D}")), "{head}");
 
 		let body = line.next().unwrap_or_default();

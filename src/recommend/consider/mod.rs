@@ -18,10 +18,16 @@ pub(super) async fn consider(
 	let mbid = recommendation.mbid.to_string();
 	println!("\n{}", render(index, recommendation));
 
-	match r#match::run(path, &mbid, true).await {
-		Ok(true) => {}
-		Ok(false) => declined::add(recommendation.mbid)?,
-		Err(e) => eprintln!("{e}"),
+	let declared = match r#match::run(path, &mbid, true).await {
+		Ok(declared) => declared,
+		Err(e) => {
+			eprintln!("{e}");
+			r#match::declare(path, &mbid)?
+		}
+	};
+
+	if !declared {
+		declined::add(recommendation.mbid)?;
 	}
 
 	println!();

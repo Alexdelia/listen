@@ -8,7 +8,7 @@ pub const Q2: &str = hex!(#47d160);
 pub const Q3: &str = hex!(#8147d1);
 pub const Q4: &str = hex!(#fc0380);
 
-pub fn q(q: Q) -> &'static str {
+pub fn q_color(q: Q) -> &'static str {
 	match q {
 		0 => Q0,
 		1 => Q1,
@@ -17,4 +17,13 @@ pub fn q(q: Q) -> &'static str {
 		4 => Q4,
 		_ => D,
 	}
+}
+
+#[expect(
+	clippy::cast_possible_truncation,
+	clippy::cast_sign_loss,
+	reason = "an average q, always within the q range"
+)]
+pub fn q_f32_color(q: f32) -> &'static str {
+	q_color(q.floor() as Q)
 }

@@ -1,6 +1,6 @@
 use ansi::abbrev::{B, CYA, D, G, M, R};
 
-use crate::color;
+use crate::format;
 
 use super::filter::{GroupedEntry, SyncEntry};
 
@@ -14,7 +14,7 @@ pub fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 		section("q");
 		q.sort_by_key(|(q, _)| *q);
 		for (q, update) in q {
-			ret |= single_report(&q.to_string(), color::q(*q), update);
+			ret |= single_report(&q.to_string(), format::q_color(*q), update);
 		}
 	}
 

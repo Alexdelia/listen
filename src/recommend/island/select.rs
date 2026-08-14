@@ -1,0 +1,367 @@
+use std::{collections::VecDeque, path::PathBuf};
+
+use chrono::Utc;
+use hmerr::ioe;
+
+use super::super::{
+	feed,
+	recommendation::{Origin, Recommendation},
+	skip::Skip,
+};
+use super::{log, score::Candidate};
+
+pub(super) struct Island {
+	pub name: String,
+	pub member: usize,
+}
+
+pub(super) struct Stream {
+	island: Vec<Island>,
+	candidate: Vec<VecDeque<Candidate>>,
+	turn: usize,
+	served: usize,
+	stay: bool,
+	ask: bool,
+	popularity_damp: f32,
+	granularity: f64,
+	log: PathBuf,
+}
+
+pub(super) fn stream(
+	island: Vec<Island>,
+	candidate: Vec<Vec<Candidate>>,
+	ask: bool,
+	popularity_damp: f32,
+	granularity: f64,
+	log: PathBuf,
+) -> Stream {
+	Stream {
+		island,
+		candidate: candidate.into_iter().map(VecDeque::from).collect(),
+		turn: 0,
+		served: 0,
+		stay: true,
+		ask,
+		popularity_damp,
+		granularity,
+		log,
+	}
+}
+
+impl feed::Feed for Stream {
+	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+		self.forget(skip);
+
+		if self.drained() {
+			return Ok(None);
+		}
+
+		self.decide()?;
+
+		let Some(candidate) = self
+			.candidate
+			.get_mut(self.turn)
+			.and_then(VecDeque::pop_front)
+		else {
+			return Ok(None);
+		};
+
+		let name = self
+			.island
+			.get(self.turn)
+			.map(|island| island.name.clone())
+			.unwrap_or_default();
+		let member = self.island.get(self.turn).map_or(0, |island| island.member);
+
+		log::append(
+			&self.log,
+			&log::Entry {
+				mbid: candidate.mbid,
+				island: name.clone(),
+				member,
+				score: candidate.score,
+				backer: candidate.backer,
+				plays: candidate.plays,
+				popularity_damp: self.popularity_damp,
+				granularity: self.granularity,
+				stay: self.stay,
+				shown_at: Utc::now(),
+			},
+		)?;
+
+		let position = self.served;
+		self.served += 1;
+
+		Ok(Some(Recommendation {
+			mbid: candidate.mbid,
+			origin: Origin::Island {
+				name,
+				member,
+				score: candidate.score,
+				backer: candidate.backer,
+				plays: candidate.plays,
+				position,
+			},
+		}))
+	}
+}
+
+impl Stream {
+	fn forget(&mut self, skip: &Skip) {
+		for candidate in &mut self.candidate {
+			candidate.retain(|candidate| !skip.seen(candidate.mbid));
+		}
+	}
+
+	fn decide(&mut self) -> hmerr::Result<()> {
+		if self.served == 0 {
+			self.turn = self.next_living(self.turn);
+			self.stay = true;
+
+			return Ok(());
+		}
+
+		if self.ask {
+			self.stay = self.alive(self.turn) && self.asked()?;
+
+			if !self.stay {
+				self.turn = self.next_living(self.turn + 1);
+			}
+
+			return Ok(());
+		}
+
+		let previous = self.turn;
+		self.turn = self.next_living(self.turn + 1);
+		self.stay = self.turn == previous;
+
+		Ok(())
+	}
+
+	fn asked(&self) -> hmerr::Result<bool> {
+		let name = self
+			.island
+			.get(self.turn)
+			.map(|island| island.name.as_str())
+			.unwrap_or_default();
+
+		ux::ask_yn(&format!("stay on {name}"), true).map_err(|e| ioe!("stdin", e).into())
+	}
+
+	fn next_living(&self, from: usize) -> usize {
+		let count = self.candidate.len().max(1);
+
+		(0..count)
+			.map(|step| (from + step) % count)
+			.find(|turn| self.alive(*turn))
+			.unwrap_or(from % count)
+	}
+
+	fn alive(&self, turn: usize) -> bool {
+		self.candidate
+			.get(turn)
+			.is_some_and(|candidate| !candidate.is_empty())
+	}
+
+	fn drained(&self) -> bool {
+		self.candidate.iter().all(VecDeque::is_empty)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use ansi::{
+		WHITE,
+		abbrev::{B, D, F},
+	};
+
+	use super::{super::super::feed::Feed, *};
+	use crate::declaration::Source;
+
+	const CYCLE: usize = 8;
+
+	fn every_island(each: usize) -> Vec<Vec<Candidate>> {
+		(0..CYCLE)
+			.map(|island| candidate(u8::try_from(island).unwrap_or_default(), each))
+			.collect()
+	}
+
+	fn candidate(nibble: u8, count: usize) -> Vec<Candidate> {
+		(0..count)
+			.map(|step| {
+				let mut byte = [nibble; 16];
+				byte[1] = u8::try_from(step).unwrap_or_default();
+
+				Candidate {
+					mbid: Source::from_bytes(byte),
+					score: 1.0,
+					backer: 5,
+					plays: 10,
+				}
+			})
+			.collect()
+	}
+
+	fn island(count: usize) -> Vec<Island> {
+		(0..count)
+			.map(|step| Island {
+				name: format!("isl{step}"),
+				member: 10,
+			})
+			.collect()
+	}
+
+	fn quiet(candidate: Vec<Vec<Candidate>>) -> Stream {
+		let island = island(candidate.len());
+		let log = std::env::temp_dir().join(format!(
+			"declarative_listen_select_{}.jsonl",
+			candidate.iter().map(Vec::len).sum::<usize>()
+		));
+		let _ = std::fs::remove_file(&log);
+
+		stream(island, candidate, false, 0.6, 1.0, log)
+	}
+
+	fn drain(stream: &mut Stream, take: usize) -> Vec<u8> {
+		let mut seen = Vec::new();
+
+		for _ in 0..take {
+			match stream.next(&Skip::default()) {
+				Ok(Some(recommendation)) => seen.push(recommendation.mbid.as_bytes()[0]),
+				_ => break,
+			}
+		}
+
+		seen
+	}
+
+	#[test]
+	fn the_stream_leaves_the_island_after_every_recommendation() {
+		let mut stream = quiet(vec![candidate(1, 5), candidate(2, 5)]);
+
+		assert_eq!(drain(&mut stream, 6), vec![1, 2, 1, 2, 1, 2]);
+	}
+
+	#[test]
+	fn no_island_comes_up_twice_in_a_row_while_another_one_still_has_candidates() {
+		let mut stream = quiet(every_island(4));
+		let seen = drain(&mut stream, CYCLE * 2);
+
+		assert!(seen.windows(2).all(|pair| pair[0] != pair[1]), "{seen:?}");
+	}
+
+	#[test]
+	fn a_cycle_serves_every_island_once_in_rank_order() {
+		let mut stream = quiet(every_island(4));
+		let seen = drain(&mut stream, CYCLE * 2);
+
+		assert_eq!(seen, vec![0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7]);
+	}
+
+	#[test]
+	fn a_spent_cycle_starts_another_one_instead_of_ending_the_stream() {
+		let mut stream = quiet(every_island(4));
+
+		assert_eq!(drain(&mut stream, CYCLE + 1).len(), CYCLE + 1);
+	}
+
+	#[test]
+	fn an_empty_island_is_skipped_without_spending_a_turn() {
+		let mut stream = quiet(vec![candidate(1, 3), Vec::new(), candidate(3, 3)]);
+
+		assert_eq!(drain(&mut stream, 6), vec![1, 3, 1, 3, 1, 3]);
+	}
+
+	#[test]
+	fn a_drained_island_hands_its_turns_to_the_ones_left() {
+		let mut stream = quiet(vec![candidate(1, 1), candidate(2, 3)]);
+
+		assert_eq!(drain(&mut stream, 4), vec![1, 2, 2, 2]);
+	}
+
+	#[test]
+	fn a_drained_stream_stops() {
+		let mut stream = quiet(vec![candidate(1, 2)]);
+
+		assert_eq!(drain(&mut stream, 5).len(), 2);
+	}
+
+	#[test]
+	fn no_candidate_yields_nothing() {
+		let mut stream = quiet(vec![Vec::new(), Vec::new()]);
+
+		assert!(drain(&mut stream, 3).is_empty());
+	}
+
+	#[test]
+	fn a_single_island_serves_everything_it_has() {
+		let mut stream = quiet(vec![candidate(1, 7)]);
+
+		assert_eq!(drain(&mut stream, 9).len(), 7);
+	}
+
+	#[test]
+	fn a_declined_candidate_is_neither_served_nor_logged() {
+		let log = std::env::temp_dir().join("declarative_listen_select_declined.jsonl");
+		let _ = std::fs::remove_file(&log);
+
+		let mut stream = stream(
+			island(1),
+			vec![candidate(1, 2)],
+			false,
+			0.6,
+			1.0,
+			log.clone(),
+		);
+		let mut skip = Skip::default();
+		let declined = Source::from_bytes({
+			let mut byte = [1; 16];
+			byte[1] = 0;
+			byte
+		});
+		skip.fresh(declined);
+
+		let mut seen = Vec::new();
+		while let Ok(Some(recommendation)) = stream.next(&skip) {
+			seen.push(recommendation.mbid);
+		}
+
+		assert_eq!(seen.len(), 1);
+		assert!(!seen.contains(&declined));
+
+		let logged = std::fs::read_to_string(&log).unwrap_or_default();
+
+		assert!(!logged.contains(&declined.to_string()), "{logged}");
+		let _ = std::fs::remove_file(&log);
+	}
+
+	#[test]
+	fn the_position_counts_every_recommendation_the_stream_served() {
+		let mut stream = quiet(vec![candidate(1, 2), candidate(2, 2)]);
+		let mut position = Vec::new();
+
+		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
+			position.push(recommendation.origin.position());
+		}
+
+		assert_eq!(position, vec![0, 1, 2, 3]);
+	}
+
+	#[test]
+	fn every_recommendation_carries_the_island_that_produced_it() {
+		let mut stream = quiet(vec![candidate(1, 1), candidate(2, 1)]);
+		let mut source = Vec::new();
+
+		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
+			source.push(recommendation.origin.source());
+		}
+
+		assert_eq!(
+			source,
+			vec![
+				format!("{B}{WHITE}island{D} {F}{WHITE}isl0{D}"),
+				format!("{B}{WHITE}island{D} {F}{WHITE}isl1{D}")
+			]
+		);
+	}
+}

@@ -4,7 +4,10 @@ use ansi::abbrev::{B, D, R};
 use id3::{Tag, TagLike, Version, frame::ExtendedText};
 use musicbrainz_rs::entity::recording::Recording;
 
-use crate::alias;
+use crate::{
+	alias,
+	library::tag::{ARTIST_SEPARATOR, GENRE_SEPARATOR},
+};
 
 const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
@@ -23,7 +26,7 @@ pub fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 			.iter()
 			.map(|ac| ac.artist.name.as_str())
 			.collect::<Vec<_>>()
-			.join(" & ");
+			.join(ARTIST_SEPARATOR);
 
 		tag.set_artist(artist);
 	}
@@ -82,7 +85,7 @@ fn genre(recording: &Recording) -> String {
 	let mut all = all.into_iter().collect::<Vec<_>>();
 	all.sort_unstable();
 
-	all.join(" / ")
+	all.join(GENRE_SEPARATOR)
 }
 
 #[cfg(test)]

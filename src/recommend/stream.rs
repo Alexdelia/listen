@@ -22,7 +22,7 @@ impl Stream {
 		skip: &mut Skip,
 	) -> hmerr::Result<Option<(usize, Recommendation)>> {
 		while let Some(turn) = self.living() {
-			let Some(recommendation) = self.pull(turn)? else {
+			let Some(recommendation) = self.pull(turn, skip)? else {
 				self.retire(turn);
 				continue;
 			};
@@ -45,9 +45,9 @@ impl Stream {
 		Ok(None)
 	}
 
-	fn pull(&mut self, turn: usize) -> hmerr::Result<Option<Recommendation>> {
+	fn pull(&mut self, turn: usize, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
 		match self.feed.get_mut(turn) {
-			Some(Some(feed)) => feed.next(),
+			Some(Some(feed)) => feed.next(skip),
 			_ => Ok(None),
 		}
 	}
@@ -79,7 +79,7 @@ mod tests {
 	struct Canned(VecDeque<Recommendation>);
 
 	impl Feed for Canned {
-		fn next(&mut self) -> hmerr::Result<Option<Recommendation>> {
+		fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
 			Ok(self.0.pop_front())
 		}
 	}
