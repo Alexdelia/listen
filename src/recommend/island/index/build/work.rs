@@ -6,20 +6,32 @@ use std::{
 use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
-const DIR: &str = "build";
-const STAMP: &str = "dump";
+use crate::declaration::Entry;
 
-pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
+use super::{super::open::USER_LISTEN, artist, seed};
+
+const DIR: &str = "build";
+const DUMP: &str = "dump";
+const INPUT: &str = "input";
+
+pub(super) fn open(dir: &Path, dump: &str, declared: &[Entry]) -> hmerr::Result<PathBuf> {
 	let work = dir.join(DIR);
 
-	if built_from(&work).as_deref() != Some(dump) {
+	if stamped(&work, DUMP).as_deref() != Some(dump) {
 		discard(&work)?;
 	}
 
 	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
 
-	let stamp = work.join(STAMP);
-	fs::write(&stamp, dump).map_err(|e| ioe!(stamp.to_string_lossy(), e))?;
+	let input = input(dump, declared);
+	if stamped(&work, INPUT).as_deref() != Some(input.as_str()) {
+		for stale in derived(dir, &work) {
+			discard(&stale)?;
+		}
+	}
+
+	stamp(&work, DUMP, dump)?;
+	stamp(&work, INPUT, &input)?;
 
 	Ok(work)
 }
@@ -36,10 +48,33 @@ pub(super) fn release(work: &Path) {
 	);
 }
 
-fn built_from(work: &Path) -> Option<String> {
-	fs::read_to_string(work.join(STAMP))
+fn input(dump: &str, declared: &[Entry]) -> String {
+	let mut mbid: Vec<String> = declared.iter().map(|entry| entry.s.to_string()).collect();
+	mbid.sort_unstable();
+	mbid.dedup();
+
+	format!("{dump}\n{}", mbid.join("\n"))
+}
+
+fn derived(dir: &Path, work: &Path) -> [PathBuf; 3] {
+	[
+		work.join(seed::NAME),
+		work.join(artist::NAME),
+		dir.join(USER_LISTEN),
+	]
+}
+
+fn stamped(work: &Path, of: &str) -> Option<String> {
+	fs::read_to_string(work.join(of))
 		.ok()
-		.map(|dump| dump.trim().to_string())
+		.map(|stamp| stamp.trim().to_string())
+}
+
+fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
+	let path = work.join(of);
+	fs::write(&path, value).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+
+	Ok(())
 }
 
 fn discard(work: &Path) -> hmerr::Result<()> {
@@ -54,6 +89,8 @@ fn discard(work: &Path) -> hmerr::Result<()> {
 
 #[cfg(test)]
 mod tests {
+	use crate::declaration::Source;
+
 	use super::*;
 
 	fn dir(name: &str) -> PathBuf {
@@ -64,21 +101,37 @@ mod tests {
 		dir
 	}
 
-	fn partial(work: &Path) -> PathBuf {
-		let partial = work.join("listen").join("0.parquet");
-		let _ = fs::create_dir_all(partial.parent().unwrap_or(work));
-		let _ = fs::write(&partial, b"partial");
+	fn declared(mbid: &[u128]) -> Vec<Entry> {
+		mbid.iter()
+			.map(|mbid| Entry {
+				s: Source::from_u128(*mbid),
+				q: 2,
+				playlist: Vec::new(),
+			})
+			.collect()
+	}
 
-		partial
+	fn shard(under: &Path, name: &str) -> PathBuf {
+		let shard = under.join(name).join("0.parquet");
+		if let Some(parent) = shard.parent() {
+			let _ = fs::create_dir_all(parent);
+		}
+		let _ = fs::write(&shard, b"partial");
+
+		shard
+	}
+
+	fn partial(work: &Path) -> PathBuf {
+		shard(work, "listen")
 	}
 
 	#[test]
 	fn the_same_dump_keeps_what_a_previous_run_already_scanned() {
 		let dir = dir("resume");
-		let work = open(&dir, "listenbrainz-dump-2593-full").unwrap_or_default();
+		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
 		let partial = partial(&work);
 
-		let again = open(&dir, "listenbrainz-dump-2593-full").unwrap_or_default();
+		let again = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
 
 		assert_eq!(again, work);
 		assert!(partial.exists());
@@ -88,10 +141,10 @@ mod tests {
 	#[test]
 	fn another_dump_throws_the_previous_scan_away() {
 		let dir = dir("stale");
-		let work = open(&dir, "listenbrainz-dump-2593-full").unwrap_or_default();
+		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
 		let partial = partial(&work);
 
-		let _ = open(&dir, "listenbrainz-dump-2600-full");
+		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
@@ -103,16 +156,73 @@ mod tests {
 		let work = dir.join(DIR);
 		let partial = partial(&work);
 
-		let _ = open(&dir, "listenbrainz-dump-2593-full");
+		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
+	fn a_new_declared_recording_throws_away_everything_keyed_by_recording_id() {
+		let dir = dir("declared");
+		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let partial = partial(&work);
+		let seed = shard(&work, seed::NAME);
+		let artist = shard(&work, artist::NAME);
+		let listen = shard(&dir, USER_LISTEN);
+
+		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 3]));
+
+		assert!(partial.exists());
+		assert!(!seed.exists());
+		assert!(!artist.exists());
+		assert!(!listen.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn the_same_declaration_in_another_order_is_the_same_recording_id() {
+		let dir = dir("order");
+		let work = open(&dir, "20260712-000004", &declared(&[2, 1])).unwrap_or_default();
+		let seed = shard(&work, seed::NAME);
+		let listen = shard(&dir, USER_LISTEN);
+
+		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 2]));
+
+		assert!(seed.exists());
+		assert!(listen.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn another_dump_throws_away_the_published_user_listen() {
+		let dir = dir("published");
+		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let listen = shard(&dir, USER_LISTEN);
+
+		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
+
+		assert!(!listen.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_released_build_cannot_vouch_for_the_published_user_listen() {
+		let dir = dir("released");
+		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let listen = shard(&dir, USER_LISTEN);
+		release(&work);
+
+		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+
+		assert!(!listen.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
 	fn releasing_leaves_nothing_behind() {
 		let dir = dir("release");
-		let work = open(&dir, "listenbrainz-dump-2593-full").unwrap_or_default();
+		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
 		partial(&work);
 
 		release(&work);

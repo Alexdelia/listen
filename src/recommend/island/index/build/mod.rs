@@ -19,7 +19,7 @@ use scan::Scan;
 
 pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Result<()> {
 	let declared = parse::parse(declaration)?;
-	let work = work::open(dir, &dump.name)?;
+	let work = work::open(dir, &dump.name, &declared)?;
 
 	let started = Utc::now();
 	announce(declared.len(), &started);

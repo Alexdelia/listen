@@ -4,15 +4,15 @@ use crate::declaration::Entry;
 
 use super::scan::Scan;
 
-const TABLE: &str = "seed";
+pub(super) const NAME: &str = "seed";
 const LISTEN: &str = "seed_listen.parquet";
 
 pub(super) fn declare(scan: &Scan, declared: &[Entry]) -> hmerr::Result<()> {
 	scan.db.execute_batch(&format!(
-		r"create or replace table {TABLE} (mbid uuid, q utinyint);"
+		r"create or replace table {NAME} (mbid uuid, q utinyint);"
 	))?;
 
-	let mut appender = scan.db.appender(TABLE)?;
+	let mut appender = scan.db.appender(NAME)?;
 	for entry in declared {
 		appender.append_row(duckdb::params![entry.s.to_string(), entry.q])?;
 	}
@@ -22,12 +22,12 @@ pub(super) fn declare(scan: &Scan, declared: &[Entry]) -> hmerr::Result<()> {
 }
 
 pub(super) fn listen(scan: &Scan) -> hmerr::Result<PathBuf> {
-	let partial = scan.batched(TABLE, &|shard| {
+	let partial = scan.batched(NAME, &|shard| {
 		format!(
 			r"
 select l.user_id, l.recording_mbid::uuid as mbid, count(*) as plays
 from read_parquet({shard}) l
-where l.recording_mbid in (select mbid::varchar from {TABLE})
+where l.recording_mbid in (select mbid::varchar from {NAME})
 group by 1, 2
 "
 		)
