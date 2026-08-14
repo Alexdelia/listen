@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::Reverse, collections::HashMap};
 
 use super::super::{real, seed::Seed};
 
@@ -108,20 +108,10 @@ fn absorb(label: &mut [usize], similarity: &Similarity, min_member: usize) {
 
 		let mut moved = false;
 		for node in member {
-			let mut best: Option<(usize, f64)> = None;
+			let host =
+				nearest(node, label, similarity, smallest).or_else(|| largest(&size, smallest));
 
-			for (peer, community) in label.iter().enumerate() {
-				if *community == smallest {
-					continue;
-				}
-
-				let weight = similarity.of(node, peer);
-				if best.is_none_or(|(_, top)| weight > top) {
-					best = Some((*community, weight));
-				}
-			}
-
-			if let Some((community, _)) = best {
+			if let Some(community) = host {
 				label[node] = community;
 				moved = true;
 			}
@@ -131,6 +121,35 @@ fn absorb(label: &mut [usize], similarity: &Similarity, min_member: usize) {
 			return;
 		}
 	}
+}
+
+fn nearest(
+	node: usize,
+	label: &[usize],
+	similarity: &Similarity,
+	smallest: usize,
+) -> Option<usize> {
+	let mut best: Option<(usize, f64)> = None;
+
+	for (peer, community) in label.iter().enumerate() {
+		if *community == smallest {
+			continue;
+		}
+
+		let weight = similarity.of(node, peer);
+		if weight > 0.0 && best.is_none_or(|(_, top)| weight > top) {
+			best = Some((*community, weight));
+		}
+	}
+
+	best.map(|(community, _)| community)
+}
+
+fn largest(size: &HashMap<usize, usize>, smallest: usize) -> Option<usize> {
+	size.iter()
+		.filter(|(community, _)| **community != smallest)
+		.max_by_key(|(community, count)| (**count, Reverse(**community)))
+		.map(|(community, _)| *community)
 }
 
 struct Graph {
@@ -422,6 +441,16 @@ mod tests {
 		let label = detect(&similarity, 0.15, 1.0, 3);
 
 		assert_eq!(group(&label).len(), 1, "{label:?}");
+	}
+
+	#[test]
+	fn a_seed_similar_to_nothing_joins_the_largest_community() {
+		let seed = seeded(&[&[1, 2], &[1, 2], &[5, 6], &[5, 6], &[5, 6], &[]]);
+		let similarity = similarity(&seed, 7);
+		let label = detect(&similarity, 0.15, 1.0, 2);
+
+		assert_eq!(label[5], label[2], "{label:?}");
+		assert_ne!(label[5], label[0], "{label:?}");
 	}
 
 	#[test]
