@@ -7,6 +7,8 @@ use super::{
 	scan::Scan,
 };
 
+pub(super) const NAME: &str = "listen";
+
 const BUCKET: u32 = 8;
 const PLAY_CEILING: u32 = 65535;
 
@@ -14,7 +16,7 @@ pub(super) fn of(scan: &Scan, dir: &Path, pool: &Path, recording: &Path) -> hmer
 	let pool = pool.display().to_string();
 	let recording = recording.display().to_string();
 
-	let partial = scan.batched("listen", &|shard| {
+	let partial = scan.batched(NAME, &|shard| {
 		format!(
 			r"
 select

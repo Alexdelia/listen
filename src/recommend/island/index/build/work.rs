@@ -8,7 +8,7 @@ use hmerr::ioe;
 
 use crate::declaration::Entry;
 
-use super::{super::open::USER_LISTEN, artist, seed};
+use super::{super::open::USER_LISTEN, artist, seed, user_listen};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
@@ -56,10 +56,11 @@ fn input(dump: &str, declared: &[Entry]) -> String {
 	format!("{dump}\n{}", mbid.join("\n"))
 }
 
-fn derived(dir: &Path, work: &Path) -> [PathBuf; 3] {
+fn derived(dir: &Path, work: &Path) -> [PathBuf; 4] {
 	[
 		work.join(seed::NAME),
 		work.join(artist::NAME),
+		work.join(user_listen::NAME),
 		dir.join(USER_LISTEN),
 	]
 }
@@ -122,7 +123,7 @@ mod tests {
 	}
 
 	fn partial(work: &Path) -> PathBuf {
-		shard(work, "listen")
+		shard(work, user_listen::NAME)
 	}
 
 	#[test]
@@ -173,7 +174,7 @@ mod tests {
 
 		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 3]));
 
-		assert!(partial.exists());
+		assert!(!partial.exists());
 		assert!(!seed.exists());
 		assert!(!artist.exists());
 		assert!(!listen.exists());
@@ -184,11 +185,13 @@ mod tests {
 	fn the_same_declaration_in_another_order_is_the_same_recording_id() {
 		let dir = dir("order");
 		let work = open(&dir, "20260712-000004", &declared(&[2, 1])).unwrap_or_default();
+		let partial = partial(&work);
 		let seed = shard(&work, seed::NAME);
 		let listen = shard(&dir, USER_LISTEN);
 
 		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 2]));
 
+		assert!(partial.exists());
 		assert!(seed.exists());
 		assert!(listen.exists());
 		let _ = fs::remove_dir_all(&dir);
