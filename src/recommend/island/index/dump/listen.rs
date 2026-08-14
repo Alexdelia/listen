@@ -34,14 +34,17 @@ pub(super) fn find(root: &Path) -> hmerr::Result<Option<Listen>> {
 }
 
 fn name_of(dir: &Path) -> String {
-	fs::read_to_string(dir.join(STAMP)).map_or_else(
-		|_| {
-			dir.file_name()
-				.map(|name| name.to_string_lossy().to_string())
-				.unwrap_or_default()
-		},
-		|stamp| stamp.trim().to_string(),
-	)
+	stamp(dir).unwrap_or_else(|| {
+		dir.file_name()
+			.map(|name| name.to_string_lossy().to_string())
+			.unwrap_or_default()
+	})
+}
+
+fn stamp(dir: &Path) -> Option<String> {
+	fs::read_to_string(dir.join(STAMP))
+		.ok()
+		.map(|stamp| stamp.trim().to_string())
 }
 
 fn holds_parquet(dir: &Path) -> hmerr::Result<bool> {
@@ -60,7 +63,7 @@ fn holds_parquet(dir: &Path) -> hmerr::Result<bool> {
 }
 
 pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
-	let dump = rsync::newest_dir(MODULE, PREFIX, SUFFIX)?;
+	let dump = newest()?;
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::biggest(&url, EXT)?;
 	let tar = root.join(&archive.name);
@@ -101,6 +104,28 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 	})
 }
 
+fn newest() -> hmerr::Result<String> {
+	let published = rsync::list(&format!("{host}/{MODULE}/", host = rsync::HOST))?;
+
+	newest_of(published.into_iter().map(|entry| entry.name))
+		.ok_or_else(|| ge!(format!("{R}nothing published under {B}{MODULE}{D}")).into())
+}
+
+fn newest_of(name: impl Iterator<Item = String>) -> Option<String> {
+	name.filter_map(|name| Some((number(&name)?, name)))
+		.max()
+		.map(|(_, name)| name)
+}
+
+fn number(name: &str) -> Option<u32> {
+	name.strip_prefix(PREFIX)?
+		.strip_suffix(SUFFIX)?
+		.split('-')
+		.next()?
+		.parse()
+		.ok()
+}
+
 pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 	if !listen.dir.is_dir() {
 		return Ok(());
@@ -138,15 +163,17 @@ fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 
 	bar.finish();
 
+	let dir = root.join(LISTEN);
 	let inner = fs::read_dir(root)
 		.map_err(|e| ioe!(root.to_string_lossy(), e))?
 		.filter_map(Result::ok)
 		.map(|entry| entry.path())
-		.filter(|path| path.is_dir() && path.join(STAMP).exists())
-		.max_by_key(|path| path.file_name().map(std::ffi::OsStr::to_os_string))
+		.filter(|path| path.is_dir() && *path != dir)
+		.filter_map(|path| Some((stamp(&path)?, path)))
+		.max()
+		.map(|(_, path)| path)
 		.ok_or_else(|| ge!(format!("{R}the listen archive held no dump directory{D}")))?;
 
-	let dir = root.join(LISTEN);
 	if dir.exists() {
 		fs::remove_dir_all(&dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
 	}
@@ -179,6 +206,50 @@ mod tests {
 			name: "test".to_string(),
 			dir,
 		}
+	}
+
+	fn published(name: &[&str]) -> Option<String> {
+		newest_of(name.iter().map(|name| (*name).to_string()))
+	}
+
+	#[test]
+	fn the_dump_number_is_read_out_of_the_published_name() {
+		assert_eq!(
+			number("listenbrainz-dump-2593-20260712-000004-full"),
+			Some(2593)
+		);
+		assert_eq!(
+			number("listenbrainz-dump-2593-20260712-000004-incremental"),
+			None
+		);
+		assert_eq!(number("LATEST"), None);
+	}
+
+	#[test]
+	fn the_newest_published_dump_is_the_highest_numbered_one() {
+		assert_eq!(
+			published(&[
+				"listenbrainz-dump-2592-20260705-000003-full",
+				"listenbrainz-dump-2593-20260712-000004-full",
+			]),
+			Some("listenbrainz-dump-2593-20260712-000004-full".to_string())
+		);
+	}
+
+	#[test]
+	fn a_wider_dump_number_is_still_the_newer_one() {
+		assert_eq!(
+			published(&[
+				"listenbrainz-dump-1000-20340101-000001-full",
+				"listenbrainz-dump-999-20330101-000001-full",
+			]),
+			Some("listenbrainz-dump-1000-20340101-000001-full".to_string())
+		);
+	}
+
+	#[test]
+	fn nothing_published_is_nothing_to_fetch() {
+		assert_eq!(published(&["LATEST", "index.html"]), None);
 	}
 
 	#[test]

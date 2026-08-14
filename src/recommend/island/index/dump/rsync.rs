@@ -144,15 +144,6 @@ pub(super) fn forget(dir: &Path, name: &[&str]) -> hmerr::Result<()> {
 	Ok(())
 }
 
-pub(super) fn newest_dir(module: &str, prefix: &str, suffix: &str) -> hmerr::Result<String> {
-	list(&format!("{HOST}/{module}/"))?
-		.into_iter()
-		.map(|entry| entry.name)
-		.filter(|name| name.starts_with(prefix) && name.ends_with(suffix))
-		.max()
-		.ok_or_else(|| ge!(format!("{R}nothing published under {B}{module}{D}")).into())
-}
-
 pub(super) fn biggest(url: &str, ext: &str) -> hmerr::Result<Entry> {
 	list(url)?
 		.into_iter()
