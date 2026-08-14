@@ -4,6 +4,8 @@ use crate::library;
 
 const PROGRAM: &str = "yt-dlp";
 
+const PLAYER_CLIENT_SERVING_NON_403_URL: &str = "youtube:player_client=web_embedded,default";
+
 pub(super) fn command<P>(url: &str, path: P) -> Command
 where
 	P: AsRef<Path>,
@@ -11,6 +13,8 @@ where
 	let mut command = Command::new(PROGRAM);
 	command.args([
 		"--quiet",
+		"--extractor-args",
+		PLAYER_CLIENT_SERVING_NON_403_URL,
 		"--extract-audio",
 		"--audio-format",
 		library::recording::EXT,
