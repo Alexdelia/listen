@@ -44,20 +44,8 @@ pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Res
 }
 
 fn ensure_island_arg(arg: &IslandArg) -> hmerr::Result<()> {
-	if !arg.seed.is_empty() && arg.island.is_some() {
-		return Err(ge!(
-			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}--seed{D}"),
-			h: "--seed already says which recordings the island is made of"
-		)
-		.into());
-	}
-
-	if !arg.genre.is_empty() && arg.island.is_some() {
-		return Err(ge!(
-			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}--genre{D}"),
-			h: "--genre already says which recordings the island is made of"
-		)
-		.into());
+	if let Some(built_by) = built_by(arg) {
+		ensure_built_island_arg(arg, built_by)?;
 	}
 
 	if arg.popularity_damp.is_some_and(|damp| damp < 0.0) {
@@ -73,6 +61,38 @@ fn ensure_island_arg(arg: &IslandArg) -> hmerr::Result<()> {
 		.is_some_and(|granularity| granularity <= 0.0)
 	{
 		return Err(ge!(format!("{R}{B}--granularity{D}{R} has to be above zero{D}")).into());
+	}
+
+	Ok(())
+}
+
+fn built_by(arg: &IslandArg) -> Option<&'static str> {
+	if !arg.seed.is_empty() {
+		return Some("--seed");
+	}
+
+	if !arg.genre.is_empty() {
+		return Some("--genre");
+	}
+
+	None
+}
+
+fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> hmerr::Result<()> {
+	if arg.island.is_some() {
+		return Err(ge!(
+			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}{built_by}{D}"),
+			h: format!("{built_by} already says which recordings the island is made of")
+		)
+		.into());
+	}
+
+	if arg.granularity.is_some() {
+		return Err(ge!(
+			format!("{R}{B}--granularity{D}{R} cannot split an island built by {B}{built_by}{D}"),
+			h: "granularity only tunes the islands detected out of the whole declaration"
+		)
+		.into());
 	}
 
 	Ok(())
@@ -425,6 +445,49 @@ mod tests {
 				.is_err()
 			);
 		}
+	}
+
+	#[test]
+	fn a_built_island_cannot_also_be_split() {
+		for source in [RecommendSource::All, RecommendSource::Island] {
+			assert!(
+				ensure_arg(
+					source,
+					&IslandArg {
+						granularity: Some(1.5),
+						seed: vec![Source::from_bytes([2; 16])],
+						..no_arg()
+					}
+				)
+				.is_err()
+			);
+			assert!(
+				ensure_arg(
+					source,
+					&IslandArg {
+						granularity: Some(1.5),
+						genre: vec!["eurobeat".to_string()],
+						..no_arg()
+					}
+				)
+				.is_err()
+			);
+		}
+	}
+
+	#[test]
+	fn a_pinned_island_is_still_detected_at_the_asked_granularity() {
+		assert!(
+			ensure_arg(
+				RecommendSource::Island,
+				&IslandArg {
+					granularity: Some(1.5),
+					island: Some("touhou".to_string()),
+					..no_arg()
+				}
+			)
+			.is_ok()
+		);
 	}
 
 	#[test]
