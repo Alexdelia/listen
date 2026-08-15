@@ -46,7 +46,7 @@ backing as (
 		recording_id,
 		island,
 		sum(cohort_weight * attraction / breadth) as weight,
-		count(*) as backer
+		count(*) filter (where attraction > 0) as backer
 	from vote
 	group by 1, 2
 ),
@@ -307,6 +307,16 @@ insert into user_listen values {listen};
 	#[test]
 	fn a_recording_the_whole_cohort_played_once_and_dropped_is_no_candidate() {
 		assert!(candidate(&[(BRUSHED, 1)]).is_empty());
+	}
+
+	#[test]
+	fn a_recording_most_of_the_cohort_tried_and_dropped_is_no_candidate() {
+		let lover = 2;
+		let listen: Vec<(u32, u32, u32)> = (0..MIN_BACKER)
+			.map(|user| (user, LOVED, if user < lover { 100 } else { 1 }))
+			.collect();
+
+		assert!(served(&index(&listen, &uniform(MIN_BACKER)), MIN_BACKER).is_empty());
 	}
 
 	#[test]
