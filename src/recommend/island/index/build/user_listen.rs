@@ -1,63 +1,31 @@
-use std::{fs, path::Path};
+use std::path::Path;
 
-use hmerr::ioe;
-
-use super::{
-	super::{
-		open::{self, BUCKET, USER_LISTEN},
-		progress,
-	},
-	scan::Scan,
-};
+use super::{super::open::USER_LISTEN, library, pool::Pool, scan::Scan};
 
 pub(super) const NAME: &str = "listen";
 
-const PLAY_CEILING: u32 = 65535;
+pub(super) fn of(
+	scan: &Scan,
+	dir: &Path,
+	library: &Path,
+	pool: &Pool,
+	recording: &Path,
+) -> hmerr::Result<u64> {
+	let into = dir.join(USER_LISTEN);
 
-pub(super) fn of(scan: &Scan, dir: &Path, pool: &Path, recording: &Path) -> hmerr::Result<u64> {
-	let pool = pool.display().to_string();
-	let recording = recording.display().to_string();
-
-	let partial = scan.batched(NAME, &|shard| {
+	scan.bucketed(&into, NAME, &|bucket| {
 		format!(
 			r"
-select
-	l.user_id::uinteger as user_id,
-	r.recording_id,
-	least(count(*), {PLAY_CEILING})::usmallint as plays
-from read_parquet({shard}) l
-semi join read_parquet('{pool}') u on u.user_id = l.user_id
-join read_parquet('{recording}') r on r.mbid::varchar = l.recording_mbid
-group by 1, 2
-"
+select l.user_id, r.recording_id, l.plays
+from {library} l
+semi join {pool} u on u.user_id = l.user_id
+join read_parquet('{recording}') r on r.mbid = l.mbid
+",
+			library = library::read_bucket(library, bucket),
+			pool = pool.read(),
+			recording = recording.display()
 		)
 	})?;
-
-	let into = dir.join(USER_LISTEN);
-	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
-
-	let bar = progress::step_bar(u64::from(BUCKET), "compact")?;
-	for bucket in 0..BUCKET {
-		let shard = into.join(open::shard(bucket));
-
-		if !scan.done(&shard) {
-			scan.copy(
-				&shard,
-				&format!(
-					r"
-select user_id, recording_id, least(sum(plays), {PLAY_CEILING})::usmallint as plays
-from read_parquet('{partial}/*.parquet')
-where user_id % {BUCKET} = {bucket}
-group by 1, 2
-",
-					partial = partial.display()
-				),
-			)?;
-		}
-
-		bar.inc(1);
-	}
-	bar.finish();
 
 	scan.count(&into.join("*.parquet"))
 }

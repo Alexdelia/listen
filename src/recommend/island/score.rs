@@ -1,6 +1,6 @@
 use crate::declaration::Source;
 
-use super::{cohort::Member, index::Index};
+use super::{attraction, cohort::Member, index::Index};
 
 pub(super) const POPULARITY_DAMP: f32 = 0.6;
 pub(super) const MIN_BACKER: u32 = 5;
@@ -24,12 +24,30 @@ pub(super) fn of(
 
 	let mut candidate: Vec<Vec<Candidate>> = (0..cohort.len()).map(|_| Vec::new()).collect();
 
-	let mut statement = index.db.prepare(
+	let mut statement = index.db.prepare(&format!(
 		r"
-with backing as (
-	select ul.recording_id, c.island, sum(c.weight) as weight, count(*) as backer
+with usual_library as (
+	select median(recording)::float as recording from user_stat
+),
+vote as (
+	select
+		ul.recording_id,
+		c.island,
+		c.weight as cohort_weight,
+		{weight}(ul.plays, s.center, s.low, s.high) as attraction,
+		sqrt(greatest(s.recording, 1) / u.recording) as breadth
 	from user_listen ul
+	cross join usual_library u
+	join user_stat s using (user_id)
 	join cohort c on c.user_id = ul.user_id
+),
+backing as (
+	select
+		recording_id,
+		island,
+		sum(cohort_weight * attraction / breadth) as weight,
+		count(*) as backer
+	from vote
 	group by 1, 2
 ),
 eligible as (
@@ -37,6 +55,7 @@ eligible as (
 	from backing b
 	join recording r using (recording_id)
 	where b.backer >= ?
+		and b.weight > 0
 		and not exists (select 1 from declared d where d.mbid::uuid = r.mbid)
 		and not exists (
 			select 1 from recording_artist ra
@@ -71,7 +90,8 @@ from ranked
 where position <= ?
 order by island, position
 ",
-	)?;
+		weight = attraction::WEIGHT
+	))?;
 
 	let mut row = statement.query(duckdb::params![
 		MIN_BACKER,
@@ -142,4 +162,185 @@ semi join seed_artist s on s.artist_mbid = al.artist_mbid;
 	)?;
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{super::index::Meta, *};
+
+	const SEED: u32 = 0;
+	const LOVED: u32 = 1;
+	const BRUSHED: u32 = 2;
+	const OTHER: u32 = 3;
+
+	const CENTER_PLAY: f32 = 10.0;
+	const HIGH_PLAY: f32 = 100.0;
+	const LIBRARY: u32 = 100;
+
+	fn mbid(recording: u32) -> String {
+		format!("00000000-0000-0000-0000-0000000000{recording:02x}")
+	}
+
+	fn artist(recording: u32) -> String {
+		format!("11111111-0000-0000-0000-0000000000{recording:02x}")
+	}
+
+	fn index(listen: &[(u32, u32, u32)], library: &[(u32, u32)]) -> Index {
+		let db = duckdb::Connection::open_in_memory().unwrap();
+		attraction::declare(&db).unwrap();
+
+		db.execute_batch(&format!(
+			r"
+create table recording (recording_id uinteger, mbid uuid, global_plays uinteger);
+create table recording_artist (recording_id uinteger, artist_mbid uuid);
+create table artist_link (artist_mbid uuid, related_mbid uuid);
+create table user_listen (user_id uinteger, recording_id uinteger, plays usmallint);
+create table user_stat (user_id uinteger, center float, low float, high float, recording uinteger);
+create table declared (mbid varchar, q utinyint);
+insert into recording values
+	({SEED}, '{seed}', 1000), ({LOVED}, '{loved}', 1000),
+	({BRUSHED}, '{brushed}', 1000), ({OTHER}, '{other}', 1000);
+insert into recording_artist values
+	({SEED}, '{seed_artist}'), ({LOVED}, '{loved_artist}'),
+	({BRUSHED}, '{brushed_artist}'), ({OTHER}, '{other_artist}');
+insert into declared values ('{seed}', 4);
+insert into user_stat values {library};
+insert into user_listen values {listen};
+",
+			seed = mbid(SEED),
+			loved = mbid(LOVED),
+			brushed = mbid(BRUSHED),
+			other = mbid(OTHER),
+			seed_artist = artist(SEED),
+			loved_artist = artist(LOVED),
+			brushed_artist = artist(BRUSHED),
+			other_artist = artist(OTHER),
+			library = library
+				.iter()
+				.map(|(user, recording)| format!(
+					"({user}, {center}, 0, {high}, {recording})",
+					center = CENTER_PLAY.ln(),
+					high = HIGH_PLAY.ln()
+				))
+				.collect::<Vec<_>>()
+				.join(","),
+			listen = listen
+				.iter()
+				.map(|(user, recording, plays)| format!("({user}, {recording}, {plays})"))
+				.collect::<Vec<_>>()
+				.join(","),
+		))
+		.unwrap();
+
+		Index {
+			db,
+			meta: Meta {
+				built: String::new(),
+				dump: String::new(),
+				own: None,
+				user: library.len() as u64,
+				recording: 4,
+				user_listen: 0,
+			},
+		}
+	}
+
+	fn cohort(member: u32) -> Vec<Vec<Member>> {
+		vec![
+			(0..member)
+				.map(|user| Member {
+					user: i64::from(user),
+					weight: 1.0,
+				})
+				.collect(),
+		]
+	}
+
+	fn uniform(member: u32) -> Vec<(u32, u32)> {
+		(0..member).map(|user| (user, LIBRARY)).collect()
+	}
+
+	fn every(listen: &[(u32, u32)]) -> Vec<(u32, u32, u32)> {
+		(0..MIN_BACKER)
+			.flat_map(|user| {
+				listen
+					.iter()
+					.map(move |(recording, plays)| (user, *recording, *plays))
+			})
+			.collect()
+	}
+
+	fn served(index: &Index, member: u32) -> Vec<Candidate> {
+		of(index, &cohort(member), POPULARITY_DAMP)
+			.unwrap()
+			.into_iter()
+			.next()
+			.unwrap_or_default()
+	}
+
+	fn candidate(listen: &[(u32, u32)]) -> Vec<Candidate> {
+		served(&index(&every(listen), &uniform(MIN_BACKER)), MIN_BACKER)
+	}
+
+	fn score(candidate: &[Candidate], recording: u32) -> f32 {
+		candidate
+			.iter()
+			.find(|candidate| candidate.mbid.to_string() == mbid(recording))
+			.unwrap_or_else(|| panic!("no candidate for recording {recording}"))
+			.score
+	}
+
+	#[test]
+	fn a_recording_the_whole_cohort_repeats_is_a_candidate() {
+		let candidate = candidate(&[(LOVED, 100)]);
+
+		assert_eq!(
+			candidate
+				.iter()
+				.map(|candidate| candidate.mbid.to_string())
+				.collect::<Vec<_>>(),
+			vec![mbid(LOVED)]
+		);
+		assert_eq!(candidate.first().map(|candidate| candidate.backer), Some(5));
+	}
+
+	#[test]
+	fn a_recording_the_whole_cohort_played_once_and_dropped_is_no_candidate() {
+		assert!(candidate(&[(BRUSHED, 1)]).is_empty());
+	}
+
+	#[test]
+	fn a_declared_recording_never_comes_back_as_a_candidate() {
+		assert!(
+			!candidate(&[(SEED, 100), (LOVED, 100)])
+				.iter()
+				.any(|candidate| candidate.mbid.to_string() == mbid(SEED))
+		);
+	}
+
+	#[test]
+	fn a_wider_library_carries_a_lighter_vote() {
+		let member = MIN_BACKER * 2;
+		let narrow: Vec<(u32, u32, u32)> = (0..MIN_BACKER).map(|user| (user, LOVED, 100)).collect();
+		let wide: Vec<(u32, u32, u32)> = (MIN_BACKER..member)
+			.map(|user| (user, OTHER, 100))
+			.collect();
+
+		let library: Vec<(u32, u32)> = (0..member)
+			.map(|user| {
+				(
+					user,
+					if user < MIN_BACKER {
+						LIBRARY
+					} else {
+						LIBRARY * 100
+					},
+				)
+			})
+			.collect();
+
+		let candidate = served(&index(&[narrow, wide].concat(), &library), member);
+
+		assert!(score(&candidate, LOVED) > score(&candidate, OTHER));
+	}
 }

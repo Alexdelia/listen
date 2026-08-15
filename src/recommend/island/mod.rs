@@ -1,3 +1,4 @@
+mod attraction;
 mod cohort;
 mod index;
 mod log;

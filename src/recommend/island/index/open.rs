@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache;
 
+use super::super::attraction;
+
 pub(super) const DIR: &str = "index";
 pub(super) const META: &str = "meta.json";
 pub(super) const RECORDING: &str = "recording.parquet";
 pub(super) const RECORDING_ARTIST: &str = "recording_artist.parquet";
 pub(super) const USER_LISTEN: &str = "user_listen";
+pub(super) const USER_STAT: &str = "user_stat.parquet";
 pub(super) const ARTIST_LINK: &str = "artist_link.parquet";
 pub(super) const BUCKET: u32 = 8;
 
@@ -20,7 +23,8 @@ const MEMORY_LIMIT: &str = "4GB";
 pub(crate) struct Meta {
 	pub built: String,
 	pub dump: String,
-	pub seed: u64,
+	#[serde(default)]
+	pub own: Option<u32>,
 	pub user: u64,
 	pub recording: u64,
 	pub user_listen: u64,
@@ -40,13 +44,13 @@ pub(super) fn shard(bucket: u32) -> String {
 }
 
 pub(super) fn indexed(dir: &Path) -> bool {
-	[RECORDING, RECORDING_ARTIST, META]
+	[RECORDING, RECORDING_ARTIST, USER_STAT, META]
 		.iter()
 		.all(|part| dir.join(part).exists())
 		&& bucketed(&dir.join(USER_LISTEN))
 }
 
-fn bucketed(into: &Path) -> bool {
+pub(super) fn bucketed(into: &Path) -> bool {
 	(0..BUCKET).all(|bucket| into.join(shard(bucket)).exists())
 }
 
@@ -54,8 +58,7 @@ pub(super) fn built(dir: &Path) -> bool {
 	indexed(dir) && dir.join(ARTIST_LINK).exists()
 }
 
-pub(super) fn open(dir: &Path) -> hmerr::Result<Index> {
-	let meta = meta(dir)?;
+pub(super) fn session(dir: &Path) -> hmerr::Result<duckdb::Connection> {
 	let db = duckdb::Connection::open_in_memory()?;
 
 	db.execute_batch(&format!(
@@ -63,15 +66,35 @@ pub(super) fn open(dir: &Path) -> hmerr::Result<Index> {
 set memory_limit='{MEMORY_LIMIT}';
 set temp_directory='{dir}/spill';
 set preserve_insertion_order=false;
+",
+		dir = dir.display()
+	))?;
+
+	Ok(db)
+}
+
+pub(super) fn open(dir: &Path) -> hmerr::Result<Index> {
+	let meta = meta(dir)?;
+	let db = session(dir)?;
+
+	db.execute_batch(&format!(
+		r"
 create view recording as select * from read_parquet('{dir}/{RECORDING}');
 create view recording_artist as select * from read_parquet('{dir}/{RECORDING_ARTIST}');
 create view user_listen as select * from read_parquet('{dir}/{USER_LISTEN}/*.parquet');
+create view user_stat as select * from read_parquet('{dir}/{USER_STAT}');
 create view artist_link as select * from read_parquet('{dir}/{ARTIST_LINK}');
 ",
 		dir = dir.display()
 	))?;
 
+	attraction::declare(&db)?;
+
 	Ok(Index { db, meta })
+}
+
+pub(super) fn own(dir: &Path) -> Option<u32> {
+	meta(dir).ok().and_then(|meta| meta.own)
 }
 
 pub(super) fn forget_meta(dir: &Path) -> hmerr::Result<()> {
@@ -126,7 +149,7 @@ mod tests {
 		let into = dir.join(USER_LISTEN);
 		let _ = fs::create_dir_all(&into);
 
-		for part in [RECORDING, RECORDING_ARTIST, META] {
+		for part in [RECORDING, RECORDING_ARTIST, USER_STAT, META] {
 			let _ = fs::write(dir.join(part), b"built");
 		}
 		for bucket in 0..bucket {

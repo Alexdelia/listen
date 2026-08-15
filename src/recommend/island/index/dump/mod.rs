@@ -29,6 +29,10 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 	}
 }
 
+pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {
+	listen::find(&root()?)
+}
+
 pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 	listen::discard(listen)
 }

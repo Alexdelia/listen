@@ -6,7 +6,10 @@ use std::{
 use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 
-use super::super::{partial, progress};
+use super::super::{
+	open::{self, BUCKET},
+	partial, progress,
+};
 
 const MEMORY_LIMIT: &str = "5GB";
 const THREAD: usize = 3;
@@ -77,6 +80,31 @@ copy ({select}) to '{partial}' (format parquet, compression zstd);
 		bar.finish();
 
 		Ok(partial)
+	}
+
+	pub(super) fn bucketed(
+		&self,
+		into: &Path,
+		title: &str,
+		query: &dyn Fn(u32) -> String,
+	) -> hmerr::Result<()> {
+		fs::create_dir_all(into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+
+		let bar = progress::step_bar(u64::from(BUCKET), title)?;
+
+		for bucket in 0..BUCKET {
+			let shard = into.join(open::shard(bucket));
+
+			if !self.done(&shard) {
+				self.copy(&shard, &query(bucket))?;
+			}
+
+			bar.inc(1);
+		}
+
+		bar.finish();
+
+		Ok(())
 	}
 
 	pub(super) fn done(&self, of: &Path) -> bool {

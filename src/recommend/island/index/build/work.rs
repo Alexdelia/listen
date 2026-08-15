@@ -6,32 +6,25 @@ use std::{
 use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
-use crate::declaration::Entry;
-
-use super::{super::open::USER_LISTEN, artist, seed, user_listen};
+use super::super::open::{USER_LISTEN, USER_STAT};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
-const INPUT: &str = "input";
+const FORMAT: u32 = 2;
 
-pub(super) fn open(dir: &Path, dump: &str, declared: &[Entry]) -> hmerr::Result<PathBuf> {
+pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	let work = dir.join(DIR);
+	let dump = &format!("{FORMAT} {dump}");
 
-	if stamped(&work, DUMP).as_deref() != Some(dump) {
+	if stamped(&work, DUMP).as_deref() != Some(dump.as_str()) {
 		discard(&work)?;
-	}
-
-	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
-
-	let input = input(dump, declared);
-	if stamped(&work, INPUT).as_deref() != Some(input.as_str()) {
-		for stale in derived(dir, &work) {
+		for stale in published(dir) {
 			discard(&stale)?;
 		}
 	}
 
+	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
 	stamp(&work, DUMP, dump)?;
-	stamp(&work, INPUT, &input)?;
 
 	Ok(work)
 }
@@ -48,21 +41,8 @@ pub(super) fn release(work: &Path) {
 	);
 }
 
-fn input(dump: &str, declared: &[Entry]) -> String {
-	let mut mbid: Vec<String> = declared.iter().map(|entry| entry.s.to_string()).collect();
-	mbid.sort_unstable();
-	mbid.dedup();
-
-	format!("{dump}\n{}", mbid.join("\n"))
-}
-
-fn derived(dir: &Path, work: &Path) -> [PathBuf; 4] {
-	[
-		work.join(seed::NAME),
-		work.join(artist::NAME),
-		work.join(user_listen::NAME),
-		dir.join(USER_LISTEN),
-	]
+fn published(dir: &Path) -> [PathBuf; 2] {
+	[dir.join(USER_LISTEN), dir.join(USER_STAT)]
 }
 
 fn stamped(work: &Path, of: &str) -> Option<String> {
@@ -78,21 +58,22 @@ fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn discard(work: &Path) -> hmerr::Result<()> {
-	if !work.is_dir() {
-		return Ok(());
+fn discard(path: &Path) -> hmerr::Result<()> {
+	if path.is_dir() {
+		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	} else if path.is_file() {
+		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 	}
-
-	fs::remove_dir_all(work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
 
 	Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::declaration::Source;
-
-	use super::*;
+	use super::{
+		super::{artist, library},
+		*,
+	};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));
@@ -100,16 +81,6 @@ mod tests {
 		let _ = fs::create_dir_all(&dir);
 
 		dir
-	}
-
-	fn declared(mbid: &[u128]) -> Vec<Entry> {
-		mbid.iter()
-			.map(|mbid| Entry {
-				s: Source::from_u128(*mbid),
-				q: 2,
-				playlist: Vec::new(),
-			})
-			.collect()
 	}
 
 	fn shard(under: &Path, name: &str) -> PathBuf {
@@ -123,16 +94,23 @@ mod tests {
 	}
 
 	fn partial(work: &Path) -> PathBuf {
-		shard(work, user_listen::NAME)
+		shard(work, library::NAME)
+	}
+
+	fn stat(dir: &Path) -> PathBuf {
+		let stat = dir.join(USER_STAT);
+		let _ = fs::write(&stat, b"built");
+
+		stat
 	}
 
 	#[test]
 	fn the_same_dump_keeps_what_a_previous_run_already_scanned() {
 		let dir = dir("resume");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
-		let again = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let again = open(&dir, "20260712-000004").unwrap_or_default();
 
 		assert_eq!(again, work);
 		assert!(partial.exists());
@@ -142,10 +120,10 @@ mod tests {
 	#[test]
 	fn another_dump_throws_the_previous_scan_away() {
 		let dir = dir("stale");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
-		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
+		let _ = open(&dir, "20260809-000003");
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
@@ -157,66 +135,52 @@ mod tests {
 		let work = dir.join(DIR);
 		let partial = partial(&work);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let _ = open(&dir, "20260712-000004");
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn a_new_declared_recording_throws_away_everything_keyed_by_recording_id() {
-		let dir = dir("declared");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+	fn the_declaration_never_reaches_the_scan_so_editing_it_throws_nothing_away() {
+		let dir = dir("declaration");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
-		let seed = shard(&work, seed::NAME);
 		let artist = shard(&work, artist::NAME);
 		let listen = shard(&dir, USER_LISTEN);
+		let stat = stat(&dir);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 3]));
-
-		assert!(!partial.exists());
-		assert!(!seed.exists());
-		assert!(!artist.exists());
-		assert!(!listen.exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn the_same_declaration_in_another_order_is_the_same_recording_id() {
-		let dir = dir("order");
-		let work = open(&dir, "20260712-000004", &declared(&[2, 1])).unwrap_or_default();
-		let partial = partial(&work);
-		let seed = shard(&work, seed::NAME);
-		let listen = shard(&dir, USER_LISTEN);
-
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 2]));
+		let _ = open(&dir, "20260712-000004");
 
 		assert!(partial.exists());
-		assert!(seed.exists());
+		assert!(artist.exists());
 		assert!(listen.exists());
+		assert!(stat.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn another_dump_throws_away_the_published_user_listen() {
+	fn another_dump_throws_away_the_published_index() {
 		let dir = dir("published");
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let _ = open(&dir, "20260712-000004");
 		let listen = shard(&dir, USER_LISTEN);
+		let stat = stat(&dir);
 
-		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
+		let _ = open(&dir, "20260809-000003");
 
 		assert!(!listen.exists());
+		assert!(!stat.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
 	fn a_released_build_cannot_vouch_for_the_published_user_listen() {
 		let dir = dir("released");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let listen = shard(&dir, USER_LISTEN);
 		release(&work);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let _ = open(&dir, "20260712-000004");
 
 		assert!(!listen.exists());
 		let _ = fs::remove_dir_all(&dir);
@@ -225,7 +189,7 @@ mod tests {
 	#[test]
 	fn releasing_leaves_nothing_behind() {
 		let dir = dir("release");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		partial(&work);
 
 		release(&work);

@@ -19,7 +19,7 @@ pub(super) fn similarity(seed: &[Seed], user: usize) -> Similarity {
 
 	for (index, seed) in seed.iter().enumerate() {
 		for listener in &seed.listener {
-			let listener = *listener as usize;
+			let listener = listener.user as usize;
 			bit[index * word + listener / 64] |= 1 << (listener % 64);
 		}
 	}
@@ -312,7 +312,7 @@ fn dense(community: Vec<usize>) -> (Vec<usize>, usize) {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{super::super::seed::Listener, *};
 
 	fn edge(pair: &[(usize, usize)]) -> Vec<(usize, usize, f64)> {
 		pair.iter().map(|(a, b)| (*a, *b, 1.0)).collect()
@@ -400,8 +400,13 @@ mod tests {
 					[u8::try_from(index).unwrap_or_default(); 16],
 				),
 				q: 2,
-				listener: listener.to_vec(),
-				deliberate: listener.to_vec(),
+				listener: listener
+					.iter()
+					.map(|user| Listener {
+						user: *user,
+						weight: 1.0,
+					})
+					.collect(),
 			})
 			.collect()
 	}

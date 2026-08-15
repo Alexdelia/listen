@@ -45,7 +45,7 @@ fn label(origin: &Origin) -> String {
 			plays,
 			..
 		} => format!(
-			" {Y}{score:.1}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
+			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }

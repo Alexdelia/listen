@@ -43,7 +43,6 @@ mod tests {
 					mbid: Source::from_bytes([*q; 16]),
 					q: *q,
 					listener: Vec::new(),
-					deliberate: Vec::new(),
 				})
 				.collect(),
 			user: Vec::new(),

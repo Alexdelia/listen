@@ -83,7 +83,7 @@ fn no_genre(token: &str) -> GenericError {
 mod tests {
 	use super::*;
 
-	use crate::recommend::island::seed::Seed;
+	use crate::recommend::island::seed::{Listener, Seed};
 
 	fn mbid(nibble: u8) -> Source {
 		Source::from_bytes([nibble; 16])
@@ -96,8 +96,10 @@ mod tests {
 				.map(|nibble| Seed {
 					mbid: mbid(*nibble),
 					q: 2,
-					listener: vec![1],
-					deliberate: vec![1],
+					listener: vec![Listener {
+						user: 1,
+						weight: 1.0,
+					}],
 				})
 				.collect(),
 			user: vec![0, 1],
