@@ -8,7 +8,7 @@ use hmerr::ioe;
 
 use super::super::{
 	keep,
-	open::{USER_LISTEN, USER_STAT},
+	open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
 	progress,
 };
 
@@ -22,15 +22,26 @@ pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 
 	if stamped(&work, DUMP).as_deref() != Some(dump.as_str()) {
 		discard_unusable(&work)?;
-		for stale in published(dir) {
-			discard_unusable(&stale)?;
-		}
 	}
 
 	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
 	stamp(&work, DUMP, dump)?;
 
 	Ok(work)
+}
+
+pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
+	open::forget_meta(dir)?;
+
+	for part in published() {
+		let built = work.join(part);
+		let into = dir.join(part);
+
+		discard_unusable(&into)?;
+		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+	}
+
+	open::write_meta(dir, meta)
 }
 
 pub(super) fn release(work: &Path) {
@@ -44,8 +55,8 @@ pub(super) fn release(work: &Path) {
 	));
 }
 
-fn published(dir: &Path) -> [PathBuf; 2] {
-	[dir.join(USER_LISTEN), dir.join(USER_STAT)]
+fn published() -> [&'static str; 4] {
+	[RECORDING, RECORDING_ARTIST, USER_STAT, USER_LISTEN]
 }
 
 fn stamped(work: &Path, of: &str) -> Option<String> {
@@ -104,6 +115,27 @@ mod tests {
 		stat
 	}
 
+	fn staged(work: &Path) {
+		for part in [RECORDING, RECORDING_ARTIST, USER_STAT] {
+			let _ = fs::write(work.join(part), b"fresh");
+		}
+
+		let listen = work.join(USER_LISTEN);
+		let _ = fs::create_dir_all(&listen);
+		let _ = fs::write(listen.join("0.parquet"), b"fresh");
+	}
+
+	fn meta() -> Meta {
+		Meta {
+			built: "2026-08-15".to_string(),
+			dump: "20260712-000004".to_string(),
+			own: Some(1),
+			user: 5,
+			recording: 35,
+			user_listen: 200,
+		}
+	}
+
 	#[test]
 	fn the_same_dump_keeps_what_a_previous_run_already_scanned() {
 		let dir = dir("resume");
@@ -160,7 +192,7 @@ mod tests {
 	}
 
 	#[test]
-	fn another_dump_throws_away_the_published_index() {
+	fn another_dump_leaves_the_published_index_alone() {
 		let dir = dir("published");
 		let _ = open(&dir, "20260712-000004");
 		let listen = shard(&dir, USER_LISTEN);
@@ -168,21 +200,51 @@ mod tests {
 
 		let _ = open(&dir, "20260809-000003");
 
-		assert!(!listen.exists());
-		assert!(!stat.exists());
+		assert!(listen.exists());
+		assert!(stat.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn a_released_build_cannot_vouch_for_the_published_user_listen() {
-		let dir = dir("released");
+	fn what_a_build_produces_reaches_the_index_only_when_it_publishes() {
+		let dir = dir("staged");
+		let stat = stat(&dir);
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		staged(&work);
+
+		assert_eq!(fs::read(&stat).unwrap_or_default(), b"built");
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn publishing_puts_every_built_part_in_place() {
+		let dir = dir("publish");
+		let stat = stat(&dir);
 		let listen = shard(&dir, USER_LISTEN);
-		release(&work);
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		staged(&work);
 
-		let _ = open(&dir, "20260712-000004");
+		assert!(publish(&work, &dir, &meta()).is_ok());
 
-		assert!(!listen.exists());
+		assert_eq!(fs::read(&stat).unwrap_or_default(), b"fresh");
+		assert_eq!(fs::read(&listen).unwrap_or_default(), b"fresh");
+		for part in published() {
+			assert!(dir.join(part).exists(), "{part}");
+			assert!(!work.join(part).exists(), "{part}");
+		}
+		assert!(dir.join(open::META).exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_publish_that_cannot_finish_leaves_no_meta_vouching_for_a_half_swapped_index() {
+		let dir = dir("torn");
+		let _ = fs::write(dir.join(open::META), b"{}");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+
+		assert!(publish(&work, &dir, &meta()).is_err());
+
+		assert!(!dir.join(open::META).exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

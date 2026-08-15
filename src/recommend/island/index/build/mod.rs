@@ -24,7 +24,6 @@ use scan::Scan;
 pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Result<()> {
 	let declared = parse::parse(declaration)?;
 	let known = open::own(dir);
-	open::forget_meta(dir)?;
 	let work = work::open(dir, &dump.name)?;
 
 	announce(declared.len());
@@ -35,29 +34,27 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 	let library = library::of(&scan)?;
 
 	let (recording, pool) = parallel::both(
-		|| recording::of(&scan, dir, &library),
+		|| recording::of(&scan, &work, &library),
 		|| pool::of(&scan, &library, declared.len(), known),
 	)?;
 
 	let ((), (), row) = parallel::all(
-		|| artist::of(&scan, dir, &recording),
-		|| user_stat::of(&scan, dir, &library, &pool),
-		|| user_listen::of(&scan, dir, &library, &pool, &recording),
+		|| artist::of(&scan, &work, &recording),
+		|| user_stat::of(&scan, &work, &library, &pool),
+		|| user_listen::of(&scan, &work, &library, &pool, &recording),
 	)?;
 
-	open::write_meta(
-		dir,
-		&open::Meta {
-			built: Utc::now().date_naive().to_string(),
-			dump: dump.name.clone(),
-			own: Some(pool.own),
-			user: scan.count(&pool.path)?,
-			recording: scan.count(&recording)?,
-			user_listen: row,
-		},
-	)?;
+	let meta = open::Meta {
+		built: Utc::now().date_naive().to_string(),
+		dump: dump.name.clone(),
+		own: Some(pool.own),
+		user: scan.count(&pool.path)?,
+		recording: scan.count(&recording)?,
+		user_listen: row,
+	};
 
 	drop(scan);
+	work::publish(&work, dir, &meta)?;
 	work::release(&work);
 
 	progress::say(format!("{G}index built{D}"));
@@ -236,6 +233,31 @@ mod tests {
 			.unwrap();
 
 		assert_eq!(own, 0);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_build_that_dies_partway_leaves_the_index_it_would_have_replaced() {
+		let (dir, meta) = built("survive");
+		let index = dir.join("index");
+		let listen = count(&index, &format!("{USER_LISTEN}/*.parquet"));
+
+		let torn = dir.join("torn");
+		let _ = fs::create_dir_all(&torn);
+		let _ = fs::write(torn.join("0.parquet"), b"not a parquet footer");
+		let dead = Listen {
+			dir: torn,
+			name: "20260809-000003".to_string(),
+		};
+
+		assert!(run(&index, &dead, &declaration(&dir)).is_err());
+
+		assert_eq!(count(&index, &format!("{USER_LISTEN}/*.parquet")), listen);
+		assert_eq!(count(&index, USER_STAT), i64::from(POOL_USER));
+		assert!(count(&index, RECORDING) > 0);
+		let held: open::Meta =
+			serde_json::from_str(&fs::read_to_string(index.join(open::META)).unwrap()).unwrap();
+		assert_eq!(held.dump, meta.dump);
 		let _ = fs::remove_dir_all(&dir);
 	}
 
