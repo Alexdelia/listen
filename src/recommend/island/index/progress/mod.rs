@@ -2,13 +2,17 @@ mod eta;
 
 use std::{
 	io::Read,
-	process::{Command, Stdio},
-	sync::OnceLock,
+	process::{Child, Command, Stdio},
+	sync::{
+		Mutex, MutexGuard, PoisonError,
+		atomic::{AtomicUsize, Ordering},
+	},
+	thread,
 	time::Duration,
 };
 
 use ansi::abbrev::{B, D, F, R};
-use hmerr::ge;
+use hmerr::{ge, ioe};
 use indicatif::{HumanBytes, MultiProgress, ProgressBar, ProgressStyle};
 
 use eta::Eta;
@@ -22,14 +26,59 @@ const WAITING_STEP: &str = "{pos:>4.dim}/{len:4.dim} {percent:>3.dim}%";
 const TIME: &str = "{elapsed:>5.bold.blue}|{eta:5.bold.magenta}";
 const WAITING_TIME: &str = "    -|-    ";
 
-static BOARD: OnceLock<MultiProgress> = OnceLock::new();
+static BOARD: Mutex<Option<MultiProgress>> = Mutex::new(None);
+static SHOWING: AtomicUsize = AtomicUsize::new(0);
 
-fn board() -> &'static MultiProgress {
-	BOARD.get_or_init(MultiProgress::new)
+fn held() -> MutexGuard<'static, Option<MultiProgress>> {
+	BOARD.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn board() -> MultiProgress {
+	held().get_or_insert_with(MultiProgress::new).clone()
+}
+
+fn showing() -> bool {
+	SHOWING.load(Ordering::Relaxed) > 0
+}
+
+fn shown(bar: ProgressBar) -> ProgressBar {
+	SHOWING.fetch_add(1, Ordering::Relaxed);
+
+	board().add(bar)
+}
+
+pub(super) fn ended(bar: &ProgressBar) {
+	if bar.is_finished() {
+		return;
+	}
+
+	bar.disable_steady_tick();
+	bar.finish();
+
+	if SHOWING.fetch_sub(1, Ordering::Relaxed) == 1 {
+		held().take();
+	}
 }
 
 pub(super) fn say(line: impl AsRef<str>) {
-	board().suspend(|| println!("{}", line.as_ref()));
+	let line = line.as_ref();
+
+	if !showing() {
+		println!("{line}");
+		return;
+	}
+
+	board().suspend(|| println!("{line}"));
+}
+
+pub(super) fn ask(question: &str, enter_is: bool) -> hmerr::Result<bool> {
+	let answer = if showing() {
+		board().suspend(|| ux::ask_yn(question, enter_is))
+	} else {
+		ux::ask_yn(question, enter_is)
+	};
+
+	answer.map_err(|e| ioe!("stdin", e).into())
 }
 
 pub(super) fn bytes(size: u64) -> String {
@@ -37,7 +86,7 @@ pub(super) fn bytes(size: u64) -> String {
 }
 
 pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = board().add(ProgressBar::new(total));
+	let bar = shown(ProgressBar::new(total));
 	bar.set_style(style(
 		&titled(title),
 		&format!(
@@ -51,7 +100,7 @@ pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
 }
 
 pub(super) fn waiting_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = board().add(ProgressBar::new(total));
+	let bar = shown(ProgressBar::new(total));
 	bar.set_style(waiting(title)?);
 	bar.tick();
 
@@ -66,11 +115,6 @@ pub(super) fn started(bar: &ProgressBar, title: &str) -> hmerr::Result<()> {
 	bar.enable_steady_tick(SPIN);
 
 	Ok(())
-}
-
-pub(super) fn ended(bar: &ProgressBar) {
-	bar.disable_steady_tick();
-	bar.finish();
 }
 
 fn waiting(title: &str) -> hmerr::Result<ProgressStyle> {
@@ -96,8 +140,11 @@ pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()
 	let mut child = Command::new(program)
 		.args(arg)
 		.stdout(Stdio::piped())
+		.stderr(Stdio::piped())
 		.spawn()
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{program}{D}\n{e}")))?;
+
+	let complaint = complaint(&mut child);
 
 	if let Some(out) = child.stdout.take() {
 		follow(out, &bar);
@@ -107,17 +154,30 @@ pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()
 		.wait()
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{program}{D}\n{e}")))?;
 
-	bar.finish();
+	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
+
+	ended(&bar);
 
 	if !status.success() {
 		return Err(ge!(
-			format!("{R}{B}{program}{D}{R} failed{D}"),
+			format!("{R}{B}{program}{D}{R} failed{D}\n{complaint}"),
 			h: "the transfer resumes where it stopped, run it again"
 		)
 		.into());
 	}
 
 	Ok(())
+}
+
+pub(super) fn complaint(child: &mut Child) -> Option<thread::JoinHandle<String>> {
+	let mut err = child.stderr.take()?;
+
+	Some(thread::spawn(move || {
+		let mut said = String::new();
+		let _ = err.read_to_string(&mut said);
+
+		said.trim().to_string()
+	}))
 }
 
 fn follow(mut out: impl Read, bar: &ProgressBar) {
@@ -194,5 +254,32 @@ mod tests {
 	#[test]
 	fn a_waiting_stage_lines_up_with_a_running_one() {
 		assert_eq!(WAITING_TIME.len(), "00:00|00:00".len());
+	}
+
+	#[test]
+	fn what_a_program_complained_about_is_read_off_its_stderr() {
+		let mut child = Command::new("sh")
+			.args(["-c", "echo 'no such module' >&2"])
+			.stderr(Stdio::piped())
+			.spawn()
+			.unwrap_or_else(|_| unreachable!());
+
+		let complaint = complaint(&mut child).and_then(|read| read.join().ok());
+		let _ = child.wait();
+
+		assert_eq!(complaint, Some("no such module".to_string()));
+	}
+
+	#[test]
+	fn a_program_that_said_nothing_complains_of_nothing() {
+		let mut child = Command::new("true")
+			.stderr(Stdio::piped())
+			.spawn()
+			.unwrap_or_else(|_| unreachable!());
+
+		let complaint = complaint(&mut child).and_then(|read| read.join().ok());
+		let _ = child.wait();
+
+		assert_eq!(complaint, Some(String::new()));
 	}
 }

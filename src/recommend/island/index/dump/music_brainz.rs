@@ -39,7 +39,7 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
+	if !progress::ask("download it", false)? {
 		return Err(refused().into());
 	}
 
@@ -82,8 +82,12 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	let mut child = Command::new(TAR)
 		.args(&argument)
 		.stdin(Stdio::piped())
+		.stdout(Stdio::null())
+		.stderr(Stdio::piped())
 		.spawn()
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{TAR}{D}\n{e}")))?;
+
+	let complaint = progress::complaint(&mut child);
 
 	let file = fs::File::open(&archive).map_err(|e| ioe!(archive.to_string_lossy(), e))?;
 	let fed = match child.stdin.take() {
@@ -94,9 +98,12 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	let status = child
 		.wait()
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{TAR}{D}\n{e}")))?;
-	bar.finish();
 
-	unpacked(status, fed)?;
+	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
+
+	progress::ended(&bar);
+
+	unpacked(status, fed, &complaint)?;
 
 	for table in TABLE {
 		if !into.join(table).exists() {
@@ -107,10 +114,10 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	Ok(into)
 }
 
-fn unpacked(status: ExitStatus, fed: io::Result<u64>) -> hmerr::Result<()> {
+fn unpacked(status: ExitStatus, fed: io::Result<u64>, complaint: &str) -> hmerr::Result<()> {
 	if !status.success() {
 		return Err(ge!(format!(
-			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}"
+			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}\n{complaint}"
 		))
 		.into());
 	}
@@ -179,20 +186,20 @@ mod tests {
 
 	#[test]
 	fn a_tar_that_died_is_what_broke_the_pipe() {
-		let said = message(unpacked(exit(2), broken_pipe()));
+		let said = message(unpacked(exit(2), broken_pipe(), "tar: unexpected eof"));
 
 		assert!(said.contains("could not unpack"), "{said}");
 	}
 
 	#[test]
 	fn a_pipe_that_broke_on_its_own_is_still_reported() {
-		let said = message(unpacked(exit(0), broken_pipe()));
+		let said = message(unpacked(exit(0), broken_pipe(), ""));
 
 		assert!(said.contains("broken pipe"), "{said}");
 	}
 
 	#[test]
 	fn a_whole_archive_fed_to_a_happy_tar_is_unpacked() {
-		assert!(unpacked(exit(0), Ok(1 << 20)).is_ok());
+		assert!(unpacked(exit(0), Ok(1 << 20), "").is_ok());
 	}
 }

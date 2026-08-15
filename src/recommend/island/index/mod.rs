@@ -9,7 +9,6 @@ mod user_stat;
 use std::path::Path;
 
 use ansi::abbrev::{B, D, F};
-use hmerr::ioe;
 
 use dump::Listen;
 
@@ -53,5 +52,5 @@ fn asked(listen: &Listen) -> hmerr::Result<bool> {
 		name = listen.name
 	));
 
-	ux::ask_yn("rebuild index", true).map_err(|e| ioe!("stdin", e).into())
+	progress::ask("rebuild index", true)
 }

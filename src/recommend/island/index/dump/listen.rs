@@ -79,7 +79,7 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
+	if !progress::ask("download it", false)? {
 		return Err(refused().into());
 	}
 
@@ -164,7 +164,7 @@ fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 		.unpack(root)
 		.map_err(|e| ioe!(tar.to_string_lossy(), e))?;
 
-	bar.finish();
+	progress::ended(&bar);
 
 	let dir = root.join(LISTEN);
 	let inner = fs::read_dir(root)

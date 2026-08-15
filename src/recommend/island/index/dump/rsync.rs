@@ -161,13 +161,13 @@ fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
 }
 
 fn checked_list(dir: &Path, sums: &str) -> hmerr::Result<bool> {
-	let status = Command::new(SHA256SUM)
+	let out = Command::new(SHA256SUM)
 		.args(["--check", "--ignore-missing", sums])
 		.current_dir(dir)
-		.status()
+		.output()
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")))?;
 
-	Ok(status.success())
+	Ok(out.status.success())
 }
 
 pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> {
