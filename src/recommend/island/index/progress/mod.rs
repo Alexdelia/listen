@@ -1,3 +1,5 @@
+mod eta;
+
 use std::{
 	io::Read,
 	process::{Command, Stdio},
@@ -8,6 +10,8 @@ use std::{
 use ansi::abbrev::{B, D, F, R};
 use hmerr::ge;
 use indicatif::{HumanBytes, MultiProgress, ProgressBar, ProgressStyle};
+
+use eta::Eta;
 
 const READ: usize = 16 * 1024;
 const SPIN: Duration = Duration::from_millis(120);
@@ -55,7 +59,9 @@ pub(super) fn waiting_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar>
 }
 
 pub(super) fn started(bar: &ProgressBar, title: &str) -> hmerr::Result<()> {
-	bar.set_style(style(&titled(title), &format!("{STEP} {TIME}"), "cyan")?);
+	bar.set_style(
+		style(&titled(title), &format!("{STEP} {TIME}"), "cyan")?.with_key(eta::KEY, Eta::new()),
+	);
 	bar.reset_elapsed();
 	bar.enable_steady_tick(SPIN);
 
