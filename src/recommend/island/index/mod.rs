@@ -22,11 +22,12 @@ pub(super) fn ready() -> bool {
 pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 	let dir = open::dir()?;
 
-	user_stat::derive(&dir)?;
-
-	if let Some(listen) = to_build_from(&dir)? {
-		build::run(&dir, &listen, declaration)?;
-		dump::discard(&listen)?;
+	match to_build_from(&dir)? {
+		Some(listen) => {
+			build::run(&dir, &listen, declaration)?;
+			dump::discard(&listen)?;
+		}
+		None => user_stat::derive(&dir)?,
 	}
 
 	dump::artist_link(&dir.join(open::ARTIST_LINK))?;
@@ -35,7 +36,7 @@ pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 }
 
 fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
-	if !open::indexed(dir) {
+	if !open::scanned(dir) {
 		return dump::listen().map(Some);
 	}
 

@@ -9,11 +9,11 @@ use super::{
 };
 
 pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
-	let into = dir.join(USER_STAT);
-
-	if into.exists() || !open::bucketed(&dir.join(USER_LISTEN)) {
+	if !open::predates_stat(dir) {
 		return Ok(());
 	}
+
+	let into = dir.join(USER_STAT);
 
 	progress::say(format!(
 		"{F}index predates listener stat, derived from its listen, \

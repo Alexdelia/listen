@@ -44,7 +44,15 @@ pub(super) fn shard(bucket: u32) -> String {
 }
 
 pub(super) fn indexed(dir: &Path) -> bool {
-	[RECORDING, RECORDING_ARTIST, USER_STAT, META]
+	scanned(dir) && dir.join(USER_STAT).exists()
+}
+
+pub(super) fn predates_stat(dir: &Path) -> bool {
+	scanned(dir) && !dir.join(USER_STAT).exists()
+}
+
+pub(super) fn scanned(dir: &Path) -> bool {
+	[RECORDING, RECORDING_ARTIST, META]
 		.iter()
 		.all(|part| dir.join(part).exists())
 		&& bucketed(&dir.join(USER_LISTEN))
@@ -163,6 +171,28 @@ mod tests {
 		lay_out(&dir, BUCKET);
 
 		assert!(indexed(&dir));
+		assert!(!predates_stat(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_written_before_the_listener_stat_is_one_to_recover_not_to_build_again() {
+		let dir = scratch("predate");
+		lay_out(&dir, BUCKET);
+		let _ = fs::remove_file(dir.join(USER_STAT));
+
+		assert!(!indexed(&dir));
+		assert!(predates_stat(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_stat_cannot_be_recovered_from_listens_that_are_not_all_there() {
+		let dir = scratch("half");
+		lay_out(&dir, BUCKET / 2);
+		let _ = fs::remove_file(dir.join(USER_STAT));
+
+		assert!(!predates_stat(&dir));
 		let _ = fs::remove_dir_all(&dir);
 	}
 
