@@ -1064,4 +1064,10 @@
 	(s: "a3d59d03-f692-4410-a4f8-2e60a0766c5b", q: 1, playlist: ["aggressive"]),
 	(s: "e6f462e6-1b3c-415e-8d8b-94e55ce7900e", q: 1, playlist: []),
 	(s: "5388d68b-13d1-4e6f-be19-d1589c3ebcac", q: 2, playlist: ["calm"]),
+	(s: "0b5e1872-7dc4-408b-87c9-91beb9edb206", q: 1, playlist: []),
+	(s: "c8a167bb-2380-47bc-a33b-64641e1f82b7", q: 1, playlist: []),
+	(s: "f2503323-fba8-4713-b6cd-7264afbd2c3c", q: 0, playlist: ["aggressive"]),
+	(s: "e2f65749-ae85-4966-84fc-1f49df326f15", q: 0, playlist: []),
+	(s: "3a35a23b-94a6-477a-a973-c37df033b747", q: 0, playlist: ["aggressive"]),
+	(s: "ff1e3e1a-f6e8-4692-b426-355880383bb6", q: 0, playlist: []),
 ]
