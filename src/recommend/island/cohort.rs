@@ -26,7 +26,7 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 
 		for listener in &seed.listener {
 			if let Some(affinity) = affinity.get_mut(listener.user as usize) {
-				*affinity += weight * listener.weight;
+				*affinity += pull(weight, listener.weight);
 			}
 		}
 	}
@@ -47,6 +47,15 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 	member.truncate(size);
 
 	member
+}
+
+fn pull(seed: f32, listener: f32) -> f32 {
+	let shared_dislike = seed < 0.0 && listener < 0.0;
+	if shared_dislike {
+		return 0.0;
+	}
+
+	seed * listener
 }
 
 #[cfg(test)]
@@ -194,6 +203,24 @@ mod tests {
 		assert_eq!(
 			cohort.iter().map(|member| member.user).collect::<Vec<_>>(),
 			vec![1]
+		);
+	}
+
+	#[test]
+	fn a_listener_who_dropped_a_disliked_seed_is_not_recruited_by_it() {
+		let library = weighted(&[(0, &[(0, -0.3)])], 4);
+
+		assert!(of(&library, &island(&[0]), SIZE).is_empty());
+	}
+
+	#[test]
+	fn a_shared_dislike_neither_recruits_nor_evicts() {
+		let library = weighted(&[(4, &[(0, 0.8)]), (0, &[(0, -0.3), (1, 0.9)])], 4);
+		let cohort = of(&library, &island(&[0, 1]), SIZE);
+
+		assert_eq!(
+			cohort.iter().map(|member| member.user).collect::<Vec<_>>(),
+			vec![0]
 		);
 	}
 

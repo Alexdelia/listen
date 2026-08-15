@@ -12,37 +12,47 @@ const CENTER_ROOM_RATIO: f32 = 2.0;
 const SPAN_PER_ROOM: f32 = 3.0;
 const SPAN_HALF_RATIO: f32 = 3.0;
 const REACH: f32 = 50.0;
-const REPEL: f32 = 15.0;
+const REPEL: f32 = 25.0;
 const EPSILON: f32 = 1e-6;
 
+const TRIAL_PLAY: u16 = 1;
+const ADOPT_MIN_PLAY: u16 = 4;
+const ADOPT_MAX_PLAY: u16 = 12;
+
 const ROOM: &str = "attraction_room";
-const CENTER: &str = "attraction_center";
+const ADOPT: &str = "attraction_adopt";
 
 pub(super) fn declare(db: &duckdb::Connection) -> hmerr::Result<()> {
 	let neutral = f32::from(value::NEUTRAL);
 	let room = CENTER_ROOM_RATIO.ln();
 	let span_half = SPAN_HALF_RATIO.ln();
+	let trial = f32::from(TRIAL_PLAY).ln();
+	let adopt_min = f32::from(ADOPT_MIN_PLAY).ln();
+	let adopt_max = f32::from(ADOPT_MAX_PLAY).ln();
 
 	db.execute_batch(&format!(
 		r"
 create or replace macro {ROOM}(low, high) as
 	least({room}, (high - low) / {SPAN_PER_ROOM});
-create or replace macro {CENTER}(center, low, high) as
+create or replace macro {ADOPT}(center, low, high) as
 	least(
-		greatest(center, low + {ROOM}(low, high)),
+		greatest(
+			least(greatest(center, {adopt_min}), {adopt_max}),
+			{trial} + {ROOM}(low, high)
+		),
 		high - {ROOM}(low, high)
 	);
 create or replace macro {VALUE}(plays, center, low, high) as
 	{neutral} + (
-		case when ln(greatest(plays, 1)) >= {CENTER}(center, low, high)
+		case when ln(greatest(plays, 1)) >= {ADOPT}(center, low, high)
 			then {REACH} * least(
-				(ln(greatest(plays, 1)) - {CENTER}(center, low, high))
-					/ greatest(high - {CENTER}(center, low, high), {EPSILON}),
+				(ln(greatest(plays, 1)) - {ADOPT}(center, low, high))
+					/ greatest(high - {ADOPT}(center, low, high), {EPSILON}),
 				1
 			)
 			else {REPEL} * greatest(
-				(ln(greatest(plays, 1)) - {CENTER}(center, low, high))
-					/ greatest({CENTER}(center, low, high) - low, {EPSILON}),
+				(ln(greatest(plays, 1)) - {ADOPT}(center, low, high))
+					/ greatest({ADOPT}(center, low, high) - {trial}, {EPSILON}),
 				-1
 			)
 		end
@@ -241,6 +251,60 @@ mod tests {
 			.unwrap();
 
 		assert!(weight.abs() < 1e-3, "{weight}");
+	}
+
+	#[test]
+	fn a_recording_tried_a_couple_of_times_and_dropped_repels_whoever_tried_it() {
+		let db = db();
+
+		for stat in [
+			whale(&db),
+			focused(&db),
+			stat_of(&db, &[(1, 900), (50, 10)]),
+		] {
+			for plays in 1..=3 {
+				let value = value(&db, plays, &stat);
+
+				assert!(value < neutral(), "{plays} play reads {value}");
+			}
+		}
+	}
+
+	#[test]
+	fn the_middle_of_a_huge_library_is_still_a_recording_its_owner_loves() {
+		let db = db();
+		let middle = value(&db, 100, &whale(&db));
+
+		assert!(middle > 65.0, "{middle}");
+	}
+
+	#[test]
+	fn adoption_needs_no_more_than_a_dozen_plays_however_hard_a_user_repeats() {
+		let db = db();
+
+		for stat in [whale(&db), focused(&db)] {
+			let adopted = value(&db, u32::from(ADOPT_MAX_PLAY), &stat);
+
+			assert!(adopted >= neutral(), "{adopted}");
+		}
+	}
+
+	#[test]
+	fn every_repeat_reads_warmer_than_the_one_before() {
+		let db = db();
+
+		for stat in [
+			whale(&db),
+			focused(&db),
+			stat_of(&db, &[(1, 900), (50, 10)]),
+			stat_of(&db, &[(1, 300), (3, 80), (8, 30), (25, 5)]),
+		] {
+			for plays in 1..40 {
+				let (before, after) = (value(&db, plays, &stat), value(&db, plays + 1, &stat));
+
+				assert!(after >= before, "{plays} play reads {before}, then {after}");
+			}
+		}
 	}
 
 	#[test]
