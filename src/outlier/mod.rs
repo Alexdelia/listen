@@ -42,7 +42,7 @@ pub fn run(
 fn listen(username: &str, refresh: bool) -> hmerr::Result<ListenCount> {
 	if !refresh && let Some(cached) = cache::listen::read(username)? {
 		println!(
-			"{B}{CYA}cached{D} listen stats for {B}{username}{D} ({B}--refresh{D} to update)\n"
+			"{B}{CYA}cached{D} listen stat for {B}{username}{D} ({B}--refresh{D} to update)\n"
 		);
 		return Ok(cached);
 	}

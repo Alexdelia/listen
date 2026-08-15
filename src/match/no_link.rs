@@ -20,7 +20,7 @@ pub(super) async fn run(
 	output::url(&found.url);
 	open::open(&found.url)?;
 
-	if !ux::ask_yn("does this song match", true).map_err(|e| ioe!("stdin", e))? {
+	if !ux::ask_yn("song match", true).map_err(|e| ioe!("stdin", e))? {
 		return Ok(false);
 	}
 	output::musicbrainz(mbid, &found.url)?;

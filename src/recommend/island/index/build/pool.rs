@@ -3,70 +3,108 @@ use std::path::{Path, PathBuf};
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge};
 
-use super::scan::Scan;
+use super::{super::progress, board::Stage, library, scan::Scan, seed};
 
 const POOL: &str = "user.parquet";
 
-const MIN_SEED_PER_USER: usize = 5;
-const MIN_PLAY_PER_SEED: u32 = 3;
+const MIN_PLAY_PER_RECORDING: u32 = 3;
+const MIN_REPEATED_RECORDING: usize = 20;
 const MIN_OWN_COVERAGE_PERCENT: i64 = 50;
 const MIN_OWN_MARGIN_PERCENT: i64 = 150;
 
-pub(super) fn of(scan: &Scan, listen: &Path, declared: usize) -> hmerr::Result<PathBuf> {
-	let own = own(scan, listen, declared)?;
-	let into = scan.work.join(POOL);
+pub(super) struct Pool {
+	pub path: PathBuf,
+	pub own: u32,
+}
 
-	scan.copy(
-		&into,
+impl Pool {
+	pub(super) fn read(&self) -> String {
+		format!("read_parquet('{path}')", path = self.path.display())
+	}
+}
+
+pub(super) fn of(
+	scan: &Scan,
+	library: &Path,
+	declared: usize,
+	known: Option<u32>,
+) -> hmerr::Result<Pool> {
+	let own = own(scan, library, declared, known)?;
+	let path = scan.work.join(POOL);
+
+	scan.step(
+		Stage::Pool,
+		&path,
 		&format!(
 			r"
 select user_id
-from read_parquet('{listen}')
-where plays >= {MIN_PLAY_PER_SEED} and user_id <> {own}
+from {library}
+where plays >= {MIN_PLAY_PER_RECORDING} and user_id <> {own}
 group by user_id
-having count(*) >= {MIN_SEED_PER_USER}
+having count(*) >= {MIN_REPEATED_RECORDING}
 ",
-			listen = listen.display()
+			library = library::read(library)
 		),
 	)?;
 
-	Ok(into)
+	Ok(Pool { path, own })
 }
 
-fn own(scan: &Scan, listen: &Path, declared: usize) -> hmerr::Result<i64> {
-	let mut statement = scan.db.prepare(&format!(
-		r"
-select user_id::bigint, count(*)::bigint
-from read_parquet('{listen}')
-group by 1
-order by 2 desc
-limit 2
-",
-		listen = listen.display()
-	))?;
-
-	let mut row = statement.query([])?;
-	let mut top = Vec::new();
-	while let Some(row) = row.next()? {
-		top.push((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?));
-	}
+fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmerr::Result<u32> {
+	let top = seeded(scan, library)?;
 
 	let Some((own, seed)) = top.first().copied() else {
 		return Err(no_overlap().into());
 	};
 	let runner_up = top.get(1).map_or(0, |(_, seed)| *seed);
 
-	if !separated(seed, runner_up, declared) {
-		return Err(ambiguous(own, seed, runner_up).into());
+	if separated(seed, runner_up, declared) {
+		progress::say(format!(
+			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
+			runner up {B}{runner_up}{D}",
+			share = coverage(seed, declared)
+		));
+
+		return Ok(own);
 	}
 
-	println!(
-		"{F}own listenbrainz user {B}{own}{D}{F}, {B}{share}%{D}{F} of the declared library, \
-		runner up at {B}{runner_up}{D}",
-		share = coverage(seed, declared)
-	);
+	let Some(known) = known else {
+		return Err(ambiguous(own, seed, runner_up).into());
+	};
 
-	Ok(own)
+	progress::say(format!(
+		"{F}declaration no longer singles out a listener, keeping known own user {B}{known}{D}"
+	));
+
+	Ok(known)
+}
+
+fn seeded(scan: &Scan, library: &Path) -> hmerr::Result<Vec<(u32, i64)>> {
+	let bar = scan.stage(Stage::Own)?;
+	let db = scan.take();
+
+	let mut statement = db.prepare(&format!(
+		r"
+select l.user_id::uinteger, count(*)::bigint
+from {library} l
+semi join {seed} s on s.mbid = l.mbid
+group by 1
+order by 2 desc
+limit 2
+",
+		library = library::read(library),
+		seed = seed::NAME
+	))?;
+
+	let mut row = statement.query([])?;
+	let mut top = Vec::new();
+	while let Some(row) = row.next()? {
+		top.push((row.get::<_, u32>(0)?, row.get::<_, i64>(1)?));
+	}
+
+	bar.inc(1);
+
+	Ok(top)
 }
 
 fn coverage(seed: i64, declared: usize) -> i64 {
@@ -87,13 +125,13 @@ fn no_overlap() -> GenericError {
 	)
 }
 
-fn ambiguous(own: i64, seed: i64, runner_up: i64) -> GenericError {
+fn ambiguous(own: u32, seed: i64, runner_up: i64) -> GenericError {
 	ge!(
 		format!(
 			"{R}cannot tell which listenbrainz user is yours: {B}{own}{D}{R} has {B}{seed}{D}{R} \
-			declared recordings against {B}{runner_up}{D}{R} for the next one{D}"
+			declared recording, next one {B}{runner_up}{D}"
 		),
-		h: "the index must exclude your own listens, else it recommends what you already declared"
+		h: "the index must exclude your own listen, else it recommends what you declared"
 	)
 }
 

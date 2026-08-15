@@ -1,9 +1,11 @@
 use std::{fs, path::Path, process::Command};
 
+use indicatif::ProgressBar;
+
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge, ioe};
 
-use super::super::progress;
+use super::super::{keep, progress};
 
 pub(super) const PROGRAM: &str = "rsync";
 pub(super) const HOST: &str = "rsync://data.metabrainz.org/musicbrainz";
@@ -60,19 +62,23 @@ fn parse(line: &str) -> Option<Entry> {
 pub(super) fn small(url: &str, into: &Path) -> hmerr::Result<()> {
 	prepare(into)?;
 
-	let status = Command::new(PROGRAM)
+	let out = Command::new(PROGRAM)
 		.args(["--quiet", url, &into.to_string_lossy()])
-		.status()
+		.output()
 		.map_err(|e| missing_rsync(&e.to_string()))?;
 
-	if !status.success() {
-		return Err(ge!(format!("{R}{B}{PROGRAM}{D}{R} could not fetch {B}{url}{D}")).into());
+	if !out.status.success() {
+		return Err(ge!(format!(
+			"{R}{B}{PROGRAM}{D}{R} could not fetch {B}{url}{D}\n{}{D}",
+			String::from_utf8_lossy(&out.stderr).trim()
+		))
+		.into());
 	}
 
 	Ok(())
 }
 
-pub(super) fn pull(url: &str, into: &Path, total: u64) -> hmerr::Result<()> {
+pub(super) fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
 	prepare(into)?;
 
 	progress::rsync(
@@ -85,7 +91,7 @@ pub(super) fn pull(url: &str, into: &Path, total: u64) -> hmerr::Result<()> {
 			url,
 			&into.to_string_lossy(),
 		],
-		total,
+		bar,
 	)
 }
 
@@ -106,11 +112,11 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 	let path = dir.join(sums);
 
 	if !path.exists() {
-		println!("{F}no {B}{sums}{D}{F} alongside the archive, skipping verification{D}");
+		progress::say(format!(
+			"{F}no {B}{sums}{D}{F} alongside the archive, verification skipped{D}"
+		));
 		return Ok(());
 	}
-
-	println!("{F}verifying against {B}{sums}{D}");
 
 	let published = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
@@ -159,13 +165,13 @@ fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
 }
 
 fn checked_list(dir: &Path, sums: &str) -> hmerr::Result<bool> {
-	let status = Command::new(SHA256SUM)
+	let out = Command::new(SHA256SUM)
 		.args(["--check", "--ignore-missing", sums])
 		.current_dir(dir)
-		.status()
+		.output()
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")))?;
 
-	Ok(status.success())
+	Ok(out.status.success())
 }
 
 pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> {
@@ -180,11 +186,7 @@ pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> 
 
 pub(super) fn forget(dir: &Path, name: &[&str]) -> hmerr::Result<()> {
 	for name in name {
-		let path = dir.join(name);
-
-		if path.exists() {
-			fs::remove_file(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-		}
+		keep::discard(&dir.join(name))?;
 	}
 
 	Ok(())
@@ -201,7 +203,7 @@ pub(super) fn biggest(url: &str, ext: &str) -> hmerr::Result<Entry> {
 fn missing_rsync(reason: &str) -> GenericError {
 	ge!(
 		format!("{R}failed to execute {B}{PROGRAM}{D}\n{reason}"),
-		h: format!("{B}{PROGRAM}{D} downloads the dumps, it comes with the nix dev shell")
+		h: format!("{B}{PROGRAM}{D} downloads the dump, it comes with the nix dev shell")
 	)
 }
 

@@ -5,8 +5,12 @@ use std::{
 
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
+use indicatif::ProgressBar;
 
-use super::{super::progress, rsync, space};
+use super::{
+	super::{keep, progress},
+	board, rsync, space,
+};
 
 const MODULE: &str = "listenbrainz/fullexport";
 const PREFIX: &str = "listenbrainz-dump-";
@@ -70,13 +74,13 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 
 	space::require(root, space::unpacking(&tar, archive.size))?;
 
-	println!(
-		"\n{F}the listen dump {B}{dump}{D}{F} is {B}{Y}{size}{D}{F}, and needs {B}{Y}{size}{D}{F} more once unpacked.{D}\n\
-		{F}it is only ever read to build the index, and deleted as soon as the index is built.{D}",
+	progress::say(format!(
+		"\n{F}listen dump {B}{dump}{D}{F}: {B}{Y}{size}{D}{F}, {B}{Y}+{size}{D}{F} unpacked, \
+		deleted once index built{D}",
 		size = progress::bytes(archive.size)
-	);
+	));
 
-	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
+	if !progress::ask("download", true)? {
 		return Err(refused().into());
 	}
 
@@ -86,17 +90,17 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		ext = rsync::CHECKSUM_EXT
 	);
 
-	rsync::pull(
-		&format!("{url}{name}", name = archive.name),
-		&tar,
-		archive.size,
-	)?;
+	let board = board::listen(archive.size)?;
+
+	board.run(board::DOWNLOAD, |bar| {
+		rsync::pull(&format!("{url}{name}", name = archive.name), &tar, bar)
+	})?;
 	rsync::small(&format!("{url}{checksum}"), &root.join(&checksum))?;
-	rsync::verify(root, &checksum)?;
+	board.run(board::VERIFY, |_| rsync::verify(root, &checksum))?;
 	rsync::forget(root, &[&checksum])?;
 
-	let dir = unpack(&tar, root, archive.size)?;
-	fs::remove_file(&tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
+	keep::discard(&tar)?;
 
 	Ok(Listen {
 		name: name_of(&dir),
@@ -131,14 +135,14 @@ pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
-	println!(
-		"{F}the index is built, releasing the {B}{Y}{size}{D}{F} dump it came from{D}",
-		size = progress::bytes(weight(&listen.dir))
-	);
+	if !keep::requested() {
+		progress::say(format!(
+			"{F}index built, releasing its {B}{Y}{size}{D}{F} dump{D}",
+			size = progress::bytes(weight(&listen.dir))
+		));
+	}
 
-	fs::remove_dir_all(&listen.dir).map_err(|e| ioe!(listen.dir.to_string_lossy(), e))?;
-
-	Ok(())
+	keep::discard(&listen.dir)
 }
 
 fn weight(dir: &Path) -> u64 {
@@ -153,15 +157,12 @@ fn weight(dir: &Path) -> u64 {
 		.sum()
 }
 
-fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
-	let bar = progress::byte_bar(size, "unpack")?;
+fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 	let file = fs::File::open(tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
 
 	tar::Archive::new(bar.wrap_read(file))
 		.unpack(root)
 		.map_err(|e| ioe!(tar.to_string_lossy(), e))?;
-
-	bar.finish();
 
 	let dir = root.join(LISTEN);
 	let inner = fs::read_dir(root)
@@ -185,7 +186,7 @@ fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 fn refused() -> GenericError {
 	ge!(
 		format!("{R}cancelled{D}"),
-		h: "the index is built from the dump, so there is nothing to recommend from without it"
+		h: "the index is built from the dump, no dump means nothing to recommend from"
 	)
 }
 

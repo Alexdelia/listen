@@ -6,63 +6,77 @@ use std::{
 use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
-use crate::declaration::Entry;
-
-use super::{super::open::USER_LISTEN, artist, seed, user_listen};
+use super::{
+	super::{
+		keep,
+		open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
+		progress,
+	},
+	board::Stage,
+};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
-const INPUT: &str = "input";
+const LISTENER: &str = "listener";
+const FORMAT: u32 = 3;
 
-pub(super) fn open(dir: &Path, dump: &str, declared: &[Entry]) -> hmerr::Result<PathBuf> {
+pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	let work = dir.join(DIR);
+	let dump = &format!("{FORMAT} {dump}");
 
-	if stamped(&work, DUMP).as_deref() != Some(dump) {
-		discard(&work)?;
+	if stamped(&work, DUMP).as_deref() != Some(dump.as_str()) {
+		discard_unusable(&work)?;
 	}
 
 	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
-
-	let input = input(dump, declared);
-	if stamped(&work, INPUT).as_deref() != Some(input.as_str()) {
-		for stale in derived(dir, &work) {
-			discard(&stale)?;
-		}
-	}
-
 	stamp(&work, DUMP, dump)?;
-	stamp(&work, INPUT, &input)?;
 
 	Ok(work)
 }
 
+pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
+	let own = &own.to_string();
+
+	if stamped(work, LISTENER).as_deref() != Some(own.as_str()) {
+		for part in pooled() {
+			discard_unusable(&work.join(part))?;
+		}
+	}
+
+	stamp(work, LISTENER, own)
+}
+
+pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
+	open::forget_meta(dir)?;
+
+	for part in published() {
+		let built = work.join(part);
+		let into = dir.join(part);
+
+		discard_unusable(&into)?;
+		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+	}
+
+	open::write_meta(dir, meta)
+}
+
 pub(super) fn release(work: &Path) {
-	if discard(work).is_ok() {
+	if keep::discard(work).is_ok() {
 		return;
 	}
 
-	println!(
-		"{F}the index is built, but its work directory stayed at {B}{work}{D}\n\
-		{F}delete it to reclaim the space{D}",
+	progress::say(format!(
+		"{F}work directory kept at {B}{work}{D}",
 		work = work.display()
-	);
+	));
 }
 
-fn input(dump: &str, declared: &[Entry]) -> String {
-	let mut mbid: Vec<String> = declared.iter().map(|entry| entry.s.to_string()).collect();
-	mbid.sort_unstable();
-	mbid.dedup();
-
-	format!("{dump}\n{}", mbid.join("\n"))
+fn published() -> [&'static str; 4] {
+	[RECORDING, RECORDING_ARTIST, USER_STAT, USER_LISTEN]
 }
 
-fn derived(dir: &Path, work: &Path) -> [PathBuf; 4] {
-	[
-		work.join(seed::NAME),
-		work.join(artist::NAME),
-		work.join(user_listen::NAME),
-		dir.join(USER_LISTEN),
-	]
+fn pooled() -> [&'static str; 3] {
+	[Stage::Stat.title(), USER_STAT, USER_LISTEN]
 }
 
 fn stamped(work: &Path, of: &str) -> Option<String> {
@@ -78,21 +92,19 @@ fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn discard(work: &Path) -> hmerr::Result<()> {
-	if !work.is_dir() {
-		return Ok(());
+fn discard_unusable(path: &Path) -> hmerr::Result<()> {
+	if path.is_dir() {
+		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	} else if path.is_file() {
+		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 	}
-
-	fs::remove_dir_all(work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
 
 	Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::declaration::Source;
-
-	use super::*;
+	use super::{super::board::Stage, *};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));
@@ -100,16 +112,6 @@ mod tests {
 		let _ = fs::create_dir_all(&dir);
 
 		dir
-	}
-
-	fn declared(mbid: &[u128]) -> Vec<Entry> {
-		mbid.iter()
-			.map(|mbid| Entry {
-				s: Source::from_u128(*mbid),
-				q: 2,
-				playlist: Vec::new(),
-			})
-			.collect()
 	}
 
 	fn shard(under: &Path, name: &str) -> PathBuf {
@@ -123,16 +125,44 @@ mod tests {
 	}
 
 	fn partial(work: &Path) -> PathBuf {
-		shard(work, user_listen::NAME)
+		shard(work, Stage::Library.title())
+	}
+
+	fn stat(dir: &Path) -> PathBuf {
+		let stat = dir.join(USER_STAT);
+		let _ = fs::write(&stat, b"built");
+
+		stat
+	}
+
+	fn staged(work: &Path) {
+		for part in [RECORDING, RECORDING_ARTIST, USER_STAT] {
+			let _ = fs::write(work.join(part), b"fresh");
+		}
+
+		let listen = work.join(USER_LISTEN);
+		let _ = fs::create_dir_all(&listen);
+		let _ = fs::write(listen.join("0.parquet"), b"fresh");
+	}
+
+	fn meta() -> Meta {
+		Meta {
+			built: "2026-08-15".to_string(),
+			dump: "20260712-000004".to_string(),
+			own: Some(1),
+			user: 5,
+			recording: 35,
+			user_listen: 200,
+		}
 	}
 
 	#[test]
 	fn the_same_dump_keeps_what_a_previous_run_already_scanned() {
 		let dir = dir("resume");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
-		let again = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let again = open(&dir, "20260712-000004").unwrap_or_default();
 
 		assert_eq!(again, work);
 		assert!(partial.exists());
@@ -142,10 +172,10 @@ mod tests {
 	#[test]
 	fn another_dump_throws_the_previous_scan_away() {
 		let dir = dir("stale");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
-		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
+		let _ = open(&dir, "20260809-000003");
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
@@ -157,75 +187,123 @@ mod tests {
 		let work = dir.join(DIR);
 		let partial = partial(&work);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let _ = open(&dir, "20260712-000004");
 
 		assert!(!partial.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn a_new_declared_recording_throws_away_everything_keyed_by_recording_id() {
-		let dir = dir("declared");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+	fn the_declaration_never_reaches_the_scan_so_editing_it_throws_nothing_away() {
+		let dir = dir("declaration");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
-		let seed = shard(&work, seed::NAME);
-		let artist = shard(&work, artist::NAME);
+		let artist = shard(&work, Stage::Artist.title());
 		let listen = shard(&dir, USER_LISTEN);
+		let stat = stat(&dir);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 3]));
-
-		assert!(!partial.exists());
-		assert!(!seed.exists());
-		assert!(!artist.exists());
-		assert!(!listen.exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn the_same_declaration_in_another_order_is_the_same_recording_id() {
-		let dir = dir("order");
-		let work = open(&dir, "20260712-000004", &declared(&[2, 1])).unwrap_or_default();
-		let partial = partial(&work);
-		let seed = shard(&work, seed::NAME);
-		let listen = shard(&dir, USER_LISTEN);
-
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2, 2]));
+		let _ = open(&dir, "20260712-000004");
 
 		assert!(partial.exists());
-		assert!(seed.exists());
+		assert!(artist.exists());
+		assert!(listen.exists());
+		assert!(stat.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn resuming_under_the_same_own_listener_keeps_what_was_pooled_for_it() {
+		let dir = dir("same_own");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		let _ = exclude(&work, 1);
+		let stat = shard(&work, Stage::Stat.title());
+		let listen = shard(&work, USER_LISTEN);
+
+		let _ = exclude(&work, 1);
+
+		assert!(stat.exists());
 		assert!(listen.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn another_dump_throws_away_the_published_user_listen() {
-		let dir = dir("published");
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
-		let listen = shard(&dir, USER_LISTEN);
+	fn another_own_listener_throws_away_what_the_previous_one_pooled() {
+		let dir = dir("other_own");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		let partial = partial(&work);
+		let _ = exclude(&work, 1);
+		let stat = shard(&work, Stage::Stat.title());
+		let listen = shard(&work, USER_LISTEN);
 
-		let _ = open(&dir, "20260809-000003", &declared(&[1, 2]));
+		let _ = exclude(&work, 2);
 
+		assert!(!stat.exists());
 		assert!(!listen.exists());
+		assert!(partial.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
-	fn a_released_build_cannot_vouch_for_the_published_user_listen() {
-		let dir = dir("released");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+	fn another_dump_leaves_the_published_index_alone() {
+		let dir = dir("published");
+		let _ = open(&dir, "20260712-000004");
 		let listen = shard(&dir, USER_LISTEN);
-		release(&work);
+		let stat = stat(&dir);
 
-		let _ = open(&dir, "20260712-000004", &declared(&[1, 2]));
+		let _ = open(&dir, "20260809-000003");
 
-		assert!(!listen.exists());
+		assert!(listen.exists());
+		assert!(stat.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn what_a_build_produces_reaches_the_index_only_when_it_publishes() {
+		let dir = dir("staged");
+		let stat = stat(&dir);
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		staged(&work);
+
+		assert_eq!(fs::read(&stat).unwrap_or_default(), b"built");
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn publishing_puts_every_built_part_in_place() {
+		let dir = dir("publish");
+		let stat = stat(&dir);
+		let listen = shard(&dir, USER_LISTEN);
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		staged(&work);
+
+		assert!(publish(&work, &dir, &meta()).is_ok());
+
+		assert_eq!(fs::read(&stat).unwrap_or_default(), b"fresh");
+		assert_eq!(fs::read(&listen).unwrap_or_default(), b"fresh");
+		for part in published() {
+			assert!(dir.join(part).exists(), "{part}");
+			assert!(!work.join(part).exists(), "{part}");
+		}
+		assert!(dir.join(open::META).exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_publish_that_cannot_finish_leaves_no_meta_vouching_for_a_half_swapped_index() {
+		let dir = dir("torn");
+		let _ = fs::write(dir.join(open::META), b"{}");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+
+		assert!(publish(&work, &dir, &meta()).is_err());
+
+		assert!(!dir.join(open::META).exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
 	fn releasing_leaves_nothing_behind() {
 		let dir = dir("release");
-		let work = open(&dir, "20260712-000004", &declared(&[1, 2])).unwrap_or_default();
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		partial(&work);
 
 		release(&work);

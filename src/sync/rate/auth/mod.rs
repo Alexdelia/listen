@@ -20,7 +20,7 @@ pub(super) fn acquire(client: &Client) -> hmerr::Result<Option<String>> {
 				return Ok(Some(token.access));
 			}
 			token::Refresh::Rejected => {
-				eprintln!("{Y}stored musicbrainz login no longer works{D}");
+				eprintln!("{Y}musicbrainz login expired, logging in again{D}");
 			}
 		}
 	}

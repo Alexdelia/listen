@@ -1,3 +1,4 @@
+mod board;
 mod listen;
 mod music_brainz;
 mod rsync;
@@ -27,6 +28,10 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 		Some(listen) => Ok(listen),
 		None => listen::fetch(&root),
 	}
+}
+
+pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {
+	listen::find(&root()?)
 }
 
 pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {

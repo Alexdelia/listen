@@ -61,14 +61,14 @@ fn name(request: &Request, member: usize) -> String {
 fn undeclared(mbid: Source) -> GenericError {
 	ge!(
 		format!("{R}recording {B}{mbid}{D}{R} is not declared{D}"),
-		h: "an island seed carries the q it is weighted by, so it has to be in the declaration"
+		h: "a seed carries the q it is weighted by, so it must be declared"
 	)
 }
 
 fn unsupported(mbid: Source) -> GenericError {
 	ge!(
 		format!("{R}recording {B}{mbid}{D}{R} has no listener in the index{D}"),
-		h: "nobody in the index has played it, so it cannot reach a cohort"
+		h: "nobody in the index listened to it, no cohort to reach"
 	)
 }
 
@@ -83,7 +83,7 @@ fn no_genre(token: &str) -> GenericError {
 mod tests {
 	use super::*;
 
-	use crate::recommend::island::seed::Seed;
+	use crate::recommend::island::seed::{Listener, Seed};
 
 	fn mbid(nibble: u8) -> Source {
 		Source::from_bytes([nibble; 16])
@@ -96,8 +96,10 @@ mod tests {
 				.map(|nibble| Seed {
 					mbid: mbid(*nibble),
 					q: 2,
-					listener: vec![1],
-					deliberate: vec![1],
+					listener: vec![Listener {
+						user: 1,
+						weight: 1.0,
+					}],
 				})
 				.collect(),
 			user: vec![0, 1],

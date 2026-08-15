@@ -48,7 +48,7 @@ pub(super) fn listen_count(username: &str) -> hmerr::Result<ListenCount> {
 
 	if total > fetched {
 		eprintln!(
-			"{Y}listenbrainz exposes only the top {fetched} recording of {total} listened, tail recording show as 0 listen{D}\n"
+			"{Y}listenbrainz caps at top {fetched}/{total} recording: the tail shows 0 listen{D}\n"
 		);
 	}
 

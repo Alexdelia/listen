@@ -10,7 +10,7 @@ const VALUE: [Value; Q_MAX as usize + 1] = [
 	100, // 5
 ];
 
-const NEUTRAL: Value = 50;
+pub const NEUTRAL: Value = 50;
 
 pub fn from_q(q: Q) -> Value {
 	VALUE[q as usize]

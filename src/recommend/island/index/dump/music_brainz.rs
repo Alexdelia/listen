@@ -6,10 +6,11 @@ use std::{
 
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
+use indicatif::ProgressBar;
 
 use super::{
-	super::{partial, progress},
-	rsync, space,
+	super::{keep, partial, progress},
+	board, rsync, space,
 };
 
 const MODULE: &str = "data/fullexport";
@@ -33,40 +34,39 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 
 	space::require(root, space::unpacking(&root.join(ARCHIVE), archive.size))?;
 
-	println!(
-		"\n{F}the artist relations come from the musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}.{D}\n\
-		{F}only two of its tables are unpacked, and the archive is deleted afterwards.{D}",
+	progress::say(format!(
+		"\n{F}artist relations: musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}, \
+		2 tables kept, archive deleted after{D}",
 		size = progress::bytes(archive.size)
-	);
+	));
 
-	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
+	if !progress::ask("download", true)? {
 		return Err(refused().into());
 	}
 
-	rsync::pull(
-		&format!("{url}{ARCHIVE}"),
-		&root.join(ARCHIVE),
-		archive.size,
-	)?;
+	let board = board::music_brainz(archive.size)?;
+
+	board.run(board::DOWNLOAD, |bar| {
+		rsync::pull(&format!("{url}{ARCHIVE}"), &root.join(ARCHIVE), bar)
+	})?;
 	rsync::small(&format!("{url}{SUMS}"), &root.join(SUMS))?;
-	rsync::verify(root, SUMS)?;
+	board.run(board::VERIFY, |_| rsync::verify(root, SUMS))?;
 	rsync::forget(root, &[SUMS])?;
 
-	let table = unpack(root, archive.size)?;
-	load(&table, link)?;
+	let table = board.run(board::UNPACK, |bar| unpack(root, bar))?;
+	board.run(board::RELATION, |_| load(&table, link))?;
 
-	fs::remove_file(root.join(ARCHIVE)).map_err(|e| ioe!(ARCHIVE, e))?;
-	fs::remove_dir_all(&table).map_err(|e| ioe!(table.to_string_lossy(), e))?;
+	keep::discard(&root.join(ARCHIVE))?;
+	keep::discard(&table)?;
 
 	Ok(())
 }
 
-fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
+fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 	let archive = root.join(ARCHIVE);
 	let into = root.join("mb");
 	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 
-	let bar = progress::byte_bar(size, "unpack")?;
 	let mut argument = vec![
 		"--extract".to_string(),
 		"--bzip2".to_string(),
@@ -82,8 +82,12 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	let mut child = Command::new(TAR)
 		.args(&argument)
 		.stdin(Stdio::piped())
+		.stdout(Stdio::null())
+		.stderr(Stdio::piped())
 		.spawn()
 		.map_err(|e| ge!(format!("{R}failed to execute {B}{TAR}{D}\n{e}")))?;
+
+	let complaint = progress::complaint(&mut child);
 
 	let file = fs::File::open(&archive).map_err(|e| ioe!(archive.to_string_lossy(), e))?;
 	let fed = match child.stdin.take() {
@@ -94,9 +98,10 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	let status = child
 		.wait()
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{TAR}{D}\n{e}")))?;
-	bar.finish();
 
-	unpacked(status, fed)?;
+	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
+
+	unpacked(status, fed, &complaint)?;
 
 	for table in TABLE {
 		if !into.join(table).exists() {
@@ -107,10 +112,10 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 	Ok(into)
 }
 
-fn unpacked(status: ExitStatus, fed: io::Result<u64>) -> hmerr::Result<()> {
+fn unpacked(status: ExitStatus, fed: io::Result<u64>, complaint: &str) -> hmerr::Result<()> {
 	if !status.success() {
 		return Err(ge!(format!(
-			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}"
+			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}\n{complaint}"
 		))
 		.into());
 	}
@@ -155,7 +160,7 @@ copy (
 fn refused() -> GenericError {
 	ge!(
 		format!("{R}cancelled{D}"),
-		h: "the artist relations decide which artists count as already known, so they are required"
+		h: "artist relations decide which artists count as already known, they are required"
 	)
 }
 
@@ -179,20 +184,20 @@ mod tests {
 
 	#[test]
 	fn a_tar_that_died_is_what_broke_the_pipe() {
-		let said = message(unpacked(exit(2), broken_pipe()));
+		let said = message(unpacked(exit(2), broken_pipe(), "tar: unexpected eof"));
 
 		assert!(said.contains("could not unpack"), "{said}");
 	}
 
 	#[test]
 	fn a_pipe_that_broke_on_its_own_is_still_reported() {
-		let said = message(unpacked(exit(0), broken_pipe()));
+		let said = message(unpacked(exit(0), broken_pipe(), ""));
 
 		assert!(said.contains("broken pipe"), "{said}");
 	}
 
 	#[test]
 	fn a_whole_archive_fed_to_a_happy_tar_is_unpacked() {
-		assert!(unpacked(exit(0), Ok(1 << 20)).is_ok());
+		assert!(unpacked(exit(0), Ok(1 << 20), "").is_ok());
 	}
 }

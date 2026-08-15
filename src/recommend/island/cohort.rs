@@ -24,9 +24,9 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 			continue;
 		}
 
-		for listener in &seed.deliberate {
-			if let Some(affinity) = affinity.get_mut(*listener as usize) {
-				*affinity += weight;
+		for listener in &seed.listener {
+			if let Some(affinity) = affinity.get_mut(listener.user as usize) {
+				*affinity += pull(weight, listener.weight);
 			}
 		}
 	}
@@ -49,9 +49,21 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 	member
 }
 
+fn pull(seed: f32, listener: f32) -> f32 {
+	let shared_dislike = seed < 0.0 && listener < 0.0;
+	if shared_dislike {
+		return 0.0;
+	}
+
+	seed * listener
+}
+
 #[cfg(test)]
 mod tests {
-	use super::{super::seed::Seed, *};
+	use super::{
+		super::seed::{Listener, Seed},
+		*,
+	};
 	use crate::declaration::Source;
 
 	fn library(seed: &[(u8, &[u32])], user: usize) -> Library {
@@ -61,8 +73,34 @@ mod tests {
 				.map(|(q, listener)| Seed {
 					mbid: Source::from_bytes([*q; 16]),
 					q: *q,
-					listener: listener.to_vec(),
-					deliberate: listener.to_vec(),
+					listener: listener
+						.iter()
+						.map(|user| Listener {
+							user: *user,
+							weight: 1.0,
+						})
+						.collect(),
+				})
+				.collect(),
+			user: (0..i64::try_from(user).unwrap_or_default()).collect(),
+			declared: Vec::new(),
+		}
+	}
+
+	fn weighted(seed: &[(u8, &[(u32, f32)])], user: usize) -> Library {
+		Library {
+			seed: seed
+				.iter()
+				.map(|(q, listener)| Seed {
+					mbid: Source::from_bytes([*q; 16]),
+					q: *q,
+					listener: listener
+						.iter()
+						.map(|(user, weight)| Listener {
+							user: *user,
+							weight: *weight,
+						})
+						.collect(),
 				})
 				.collect(),
 			user: (0..i64::try_from(user).unwrap_or_default()).collect(),
@@ -145,6 +183,44 @@ mod tests {
 			cohort
 				.windows(2)
 				.all(|pair| pair[0].weight >= pair[1].weight)
+		);
+	}
+
+	#[test]
+	fn a_listener_who_merely_brushed_a_seed_carries_less_than_one_who_lives_in_it() {
+		let library = weighted(&[(4, &[(0, 0.1), (1, 0.9)])], 4);
+		let cohort = of(&library, &island(&[0]), SIZE);
+
+		assert_eq!(cohort.first().map(|member| member.user), Some(1));
+		assert!(cohort.len() == 2 && cohort[0].weight > cohort[1].weight);
+	}
+
+	#[test]
+	fn a_listener_who_dropped_a_liked_seed_stays_out_of_its_cohort() {
+		let library = weighted(&[(4, &[(0, -0.3), (1, 0.8)])], 4);
+		let cohort = of(&library, &island(&[0]), SIZE);
+
+		assert_eq!(
+			cohort.iter().map(|member| member.user).collect::<Vec<_>>(),
+			vec![1]
+		);
+	}
+
+	#[test]
+	fn a_listener_who_dropped_a_disliked_seed_is_not_recruited_by_it() {
+		let library = weighted(&[(0, &[(0, -0.3)])], 4);
+
+		assert!(of(&library, &island(&[0]), SIZE).is_empty());
+	}
+
+	#[test]
+	fn a_shared_dislike_neither_recruits_nor_evicts() {
+		let library = weighted(&[(4, &[(0, 0.8)]), (0, &[(0, -0.3), (1, 0.9)])], 4);
+		let cohort = of(&library, &island(&[0, 1]), SIZE);
+
+		assert_eq!(
+			cohort.iter().map(|member| member.user).collect::<Vec<_>>(),
+			vec![0]
 		);
 	}
 
