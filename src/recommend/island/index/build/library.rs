@@ -2,16 +2,16 @@ use std::path::{Path, PathBuf};
 
 use super::{
 	super::open::{self, BUCKET},
+	board::Stage,
 	scan::Scan,
 };
 
-pub(super) const NAME: &str = "library";
 pub(super) const BUCKETED: &str = "library_bucket";
 
 const PLAY_CEILING: u32 = 65535;
 
 pub(super) fn of(scan: &Scan) -> hmerr::Result<PathBuf> {
-	let partial = scan.batched(NAME, &|shard| {
+	let partial = scan.batched(Stage::Library, &|shard| {
 		format!(
 			r"
 select
@@ -27,7 +27,7 @@ group by 1, 2
 
 	let into = scan.work.join(BUCKETED);
 
-	scan.bucketed(&into, "compact", &|bucket| {
+	scan.bucketed(&into, Stage::Compact, &|bucket| {
 		format!(
 			r"
 select user_id, mbid, least(sum(plays), {PLAY_CEILING})::usmallint as plays

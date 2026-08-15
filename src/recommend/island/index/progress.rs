@@ -5,12 +5,18 @@ use std::{
 	time::Duration,
 };
 
-use ansi::abbrev::{B, D, R};
+use ansi::abbrev::{B, D, F, R};
 use hmerr::ge;
 use indicatif::{HumanBytes, MultiProgress, ProgressBar, ProgressStyle};
 
 const READ: usize = 16 * 1024;
 const SPIN: Duration = Duration::from_millis(120);
+
+const WIDTH: usize = 9;
+const STEP: &str = "{pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
+const WAITING_STEP: &str = "{pos:>4.dim}/{len:4.dim} {percent:>3.dim}%";
+const TIME: &str = "{elapsed:>5.bold.blue}|{eta:5.bold.magenta}";
+const WAITING_TIME: &str = "    -|-    ";
 
 static BOARD: OnceLock<MultiProgress> = OnceLock::new();
 
@@ -29,46 +35,53 @@ pub(super) fn bytes(size: u64) -> String {
 pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
 	let bar = board().add(ProgressBar::new(total));
 	bar.set_style(style(
-		title,
-		"{bytes:>11.bold.green}/{total_bytes:11.bold} {bytes_per_sec:>12.bold.yellow}",
+		&titled(title),
+		&format!(
+			"{{bytes:>11.bold.green}}/{{total_bytes:11.bold}} \
+			{{bytes_per_sec:>12.bold.yellow}} {TIME}"
+		),
+		"cyan",
 	)?);
 
 	Ok(bar)
 }
 
-pub(super) fn step_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
+pub(super) fn waiting_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
 	let bar = board().add(ProgressBar::new(total));
-	bar.set_style(style(
-		title,
-		"{pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%",
-	)?);
+	bar.set_style(waiting(title)?);
 	bar.tick();
 
 	Ok(bar)
 }
 
-pub(super) fn spin(title: &str) -> hmerr::Result<ProgressBar> {
-	let title = format!("{title:>9}");
-
-	let bar = board().add(ProgressBar::new_spinner());
-	bar.set_style(
-		ProgressStyle::with_template(&format!(
-			"{title} {{spinner:.cyan}} {{elapsed:>5.bold.blue}}"
-		))
-		.map_err(|e| format!("failed to create progress style\n{e}"))?,
-	);
+pub(super) fn started(bar: &ProgressBar, title: &str) -> hmerr::Result<()> {
+	bar.set_style(style(&titled(title), &format!("{STEP} {TIME}"), "cyan")?);
+	bar.reset_elapsed();
 	bar.enable_steady_tick(SPIN);
 
-	Ok(bar)
+	Ok(())
 }
 
-fn style(title: &str, middle: &str) -> hmerr::Result<ProgressStyle> {
-	let title = format!("{title:>9}");
+pub(super) fn ended(bar: &ProgressBar) {
+	bar.disable_steady_tick();
+	bar.finish();
+}
 
-	ProgressStyle::with_template(&format!(
-		"{title} {{wide_bar:.cyan/white}} {middle} {{elapsed:>5.bold.blue}}|{{eta:5.bold.magenta}}"
-	))
-	.map_err(|e| format!("failed to create progress style\n{e}").into())
+fn waiting(title: &str) -> hmerr::Result<ProgressStyle> {
+	style(
+		&format!("{F}{title}{D}", title = titled(title)),
+		&format!("{WAITING_STEP} {WAITING_TIME}"),
+		"white",
+	)
+}
+
+fn titled(title: &str) -> String {
+	format!("{title:>WIDTH$}")
+}
+
+fn style(title: &str, field: &str, color: &str) -> hmerr::Result<ProgressStyle> {
+	ProgressStyle::with_template(&format!("{title} {{wide_bar:.{color}/white}} {field}"))
+		.map_err(|e| format!("failed to create progress style\n{e}").into())
 }
 
 pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()> {
@@ -170,5 +183,10 @@ mod tests {
 	#[test]
 	fn a_size_without_a_percentage_is_not_progress() {
 		assert_eq!(transferred("1,234 something else"), None);
+	}
+
+	#[test]
+	fn a_waiting_stage_lines_up_with_a_running_one() {
+		assert_eq!(WAITING_TIME.len(), "00:00|00:00".len());
 	}
 }

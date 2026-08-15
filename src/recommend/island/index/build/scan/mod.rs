@@ -10,9 +10,9 @@ use std::{
 
 use hmerr::ioe;
 
-use super::super::{
-	open::{self, BUCKET},
-	progress,
+use super::{
+	super::open::{self, BUCKET},
+	board::{Board, Running, Stage},
 };
 
 use lane::Lane;
@@ -25,6 +25,7 @@ pub(super) struct Scan {
 	pub work: PathBuf,
 	pub shard: Vec<String>,
 	lane: Lane,
+	board: Board,
 	batch: usize,
 }
 
@@ -50,6 +51,7 @@ set preserve_insertion_order=false;
 
 		Ok(Self {
 			lane: Lane::of(db, size.lane)?,
+			board: Board::of(size.batch)?,
 			work: work.to_path_buf(),
 			shard: shard.path,
 			batch: size.batch,
@@ -64,20 +66,24 @@ set preserve_insertion_order=false;
 		query::count(&self.take(), of)
 	}
 
-	pub(super) fn step(&self, title: &str, into: &Path, select: &str) -> hmerr::Result<()> {
-		let bar = progress::spin(title)?;
-		let done = query::copy(&self.take(), into, select);
-		bar.finish();
+	pub(super) fn stage(&self, stage: Stage) -> hmerr::Result<Running> {
+		self.board.start(stage)
+	}
 
-		done
+	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> hmerr::Result<()> {
+		let bar = self.stage(stage)?;
+		query::copy(&self.take(), into, select)?;
+		bar.inc(1);
+
+		Ok(())
 	}
 
 	pub(super) fn batched(
 		&self,
-		title: &str,
+		stage: Stage,
 		query: &dyn Fn(&str) -> String,
 	) -> hmerr::Result<PathBuf> {
-		let partial = self.work.join(title);
+		let partial = self.work.join(stage.title());
 		fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
 
 		let per = self.shard.len().div_ceil(self.batch);
@@ -91,7 +97,7 @@ set preserve_insertion_order=false;
 			})
 			.collect();
 
-		self.produce(title, &unit)?;
+		self.produce(stage, &unit)?;
 
 		Ok(partial)
 	}
@@ -99,7 +105,7 @@ set preserve_insertion_order=false;
 	pub(super) fn bucketed(
 		&self,
 		into: &Path,
-		title: &str,
+		stage: Stage,
 		query: &dyn Fn(u32) -> String,
 	) -> hmerr::Result<()> {
 		fs::create_dir_all(into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
@@ -111,11 +117,12 @@ set preserve_insertion_order=false;
 			})
 			.collect();
 
-		self.produce(title, &unit)
+		self.produce(stage, &unit)
 	}
 
-	fn produce(&self, title: &str, unit: &[Unit]) -> hmerr::Result<()> {
-		let bar = progress::step_bar(unit.len() as u64, title)?;
+	fn produce(&self, stage: Stage, unit: &[Unit]) -> hmerr::Result<()> {
+		let bar = self.stage(stage)?;
+		bar.set_length(unit.len() as u64);
 
 		self.lane.spread(unit, &bar, |db, unit| {
 			if query::done(db, &unit.into) {
@@ -123,10 +130,6 @@ set preserve_insertion_order=false;
 			}
 
 			query::copy(db, &unit.into, &unit.select)
-		})?;
-
-		bar.finish();
-
-		Ok(())
+		})
 	}
 }

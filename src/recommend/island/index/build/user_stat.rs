@@ -2,24 +2,21 @@ use std::path::Path;
 
 use super::{
 	super::{super::attraction, open::USER_STAT},
+	board::Stage,
 	library,
 	pool::Pool,
 	scan::Scan,
 };
 
-pub(super) const NAME: &str = "stat";
-
-const USER: &str = "user stat";
-
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
-	let partial = scan.work.join(NAME);
+	let partial = scan.work.join(Stage::Stat.title());
 
-	scan.bucketed(&partial, NAME, &|bucket| {
+	scan.bucketed(&partial, Stage::Stat, &|bucket| {
 		attraction::stat(&pooled(library, bucket, pool))
 	})?;
 
 	scan.step(
-		USER,
+		Stage::UserStat,
 		&dir.join(USER_STAT),
 		&format!(
 			"select * from read_parquet('{partial}/*.parquet')",

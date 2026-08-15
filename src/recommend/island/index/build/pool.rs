@@ -3,11 +3,7 @@ use std::path::{Path, PathBuf};
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge};
 
-use super::{super::progress, library, scan::Scan, seed};
-
-const NAME: &str = "pool";
-
-const OWN: &str = "own";
+use super::{super::progress, board::Stage, library, scan::Scan, seed};
 
 const POOL: &str = "user.parquet";
 
@@ -37,7 +33,7 @@ pub(super) fn of(
 	let path = scan.work.join(POOL);
 
 	scan.step(
-		NAME,
+		Stage::Pool,
 		&path,
 		&format!(
 			r"
@@ -87,7 +83,7 @@ fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmer
 }
 
 fn seeded(scan: &Scan, library: &Path) -> hmerr::Result<Vec<(u32, i64)>> {
-	let bar = progress::spin(OWN)?;
+	let bar = scan.stage(Stage::Own)?;
 	let db = scan.take();
 
 	let mut statement = db.prepare(&format!(
@@ -109,7 +105,7 @@ limit 2
 		top.push((row.get::<_, u32>(0)?, row.get::<_, i64>(1)?));
 	}
 
-	bar.finish();
+	bar.inc(1);
 
 	Ok(top)
 }

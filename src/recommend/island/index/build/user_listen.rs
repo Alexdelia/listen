@@ -1,8 +1,6 @@
 use std::path::Path;
 
-use super::{super::open::USER_LISTEN, library, pool::Pool, scan::Scan};
-
-pub(super) const NAME: &str = "listen";
+use super::{super::open::USER_LISTEN, board::Stage, library, pool::Pool, scan::Scan};
 
 pub(super) fn of(
 	scan: &Scan,
@@ -13,7 +11,7 @@ pub(super) fn of(
 ) -> hmerr::Result<u64> {
 	let into = dir.join(USER_LISTEN);
 
-	scan.bucketed(&into, NAME, &|bucket| {
+	scan.bucketed(&into, Stage::Listen, &|bucket| {
 		format!(
 			r"
 select l.user_id, r.recording_id, l.plays

@@ -1,4 +1,5 @@
 mod artist;
+mod board;
 mod library;
 mod parallel;
 mod pool;

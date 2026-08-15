@@ -73,10 +73,7 @@ fn discard_unusable(path: &Path) -> hmerr::Result<()> {
 
 #[cfg(test)]
 mod tests {
-	use super::{
-		super::{artist, library},
-		*,
-	};
+	use super::{super::board::Stage, *};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));
@@ -97,7 +94,7 @@ mod tests {
 	}
 
 	fn partial(work: &Path) -> PathBuf {
-		shard(work, library::NAME)
+		shard(work, Stage::Library.title())
 	}
 
 	fn stat(dir: &Path) -> PathBuf {
@@ -149,7 +146,7 @@ mod tests {
 		let dir = dir("declaration");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
-		let artist = shard(&work, artist::NAME);
+		let artist = shard(&work, Stage::Artist.title());
 		let listen = shard(&dir, USER_LISTEN);
 		let stat = stat(&dir);
 
