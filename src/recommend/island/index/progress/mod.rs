@@ -23,8 +23,38 @@ const SPIN: Duration = Duration::from_millis(120);
 const WIDTH: usize = 9;
 const STEP: &str = "{pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 const WAITING_STEP: &str = "{pos:>4.dim}/{len:4.dim} {percent:>3.dim}%";
+const BYTE: &str = "{bytes:>11.bold.green}/{total_bytes:11.bold} {bytes_per_sec:>12.bold.yellow}";
+const WAITING_BYTE: &str = "{bytes:>11.dim}/{total_bytes:11.dim} {bytes_per_sec:>12.dim}";
 const TIME: &str = "{elapsed:>5.bold.blue}|{eta:5.bold.magenta}";
 const WAITING_TIME: &str = "    -|-    ";
+
+#[derive(Clone, Copy)]
+pub(super) enum Measure {
+	Step(u64),
+	Byte(u64),
+}
+
+impl Measure {
+	fn total(self) -> u64 {
+		match self {
+			Self::Step(total) | Self::Byte(total) => total,
+		}
+	}
+
+	fn field(self) -> &'static str {
+		match self {
+			Self::Step(_) => STEP,
+			Self::Byte(_) => BYTE,
+		}
+	}
+
+	fn waiting_field(self) -> &'static str {
+		match self {
+			Self::Step(_) => WAITING_STEP,
+			Self::Byte(_) => WAITING_BYTE,
+		}
+	}
+}
 
 static BOARD: Mutex<Option<MultiProgress>> = Mutex::new(None);
 static SHOWING: AtomicUsize = AtomicUsize::new(0);
@@ -85,44 +115,33 @@ pub(super) fn bytes(size: u64) -> String {
 	HumanBytes(size).to_string()
 }
 
-pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = shown(ProgressBar::new(total));
+pub(super) fn waiting_bar(measure: Measure, title: &str) -> hmerr::Result<ProgressBar> {
+	let bar = shown(ProgressBar::new(measure.total()));
 	bar.set_style(style(
-		&titled(title),
-		&format!(
-			"{{bytes:>11.bold.green}}/{{total_bytes:11.bold}} \
-			{{bytes_per_sec:>12.bold.yellow}} {TIME}"
-		),
-		"cyan",
+		&format!("{F}{title}{D}", title = titled(title)),
+		&format!("{field} {WAITING_TIME}", field = measure.waiting_field()),
+		"white",
 	)?);
-
-	Ok(bar)
-}
-
-pub(super) fn waiting_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = shown(ProgressBar::new(total));
-	bar.set_style(waiting(title)?);
 	bar.tick();
 
 	Ok(bar)
 }
 
-pub(super) fn started(bar: &ProgressBar, title: &str) -> hmerr::Result<()> {
-	bar.set_style(
-		style(&titled(title), &format!("{STEP} {TIME}"), "cyan")?.with_key(eta::KEY, Eta::new()),
-	);
+pub(super) fn started(bar: &ProgressBar, title: &str, measure: Measure) -> hmerr::Result<()> {
+	let style = style(
+		&titled(title),
+		&format!("{field} {TIME}", field = measure.field()),
+		"cyan",
+	)?;
+
+	bar.set_style(match measure {
+		Measure::Step(_) => style.with_key(eta::KEY, Eta::new()),
+		Measure::Byte(_) => style,
+	});
 	bar.reset_elapsed();
 	bar.enable_steady_tick(SPIN);
 
 	Ok(())
-}
-
-fn waiting(title: &str) -> hmerr::Result<ProgressStyle> {
-	style(
-		&format!("{F}{title}{D}", title = titled(title)),
-		&format!("{WAITING_STEP} {WAITING_TIME}"),
-		"white",
-	)
 }
 
 fn titled(title: &str) -> String {
@@ -134,9 +153,7 @@ fn style(title: &str, field: &str, color: &str) -> hmerr::Result<ProgressStyle> 
 		.map_err(|e| format!("failed to create progress style\n{e}").into())
 }
 
-pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()> {
-	let bar = byte_bar(total, "download")?;
-
+pub(super) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Result<()> {
 	let mut child = Command::new(program)
 		.args(arg)
 		.stdout(Stdio::piped())
@@ -147,7 +164,7 @@ pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()
 	let complaint = complaint(&mut child);
 
 	if let Some(out) = child.stdout.take() {
-		follow(out, &bar);
+		follow(out, bar);
 	}
 
 	let status = child
@@ -155,8 +172,6 @@ pub(super) fn rsync(program: &str, arg: &[&str], total: u64) -> hmerr::Result<()
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{program}{D}\n{e}")))?;
 
 	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
-
-	ended(&bar);
 
 	if !status.success() {
 		return Err(ge!(

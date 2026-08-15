@@ -1,10 +1,7 @@
-use std::ops::Deref;
-
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
-use indicatif::ProgressBar;
-
-use super::super::{open::BUCKET, progress};
+use super::super::{
+	board::{Board, Running},
+	progress::Measure,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -54,62 +51,20 @@ impl Stage {
 	fn total(self, batch: u64) -> u64 {
 		match self {
 			Self::Library | Self::Artist => batch,
-			Self::Compact | Self::Stat | Self::Listen => u64::from(BUCKET),
+			Self::Compact | Self::Stat | Self::Listen => u64::from(super::super::open::BUCKET),
 			Self::Recording | Self::Own | Self::Pool | Self::Credit | Self::UserStat => ONCE,
 		}
 	}
 }
 
-pub(super) struct Board {
-	bar: Vec<ProgressBar>,
+pub(super) fn of(batch: usize) -> hmerr::Result<Board> {
+	let batch = u64::try_from(batch).unwrap_or(ONCE);
+
+	Board::of(&PLAN.map(|stage| (stage.title(), Measure::Step(stage.total(batch)))))
 }
 
-pub(crate) struct Running {
-	bar: ProgressBar,
-}
-
-impl Board {
-	pub(super) fn of(batch: usize) -> hmerr::Result<Self> {
-		let batch = u64::try_from(batch).unwrap_or(ONCE);
-		let mut bar = Vec::with_capacity(PLAN.len());
-
-		for stage in PLAN {
-			bar.push(progress::waiting_bar(stage.total(batch), stage.title())?);
-		}
-
-		Ok(Self { bar })
-	}
-
-	pub(super) fn start(&self, stage: Stage) -> hmerr::Result<Running> {
-		let bar = PLAN
-			.iter()
-			.position(|planned| *planned == stage)
-			.and_then(|at| self.bar.get(at))
-			.ok_or_else(|| {
-				ge!(format!(
-					"{R}no bar was planned for {B}{title}{D}",
-					title = stage.title()
-				))
-			})?;
-
-		progress::started(bar, stage.title())?;
-
-		Ok(Running { bar: bar.clone() })
-	}
-}
-
-impl Deref for Running {
-	type Target = ProgressBar;
-
-	fn deref(&self) -> &Self::Target {
-		&self.bar
-	}
-}
-
-impl Drop for Running {
-	fn drop(&mut self) {
-		progress::ended(&self.bar);
-	}
+pub(super) fn start(board: &Board, stage: Stage) -> hmerr::Result<Running> {
+	board.start(stage.title())
 }
 
 #[cfg(test)]
@@ -118,11 +73,10 @@ mod tests {
 
 	#[test]
 	fn every_stage_of_a_build_is_on_the_board_before_the_first_one_runs() {
-		let board = Board::of(48).unwrap_or_else(|_| unreachable!());
+		let board = of(48).unwrap_or_else(|_| unreachable!());
 
-		assert_eq!(board.bar.len(), PLAN.len());
 		for stage in PLAN {
-			assert!(board.start(stage).is_ok(), "{}", stage.title());
+			assert!(start(&board, stage).is_ok(), "{}", stage.title());
 		}
 	}
 
@@ -130,7 +84,10 @@ mod tests {
 	fn what_a_stage_is_worth_is_read_off_how_the_dump_was_sliced() {
 		assert_eq!(Stage::Library.total(48), 48);
 		assert_eq!(Stage::Artist.total(48), 48);
-		assert_eq!(Stage::Listen.total(48), u64::from(BUCKET));
+		assert_eq!(
+			Stage::Listen.total(48),
+			u64::from(super::super::super::open::BUCKET)
+		);
 		assert_eq!(Stage::Pool.total(48), ONCE);
 	}
 

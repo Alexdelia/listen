@@ -5,10 +5,11 @@ use std::{
 
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
+use indicatif::ProgressBar;
 
 use super::{
 	super::{keep, progress},
-	rsync, space,
+	board, rsync, space,
 };
 
 const MODULE: &str = "listenbrainz/fullexport";
@@ -89,16 +90,16 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		ext = rsync::CHECKSUM_EXT
 	);
 
-	rsync::pull(
-		&format!("{url}{name}", name = archive.name),
-		&tar,
-		archive.size,
-	)?;
+	let board = board::listen(archive.size)?;
+
+	board.run(board::DOWNLOAD, |bar| {
+		rsync::pull(&format!("{url}{name}", name = archive.name), &tar, bar)
+	})?;
 	rsync::small(&format!("{url}{checksum}"), &root.join(&checksum))?;
-	rsync::verify(root, &checksum)?;
+	board.run(board::VERIFY, |_| rsync::verify(root, &checksum))?;
 	rsync::forget(root, &[&checksum])?;
 
-	let dir = unpack(&tar, root, archive.size)?;
+	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
 	keep::discard(&tar)?;
 
 	Ok(Listen {
@@ -156,15 +157,12 @@ fn weight(dir: &Path) -> u64 {
 		.sum()
 }
 
-fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
-	let bar = progress::byte_bar(size, "unpack")?;
+fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 	let file = fs::File::open(tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
 
 	tar::Archive::new(bar.wrap_read(file))
 		.unpack(root)
 		.map_err(|e| ioe!(tar.to_string_lossy(), e))?;
-
-	progress::ended(&bar);
 
 	let dir = root.join(LISTEN);
 	let inner = fs::read_dir(root)

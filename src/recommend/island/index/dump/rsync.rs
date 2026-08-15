@@ -1,5 +1,7 @@
 use std::{fs, path::Path, process::Command};
 
+use indicatif::ProgressBar;
+
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge, ioe};
 
@@ -72,7 +74,7 @@ pub(super) fn small(url: &str, into: &Path) -> hmerr::Result<()> {
 	Ok(())
 }
 
-pub(super) fn pull(url: &str, into: &Path, total: u64) -> hmerr::Result<()> {
+pub(super) fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
 	prepare(into)?;
 
 	progress::rsync(
@@ -85,7 +87,7 @@ pub(super) fn pull(url: &str, into: &Path, total: u64) -> hmerr::Result<()> {
 			url,
 			&into.to_string_lossy(),
 		],
-		total,
+		bar,
 	)
 }
 
@@ -111,8 +113,6 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 		));
 		return Ok(());
 	}
-
-	progress::say(format!("{F}verifying against {B}{sums}{D}"));
 
 	let published = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 

@@ -1,3 +1,4 @@
+mod board;
 mod listen;
 mod music_brainz;
 mod rsync;

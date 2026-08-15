@@ -11,8 +11,11 @@ use std::{
 use hmerr::ioe;
 
 use super::{
-	super::open::{self, BUCKET},
-	board::{Board, Running, Stage},
+	super::{
+		board::{Board, Running},
+		open::{self, BUCKET},
+	},
+	board::{self, Stage},
 };
 
 use lane::Lane;
@@ -51,7 +54,7 @@ set preserve_insertion_order=false;
 
 		Ok(Self {
 			lane: Lane::of(db, size.lane)?,
-			board: Board::of(size.batch)?,
+			board: board::of(size.batch)?,
 			work: work.to_path_buf(),
 			shard: shard.path,
 			batch: size.batch,
@@ -67,7 +70,7 @@ set preserve_insertion_order=false;
 	}
 
 	pub(super) fn stage(&self, stage: Stage) -> hmerr::Result<Running> {
-		self.board.start(stage)
+		board::start(&self.board, stage)
 	}
 
 	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> hmerr::Result<()> {

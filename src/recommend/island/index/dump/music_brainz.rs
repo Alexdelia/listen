@@ -6,10 +6,11 @@ use std::{
 
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
+use indicatif::ProgressBar;
 
 use super::{
 	super::{keep, partial, progress},
-	rsync, space,
+	board, rsync, space,
 };
 
 const MODULE: &str = "data/fullexport";
@@ -43,17 +44,17 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		return Err(refused().into());
 	}
 
-	rsync::pull(
-		&format!("{url}{ARCHIVE}"),
-		&root.join(ARCHIVE),
-		archive.size,
-	)?;
+	let board = board::music_brainz(archive.size)?;
+
+	board.run(board::DOWNLOAD, |bar| {
+		rsync::pull(&format!("{url}{ARCHIVE}"), &root.join(ARCHIVE), bar)
+	})?;
 	rsync::small(&format!("{url}{SUMS}"), &root.join(SUMS))?;
-	rsync::verify(root, SUMS)?;
+	board.run(board::VERIFY, |_| rsync::verify(root, SUMS))?;
 	rsync::forget(root, &[SUMS])?;
 
-	let table = unpack(root, archive.size)?;
-	load(&table, link)?;
+	let table = board.run(board::UNPACK, |bar| unpack(root, bar))?;
+	board.run(board::RELATION, |_| load(&table, link))?;
 
 	keep::discard(&root.join(ARCHIVE))?;
 	keep::discard(&table)?;
@@ -61,12 +62,11 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
+fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 	let archive = root.join(ARCHIVE);
 	let into = root.join("mb");
 	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 
-	let bar = progress::byte_bar(size, "unpack")?;
 	let mut argument = vec![
 		"--extract".to_string(),
 		"--bzip2".to_string(),
@@ -100,8 +100,6 @@ fn unpack(root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 		.map_err(|e| ge!(format!("{R}failed to wait on {B}{TAR}{D}\n{e}")))?;
 
 	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
-
-	progress::ended(&bar);
 
 	unpacked(status, fed, &complaint)?;
 
