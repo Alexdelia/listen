@@ -4,6 +4,8 @@ use super::{super::open::RECORDING_ARTIST, scan::Scan};
 
 pub(super) const NAME: &str = "artist";
 
+const CREDIT: &str = "credit";
+
 pub(super) fn of(scan: &Scan, dir: &Path, recording: &Path) -> hmerr::Result<()> {
 	let recording = recording.display().to_string();
 
@@ -18,7 +20,8 @@ where l.artist_credit_mbids is not null
 		)
 	})?;
 
-	scan.copy(
+	scan.step(
+		CREDIT,
 		&dir.join(RECORDING_ARTIST),
 		&format!(
 			r"

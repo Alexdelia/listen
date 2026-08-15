@@ -73,11 +73,11 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 
 	space::require(root, space::unpacking(&tar, archive.size))?;
 
-	println!(
+	progress::say(format!(
 		"\n{F}listen dump {B}{dump}{D}{F}: {B}{Y}{size}{D}{F}, {B}{Y}+{size}{D}{F} unpacked, \
 		deleted once index built{D}",
 		size = progress::bytes(archive.size)
-	);
+	));
 
 	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
 		return Err(refused().into());
@@ -135,10 +135,10 @@ pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 	}
 
 	if !keep::requested() {
-		println!(
+		progress::say(format!(
 			"{F}index built, releasing its {B}{Y}{size}{D}{F} dump{D}",
 			size = progress::bytes(weight(&listen.dir))
-		);
+		));
 	}
 
 	keep::discard(&listen.dir)

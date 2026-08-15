@@ -2,10 +2,13 @@ use std::path::{Path, PathBuf};
 
 use super::{super::open::RECORDING, library, scan::Scan};
 
+const NAME: &str = "recording";
+
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path) -> hmerr::Result<PathBuf> {
 	let into = dir.join(RECORDING);
 
-	scan.copy(
+	scan.step(
+		NAME,
 		&into,
 		&format!(
 			r"

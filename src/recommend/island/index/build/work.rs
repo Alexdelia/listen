@@ -9,11 +9,12 @@ use hmerr::ioe;
 use super::super::{
 	keep,
 	open::{USER_LISTEN, USER_STAT},
+	progress,
 };
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
-const FORMAT: u32 = 2;
+const FORMAT: u32 = 3;
 
 pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	let work = dir.join(DIR);
@@ -37,10 +38,10 @@ pub(super) fn release(work: &Path) {
 		return;
 	}
 
-	println!(
+	progress::say(format!(
 		"{F}work directory kept at {B}{work}{D}",
 		work = work.display()
-	);
+	));
 }
 
 fn published(dir: &Path) -> [PathBuf; 2] {

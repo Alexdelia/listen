@@ -33,11 +33,11 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 
 	space::require(root, space::unpacking(&root.join(ARCHIVE), archive.size))?;
 
-	println!(
+	progress::say(format!(
 		"\n{F}artist relations: musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}, \
 		2 tables kept, archive deleted after{D}",
 		size = progress::bytes(archive.size)
-	);
+	));
 
 	if !ux::ask_yn("download it", false).map_err(|e| ioe!("stdin", e))? {
 		return Err(refused().into());

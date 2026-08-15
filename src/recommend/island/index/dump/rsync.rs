@@ -106,11 +106,13 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 	let path = dir.join(sums);
 
 	if !path.exists() {
-		println!("{F}no {B}{sums}{D}{F} alongside the archive, verification skipped{D}");
+		progress::say(format!(
+			"{F}no {B}{sums}{D}{F} alongside the archive, verification skipped{D}"
+		));
 		return Ok(());
 	}
 
-	println!("{F}verifying against {B}{sums}{D}");
+	progress::say(format!("{F}verifying against {B}{sums}{D}"));
 
 	let published = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 

@@ -9,6 +9,8 @@ use super::{
 
 pub(super) const NAME: &str = "stat";
 
+const USER: &str = "user stat";
+
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
 	let partial = scan.work.join(NAME);
 
@@ -16,7 +18,8 @@ pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr:
 		attraction::stat(&pooled(library, bucket, pool))
 	})?;
 
-	scan.copy(
+	scan.step(
+		USER,
 		&dir.join(USER_STAT),
 		&format!(
 			"select * from read_parquet('{partial}/*.parquet')",

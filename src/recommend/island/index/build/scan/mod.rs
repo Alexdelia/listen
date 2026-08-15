@@ -1,0 +1,132 @@
+mod lane;
+mod query;
+mod shard;
+mod size;
+
+use std::{
+	fs,
+	path::{Path, PathBuf},
+};
+
+use hmerr::ioe;
+
+use super::super::{
+	open::{self, BUCKET},
+	progress,
+};
+
+use lane::Lane;
+use query::Unit;
+use size::Size;
+
+pub(super) use lane::Held;
+
+pub(super) struct Scan {
+	pub work: PathBuf,
+	pub shard: Vec<String>,
+	lane: Lane,
+	batch: usize,
+}
+
+impl Scan {
+	pub(super) fn of(work: &Path, dump: &Path) -> hmerr::Result<Self> {
+		let shard = shard::of(dump)?;
+		let db = duckdb::Connection::open_in_memory()?;
+		let size = Size::of(size::offered(&db), shard.bytes, shard.path.len());
+
+		db.execute_batch(&format!(
+			r"
+set memory_limit='{memory}';
+set threads={thread};
+set temp_directory='{work}/spill';
+set preserve_insertion_order=false;
+",
+			memory = size.limit(),
+			thread = size.thread,
+			work = work.display()
+		))?;
+
+		size.tell();
+
+		Ok(Self {
+			lane: Lane::of(db, size.lane)?,
+			work: work.to_path_buf(),
+			shard: shard.path,
+			batch: size.batch,
+		})
+	}
+
+	pub(super) fn take(&self) -> Held<'_> {
+		self.lane.take()
+	}
+
+	pub(super) fn count(&self, of: &Path) -> hmerr::Result<u64> {
+		query::count(&self.take(), of)
+	}
+
+	pub(super) fn step(&self, title: &str, into: &Path, select: &str) -> hmerr::Result<()> {
+		let bar = progress::spin(title)?;
+		let done = query::copy(&self.take(), into, select);
+		bar.finish();
+
+		done
+	}
+
+	pub(super) fn batched(
+		&self,
+		title: &str,
+		query: &dyn Fn(&str) -> String,
+	) -> hmerr::Result<PathBuf> {
+		let partial = self.work.join(title);
+		fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
+
+		let per = self.shard.len().div_ceil(self.batch);
+		let unit: Vec<Unit> = self
+			.shard
+			.chunks(per.max(1))
+			.enumerate()
+			.map(|(step, chunk)| Unit {
+				into: partial.join(format!("{step}.parquet")),
+				select: query(&shard::quoted(chunk)),
+			})
+			.collect();
+
+		self.produce(title, &unit)?;
+
+		Ok(partial)
+	}
+
+	pub(super) fn bucketed(
+		&self,
+		into: &Path,
+		title: &str,
+		query: &dyn Fn(u32) -> String,
+	) -> hmerr::Result<()> {
+		fs::create_dir_all(into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+
+		let unit: Vec<Unit> = (0..BUCKET)
+			.map(|bucket| Unit {
+				into: into.join(open::shard(bucket)),
+				select: query(bucket),
+			})
+			.collect();
+
+		self.produce(title, &unit)
+	}
+
+	fn produce(&self, title: &str, unit: &[Unit]) -> hmerr::Result<()> {
+		let bar = progress::step_bar(unit.len() as u64, title)?;
+
+		self.lane.spread(unit, &bar, |db, unit| {
+			if query::done(db, &unit.into) {
+				return Ok(());
+			}
+
+			query::copy(db, &unit.into, &unit.select)
+		})?;
+
+		bar.finish();
+
+		Ok(())
+	}
+}

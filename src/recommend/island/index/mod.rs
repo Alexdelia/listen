@@ -47,11 +47,11 @@ fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
 }
 
 fn asked(listen: &Listen) -> hmerr::Result<bool> {
-	println!(
+	progress::say(format!(
 		"\n{F}listen dump {B}{name}{D}{F} unpacked next to a built index, \
 		rebuilding replaces it and may be long{D}",
 		name = listen.name
-	);
+	));
 
 	ux::ask_yn("rebuild index", true).map_err(|e| ioe!("stdin", e).into())
 }

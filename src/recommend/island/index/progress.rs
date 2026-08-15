@@ -1,20 +1,33 @@
 use std::{
 	io::Read,
 	process::{Command, Stdio},
+	sync::OnceLock,
+	time::Duration,
 };
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
-use indicatif::{HumanBytes, ProgressBar, ProgressStyle};
+use indicatif::{HumanBytes, MultiProgress, ProgressBar, ProgressStyle};
 
 const READ: usize = 16 * 1024;
+const SPIN: Duration = Duration::from_millis(120);
+
+static BOARD: OnceLock<MultiProgress> = OnceLock::new();
+
+fn board() -> &'static MultiProgress {
+	BOARD.get_or_init(MultiProgress::new)
+}
+
+pub(super) fn say(line: impl AsRef<str>) {
+	board().suspend(|| println!("{}", line.as_ref()));
+}
 
 pub(super) fn bytes(size: u64) -> String {
 	HumanBytes(size).to_string()
 }
 
 pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = ProgressBar::new(total);
+	let bar = board().add(ProgressBar::new(total));
 	bar.set_style(style(
 		title,
 		"{bytes:>11.bold.green}/{total_bytes:11.bold} {bytes_per_sec:>12.bold.yellow}",
@@ -24,12 +37,27 @@ pub(super) fn byte_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
 }
 
 pub(super) fn step_bar(total: u64, title: &str) -> hmerr::Result<ProgressBar> {
-	let bar = ProgressBar::new(total);
+	let bar = board().add(ProgressBar::new(total));
 	bar.set_style(style(
 		title,
 		"{pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%",
 	)?);
 	bar.tick();
+
+	Ok(bar)
+}
+
+pub(super) fn spin(title: &str) -> hmerr::Result<ProgressBar> {
+	let title = format!("{title:>9}");
+
+	let bar = board().add(ProgressBar::new_spinner());
+	bar.set_style(
+		ProgressStyle::with_template(&format!(
+			"{title} {{spinner:.cyan}} {{elapsed:>5.bold.blue}}"
+		))
+		.map_err(|e| format!("failed to create progress style\n{e}"))?,
+	);
+	bar.enable_steady_tick(SPIN);
 
 	Ok(bar)
 }

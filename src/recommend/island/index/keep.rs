@@ -5,6 +5,8 @@ use hmerr::ioe;
 
 use crate::env::{self, Var};
 
+use super::progress;
+
 pub(super) fn requested() -> bool {
 	env::get_bool(Var::Keep)
 }
@@ -29,9 +31,9 @@ pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
 }
 
 fn announce(path: &Path) {
-	println!(
+	progress::say(format!(
 		"{F}{key} is set, keeping {B}{Y}{path}{D}",
 		key = Var::Keep.key(),
 		path = path.display()
-	);
+	));
 }

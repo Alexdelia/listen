@@ -3,7 +3,11 @@ use std::path::{Path, PathBuf};
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge};
 
-use super::{library, scan::Scan, seed};
+use super::{super::progress, library, scan::Scan, seed};
+
+const NAME: &str = "pool";
+
+const OWN: &str = "own";
 
 const POOL: &str = "user.parquet";
 
@@ -32,7 +36,8 @@ pub(super) fn of(
 	let own = own(scan, library, declared, known)?;
 	let path = scan.work.join(POOL);
 
-	scan.copy(
+	scan.step(
+		NAME,
 		&path,
 		&format!(
 			r"
@@ -50,7 +55,42 @@ having count(*) >= {MIN_REPEATED_RECORDING}
 }
 
 fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmerr::Result<u32> {
-	let mut statement = scan.db.prepare(&format!(
+	let top = seeded(scan, library)?;
+
+	let found = top.first().copied();
+	let runner_up = top.get(1).map_or(0, |(_, seed)| *seed);
+
+	if let Some((own, seed)) = found
+		&& separated(seed, runner_up, declared)
+	{
+		progress::say(format!(
+			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
+			runner up {B}{runner_up}{D}",
+			share = coverage(seed, declared)
+		));
+
+		return Ok(own);
+	}
+
+	let Some(known) = known else {
+		return match found {
+			Some((own, seed)) => Err(ambiguous(own, seed, runner_up).into()),
+			None => Err(no_overlap().into()),
+		};
+	};
+
+	progress::say(format!(
+		"{F}declaration no longer singles out a listener, keeping known own user {B}{known}{D}"
+	));
+
+	Ok(known)
+}
+
+fn seeded(scan: &Scan, library: &Path) -> hmerr::Result<Vec<(u32, i64)>> {
+	let bar = progress::spin(OWN)?;
+	let db = scan.take();
+
+	let mut statement = db.prepare(&format!(
 		r"
 select l.user_id::uinteger, count(*)::bigint
 from {library} l
@@ -69,33 +109,9 @@ limit 2
 		top.push((row.get::<_, u32>(0)?, row.get::<_, i64>(1)?));
 	}
 
-	let found = top.first().copied();
-	let runner_up = top.get(1).map_or(0, |(_, seed)| *seed);
+	bar.finish();
 
-	if let Some((own, seed)) = found
-		&& separated(seed, runner_up, declared)
-	{
-		println!(
-			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
-			runner up {B}{runner_up}{D}",
-			share = coverage(seed, declared)
-		);
-
-		return Ok(own);
-	}
-
-	let Some(known) = known else {
-		return match found {
-			Some((own, seed)) => Err(ambiguous(own, seed, runner_up).into()),
-			None => Err(no_overlap().into()),
-		};
-	};
-
-	println!(
-		"{F}declaration no longer singles out a listener, keeping known own user {B}{known}{D}"
-	);
-
-	Ok(known)
+	Ok(top)
 }
 
 fn coverage(seed: i64, declared: usize) -> i64 {

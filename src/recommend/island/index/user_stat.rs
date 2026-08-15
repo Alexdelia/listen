@@ -5,7 +5,7 @@ use ansi::abbrev::{D, F};
 use super::{
 	super::attraction,
 	open::{self, USER_LISTEN, USER_STAT},
-	partial,
+	partial, progress,
 };
 
 pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
@@ -15,10 +15,10 @@ pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
-	println!(
+	progress::say(format!(
 		"{F}index predates listener stat, derived from its listen, \
 		rebuild from a dump to fix{D}"
-	);
+	));
 
 	let db = open::session(dir)?;
 

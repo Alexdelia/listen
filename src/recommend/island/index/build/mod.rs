@@ -1,5 +1,6 @@
 mod artist;
 mod library;
+mod parallel;
 mod pool;
 mod recording;
 mod scan;
@@ -15,7 +16,7 @@ use chrono::Utc;
 
 use crate::declaration::parse;
 
-use super::{dump::Listen, open};
+use super::{dump::Listen, open, progress};
 
 use scan::Scan;
 
@@ -31,11 +32,17 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 
 	seed::declare(&scan, &declared)?;
 	let library = library::of(&scan)?;
-	let recording = recording::of(&scan, dir, &library)?;
-	artist::of(&scan, dir, &recording)?;
-	let pool = pool::of(&scan, &library, declared.len(), known)?;
-	user_stat::of(&scan, dir, &library, &pool)?;
-	let row = user_listen::of(&scan, dir, &library, &pool, &recording)?;
+
+	let (recording, pool) = parallel::both(
+		|| recording::of(&scan, dir, &library),
+		|| pool::of(&scan, &library, declared.len(), known),
+	)?;
+
+	let ((), (), row) = parallel::all(
+		|| artist::of(&scan, dir, &recording),
+		|| user_stat::of(&scan, dir, &library, &pool),
+		|| user_listen::of(&scan, dir, &library, &pool, &recording),
+	)?;
 
 	open::write_meta(
 		dir,
@@ -52,16 +59,16 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 	drop(scan);
 	work::release(&work);
 
-	println!("{G}index built{D}");
+	progress::say(format!("{G}index built{D}"));
 
 	Ok(())
 }
 
 fn announce(declared: usize) {
-	println!(
+	progress::say(format!(
 		"\n{F}building index from {B}{declared}{D}{F} declared recording, \
 		may be long, once per dump{D}\n"
-	);
+	));
 }
 
 #[cfg(test)]
