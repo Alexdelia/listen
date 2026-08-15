@@ -53,12 +53,12 @@ having count(*) >= {MIN_REPEATED_RECORDING}
 fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmerr::Result<u32> {
 	let top = seeded(scan, library)?;
 
-	let found = top.first().copied();
+	let Some((own, seed)) = top.first().copied() else {
+		return Err(no_overlap().into());
+	};
 	let runner_up = top.get(1).map_or(0, |(_, seed)| *seed);
 
-	if let Some((own, seed)) = found
-		&& separated(seed, runner_up, declared)
-	{
+	if separated(seed, runner_up, declared) {
 		progress::say(format!(
 			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
 			runner up {B}{runner_up}{D}",
@@ -69,10 +69,7 @@ fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmer
 	}
 
 	let Some(known) = known else {
-		return match found {
-			Some((own, seed)) => Err(ambiguous(own, seed, runner_up).into()),
-			None => Err(no_overlap().into()),
-		};
+		return Err(ambiguous(own, seed, runner_up).into());
 	};
 
 	progress::say(format!(
