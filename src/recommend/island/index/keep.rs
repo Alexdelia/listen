@@ -31,8 +31,21 @@ fn by_test() -> bool {
 }
 
 #[cfg(test)]
-pub(super) fn request() {
+pub(super) struct Requested;
+
+#[cfg(test)]
+impl Drop for Requested {
+	fn drop(&mut self) {
+		REQUESTED.with(|requested| requested.set(false));
+	}
+}
+
+#[cfg(test)]
+#[must_use]
+pub(super) fn request() -> Requested {
 	REQUESTED.with(|requested| requested.set(true));
+
+	Requested
 }
 
 pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
@@ -95,10 +108,21 @@ mod tests {
 	#[test]
 	fn a_requested_keep_leaves_what_it_is_given() {
 		let file = file("requested");
-		request();
+		let _keep = request();
 
 		assert!(discard(&file).is_ok());
 		assert!(file.exists());
 		let _ = fs::remove_dir_all(file.parent().unwrap_or(&file));
+	}
+
+	#[test]
+	fn a_keep_lasts_no_longer_than_whoever_asked_for_it() {
+		{
+			let _keep = request();
+
+			assert!(requested());
+		}
+
+		assert!(!requested());
 	}
 }
