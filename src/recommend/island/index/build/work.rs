@@ -6,14 +6,18 @@ use std::{
 use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
-use super::super::{
-	keep,
-	open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
-	progress,
+use super::{
+	super::{
+		keep,
+		open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
+		progress,
+	},
+	board::Stage,
 };
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
+const LISTENER: &str = "listener";
 const FORMAT: u32 = 3;
 
 pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
@@ -28,6 +32,18 @@ pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	stamp(&work, DUMP, dump)?;
 
 	Ok(work)
+}
+
+pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
+	let own = &own.to_string();
+
+	if stamped(work, LISTENER).as_deref() != Some(own.as_str()) {
+		for part in pooled() {
+			discard_unusable(&work.join(part))?;
+		}
+	}
+
+	stamp(work, LISTENER, own)
 }
 
 pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
@@ -57,6 +73,10 @@ pub(super) fn release(work: &Path) {
 
 fn published() -> [&'static str; 4] {
 	[RECORDING, RECORDING_ARTIST, USER_STAT, USER_LISTEN]
+}
+
+fn pooled() -> [&'static str; 3] {
+	[Stage::Stat.title(), USER_STAT, USER_LISTEN]
 }
 
 fn stamped(work: &Path, of: &str) -> Option<String> {
@@ -188,6 +208,38 @@ mod tests {
 		assert!(artist.exists());
 		assert!(listen.exists());
 		assert!(stat.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn resuming_under_the_same_own_listener_keeps_what_was_pooled_for_it() {
+		let dir = dir("same_own");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		let _ = exclude(&work, 1);
+		let stat = shard(&work, Stage::Stat.title());
+		let listen = shard(&work, USER_LISTEN);
+
+		let _ = exclude(&work, 1);
+
+		assert!(stat.exists());
+		assert!(listen.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn another_own_listener_throws_away_what_the_previous_one_pooled() {
+		let dir = dir("other_own");
+		let work = open(&dir, "20260712-000004").unwrap_or_default();
+		let partial = partial(&work);
+		let _ = exclude(&work, 1);
+		let stat = shard(&work, Stage::Stat.title());
+		let listen = shard(&work, USER_LISTEN);
+
+		let _ = exclude(&work, 2);
+
+		assert!(!stat.exists());
+		assert!(!listen.exists());
+		assert!(partial.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

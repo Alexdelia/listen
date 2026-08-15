@@ -38,6 +38,8 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 		|| pool::of(&scan, &library, declared.len(), known),
 	)?;
 
+	work::exclude(&work, pool.own)?;
+
 	let ((), (), row) = parallel::all(
 		|| artist::of(&scan, &work, &recording),
 		|| user_stat::of(&scan, &work, &library, &pool),
