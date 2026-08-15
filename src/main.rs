@@ -20,6 +20,8 @@ use async_std::task::block_on;
 use args::Command;
 
 fn main() -> hmerr::Result<()> {
+	env::read();
+
 	let args = args::parse();
 
 	if let Some(Command::Completion { shell }) = &args.command {

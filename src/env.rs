@@ -1,13 +1,13 @@
 use std::sync::OnceLock;
 
 use ansi::abbrev::{B, D, G, M, R, Y};
-use hmerr::{ge, ioe};
+use hmerr::ge;
 
 const DOTENV_FILE: &str = ".env";
 
 const FALSE: [&str; 4] = ["0", "false", "no", "off"];
 
-static DOTENV: OnceLock<()> = OnceLock::new();
+static DOTENV: OnceLock<Option<String>> = OnceLock::new();
 
 #[derive(Clone, Copy)]
 pub enum Var {
@@ -28,29 +28,29 @@ impl Var {
 	}
 }
 
+pub fn read() {
+	let _ = complaint();
+}
+
 pub fn load() -> hmerr::Result<()> {
-	let Err(e) = dotenvy::dotenv() else {
+	let Some(complaint) = complaint() else {
 		return Ok(());
 	};
 
-	match e {
-		dotenvy::Error::Io(e) => Err(ioe!(
-			".env",
-			e,
-			h:format!("please {B}{G}copy {M}.env.example{D} to {B}{Y}{DOTENV_FILE}{D} and {B}{G}fill in the values{D}")
-		))?,
-		_ => Err(e.into()),
-	}
+	Err(ge!(
+		format!("{B}{R}{DOTENV_FILE}{D}: {complaint}"),
+		h: format!("please {B}{G}copy {M}.env.example{D} to {B}{Y}{DOTENV_FILE}{D} and {B}{G}fill in the values{D}")
+	))?
 }
 
-fn read_dotenv() {
-	DOTENV.get_or_init(|| {
-		let _ = dotenvy::dotenv();
-	});
+fn complaint() -> Option<&'static String> {
+	DOTENV
+		.get_or_init(|| dotenvy::dotenv().err().map(|e| e.to_string()))
+		.as_ref()
 }
 
 pub fn get_opt(key: Var) -> Option<String> {
-	read_dotenv();
+	read();
 
 	std::env::var(key.key()).ok().filter(|v| !v.is_empty())
 }
@@ -60,7 +60,7 @@ pub fn get_bool(key: Var) -> bool {
 }
 
 pub fn get(key: Var) -> hmerr::Result<String> {
-	read_dotenv();
+	read();
 
 	let key = key.key();
 
