@@ -3,12 +3,36 @@ use std::{fs, path::Path};
 use ansi::abbrev::{B, D, F, Y};
 use hmerr::ioe;
 
-use crate::env::{self, Var};
+use crate::env;
 
 use super::progress;
 
 pub(super) fn requested() -> bool {
-	env::get_bool(Var::Keep)
+	if cfg!(test) {
+		return by_test();
+	}
+
+	env::get_bool(env::Var::Keep)
+}
+
+#[cfg(not(test))]
+fn by_test() -> bool {
+	false
+}
+
+#[cfg(test)]
+thread_local! {
+	static REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+fn by_test() -> bool {
+	REQUESTED.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+pub(super) fn request() {
+	REQUESTED.with(|requested| requested.set(true));
 }
 
 pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
@@ -33,7 +57,48 @@ pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
 fn announce(path: &Path) {
 	progress::say(format!(
 		"{F}{key} is set, keeping {B}{Y}{path}{D}",
-		key = Var::Keep.key(),
+		key = env::Var::Keep.key(),
 		path = path.display()
 	));
+}
+
+#[cfg(test)]
+mod tests {
+	use std::path::PathBuf;
+
+	use super::*;
+
+	fn file(name: &str) -> PathBuf {
+		let dir = std::env::temp_dir().join(format!("declarative_listen_keep_{name}"));
+		let _ = fs::remove_dir_all(&dir);
+		let _ = fs::create_dir_all(&dir);
+		let file = dir.join("payload");
+		let _ = fs::write(&file, b"payload");
+
+		file
+	}
+
+	#[test]
+	fn what_the_environment_asks_to_keep_does_not_reach_a_test() {
+		assert!(!requested());
+	}
+
+	#[test]
+	fn discarding_removes_what_it_is_given() {
+		let file = file("discard");
+
+		assert!(discard(&file).is_ok());
+		assert!(!file.exists());
+		let _ = fs::remove_dir_all(file.parent().unwrap_or(&file));
+	}
+
+	#[test]
+	fn a_requested_keep_leaves_what_it_is_given() {
+		let file = file("requested");
+		request();
+
+		assert!(discard(&file).is_ok());
+		assert!(file.exists());
+		let _ = fs::remove_dir_all(file.parent().unwrap_or(&file));
+	}
 }
