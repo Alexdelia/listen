@@ -24,10 +24,7 @@ pub(super) fn ready() -> bool {
 }
 
 pub(super) fn absent() {
-	println!(
-		"{F}no listen index yet, so this run stays on the listenbrainz sources.{D}\n\
-		{F}run {B}--source island{D}{F} once to set it up.{D}"
-	);
+	println!("{F}no island index, {G}run --source island{D}{F} to build it{D}");
 }
 
 pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
@@ -100,13 +97,13 @@ fn pin(
 fn unknown(name: &str) -> GenericError {
 	ge!(
 		format!("{R}no island named {B}{name}{D}"),
-		h: "islands are detected fresh every run, so run without --island to see this run's names"
+		h: "islands are detected fresh every run, run without --island to see this run's names"
 	)
 }
 
 fn report(meta: &index::Meta, library: &seed::Library) {
 	println!(
-		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {G}{F}listen{D} {CYA}{user} {G}{F}user{D}",
+		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}",
 		built = meta.built,
 		recording = human_readable_number::text(meta.recording),
 		listen = human_readable_number::text(meta.user_listen),

@@ -74,8 +74,8 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 	space::require(root, space::unpacking(&tar, archive.size))?;
 
 	println!(
-		"\n{F}the listen dump {B}{dump}{D}{F} is {B}{Y}{size}{D}{F}, and needs {B}{Y}{size}{D}{F} more once unpacked.{D}\n\
-		{F}it is only ever read to build the index, and deleted as soon as the index is built.{D}",
+		"\n{F}listen dump {B}{dump}{D}{F}: {B}{Y}{size}{D}{F}, {B}{Y}+{size}{D}{F} unpacked, \
+		deleted once index built{D}",
 		size = progress::bytes(archive.size)
 	);
 
@@ -136,7 +136,7 @@ pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 
 	if !keep::requested() {
 		println!(
-			"{F}the index is built, releasing the {B}{Y}{size}{D}{F} dump it came from{D}",
+			"{F}index built, releasing its {B}{Y}{size}{D}{F} dump{D}",
 			size = progress::bytes(weight(&listen.dir))
 		);
 	}
@@ -188,7 +188,7 @@ fn unpack(tar: &Path, root: &Path, size: u64) -> hmerr::Result<PathBuf> {
 fn refused() -> GenericError {
 	ge!(
 		format!("{R}cancelled{D}"),
-		h: "the index is built from the dump, so there is nothing to recommend from without it"
+		h: "the index is built from the dump, no dump means nothing to recommend from"
 	)
 }
 

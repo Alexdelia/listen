@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F};
+use ansi::abbrev::{D, F};
 
 use super::{
 	super::attraction,
@@ -16,8 +16,8 @@ pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 	}
 
 	println!(
-		"{F}this index predates listener statistics, reading them off the listens it already holds.{D}\n\
-		{F}the next build from a dump reads them off the whole library instead, {B}low{D}{F} lands lower.{D}"
+		"{F}index predates listener stat, derived from its listen, \
+		rebuild from a dump to fix{D}"
 	);
 
 	let db = open::session(dir)?;

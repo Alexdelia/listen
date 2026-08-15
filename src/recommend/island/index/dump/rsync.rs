@@ -106,7 +106,7 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 	let path = dir.join(sums);
 
 	if !path.exists() {
-		println!("{F}no {B}{sums}{D}{F} alongside the archive, skipping verification{D}");
+		println!("{F}no {B}{sums}{D}{F} alongside the archive, verification skipped{D}");
 		return Ok(());
 	}
 
@@ -197,7 +197,7 @@ pub(super) fn biggest(url: &str, ext: &str) -> hmerr::Result<Entry> {
 fn missing_rsync(reason: &str) -> GenericError {
 	ge!(
 		format!("{R}failed to execute {B}{PROGRAM}{D}\n{reason}"),
-		h: format!("{B}{PROGRAM}{D} downloads the dumps, it comes with the nix dev shell")
+		h: format!("{B}{PROGRAM}{D} downloads the dump, it comes with the nix dev shell")
 	)
 }
 

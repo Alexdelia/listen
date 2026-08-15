@@ -76,8 +76,8 @@ limit 2
 		&& separated(seed, runner_up, declared)
 	{
 		println!(
-			"{F}own listenbrainz user {B}{own}{D}{F}, {B}{share}%{D}{F} of the declared library, \
-			runner up at {B}{runner_up}{D}",
+			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
+			runner up {B}{runner_up}{D}",
 			share = coverage(seed, declared)
 		);
 
@@ -92,8 +92,7 @@ limit 2
 	};
 
 	println!(
-		"{F}the declaration no longer singles out a listener, keeping the known own user \
-		{B}{known}{D}"
+		"{F}declaration no longer singles out a listener, keeping known own user {B}{known}{D}"
 	);
 
 	Ok(known)
@@ -121,9 +120,9 @@ fn ambiguous(own: u32, seed: i64, runner_up: i64) -> GenericError {
 	ge!(
 		format!(
 			"{R}cannot tell which listenbrainz user is yours: {B}{own}{D}{R} has {B}{seed}{D}{R} \
-			declared recordings against {B}{runner_up}{D}{R} for the next one{D}"
+			declared recording, next one {B}{runner_up}{D}"
 		),
-		h: "the index must exclude your own listens, else it recommends what you already declared"
+		h: "the index must exclude your own listen, else it recommends what you declared"
 	)
 }
 

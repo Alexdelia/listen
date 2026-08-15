@@ -125,7 +125,7 @@ fn meta(dir: &Path) -> hmerr::Result<Meta> {
 	serde_json::from_str(&content).map_err(|e| {
 		ge!(
 			format!("{R}cannot read {B}{}{D}{R}\n{e}{D}", path.display()),
-			h: "delete it to have the index rebuilt"
+			h: "delete it to rebuild the index"
 		)
 		.into()
 	})

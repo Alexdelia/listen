@@ -82,7 +82,7 @@ fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> hmerr::Result<()>
 	if arg.island.is_some() {
 		return Err(ge!(
 			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}{built_by}{D}"),
-			h: format!("{built_by} already says which recordings the island is made of")
+			h: format!("{built_by} already says which recording the island is made of")
 		)
 		.into());
 	}

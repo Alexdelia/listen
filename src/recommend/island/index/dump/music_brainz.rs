@@ -34,8 +34,8 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 	space::require(root, space::unpacking(&root.join(ARCHIVE), archive.size))?;
 
 	println!(
-		"\n{F}the artist relations come from the musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}.{D}\n\
-		{F}only two of its tables are unpacked, and the archive is deleted afterwards.{D}",
+		"\n{F}artist relations: musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}, \
+		2 tables kept, archive deleted after{D}",
 		size = progress::bytes(archive.size)
 	);
 
@@ -155,7 +155,7 @@ copy (
 fn refused() -> GenericError {
 	ge!(
 		format!("{R}cancelled{D}"),
-		h: "the artist relations decide which artists count as already known, so they are required"
+		h: "artist relations decide which artists count as already known, they are required"
 	)
 }
 

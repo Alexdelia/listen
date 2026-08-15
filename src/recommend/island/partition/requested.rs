@@ -61,14 +61,14 @@ fn name(request: &Request, member: usize) -> String {
 fn undeclared(mbid: Source) -> GenericError {
 	ge!(
 		format!("{R}recording {B}{mbid}{D}{R} is not declared{D}"),
-		h: "an island seed carries the q it is weighted by, so it has to be in the declaration"
+		h: "a seed carries the q it is weighted by, so it must be declared"
 	)
 }
 
 fn unsupported(mbid: Source) -> GenericError {
 	ge!(
 		format!("{R}recording {B}{mbid}{D}{R} has no listener in the index{D}"),
-		h: "nobody in the index has played it, so it cannot reach a cohort"
+		h: "nobody in the index listened to it, no cohort to reach"
 	)
 }
 

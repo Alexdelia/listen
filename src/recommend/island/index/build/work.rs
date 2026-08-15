@@ -38,8 +38,7 @@ pub(super) fn release(work: &Path) {
 	}
 
 	println!(
-		"{F}the index is built, but its work directory stayed at {B}{work}{D}\n\
-		{F}delete it to reclaim the space{D}",
+		"{F}work directory kept at {B}{work}{D}",
 		work = work.display()
 	);
 }

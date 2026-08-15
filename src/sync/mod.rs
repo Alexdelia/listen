@@ -37,8 +37,7 @@ pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	let remove = report::report(&sync);
 
 	if remove {
-		let yes = ux::ask_yn("do you want to proceed with this update?", true)
-			.map_err(|e| ioe!("stdin", e))?;
+		let yes = ux::ask_yn("proceed with update", true).map_err(|e| ioe!("stdin", e))?;
 
 		if !yes {
 			return Ok(());

@@ -11,7 +11,7 @@ mod work;
 use std::path::Path;
 
 use ansi::abbrev::{B, D, F, G};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 
 use crate::declaration::parse;
 
@@ -52,16 +52,15 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 	drop(scan);
 	work::release(&work);
 
-	println!("{G}index built{D}",);
+	println!("{G}index built{D}");
 
 	Ok(())
 }
 
 fn announce(declared: usize) {
 	println!(
-		"\n{F}no index yet. building one from {B}{declared}{D}{F} declared recording.{D}\n\
-		{F}this reads the whole listen dump and takes a while, tens of minutes on a warm disk.{D}\n\
-		{F}it only has to happen once per dump.{D}\n",
+		"\n{F}building index from {B}{declared}{D}{F} declared recording, \
+		may be long, once per dump{D}\n"
 	);
 }
 

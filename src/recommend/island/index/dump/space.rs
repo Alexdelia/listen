@@ -40,12 +40,12 @@ fn free(dir: &Path) -> hmerr::Result<u64> {
 fn short(dir: &Path, need: u64, free: u64) -> GenericError {
 	ge!(
 		format!(
-			"{R}{B}{dir}{D}{R} holds {B}{Y}{free}{D}{R}, the dump needs {B}{Y}{need}{D}{R} at peak{D}",
+			"{R}the dump needs {B}{Y}{need}{D}{R} at peak, {B}{dir}{D}{R} holds {B}{Y}{free}{D}",
 			dir = dir.display(),
 			free = progress::bytes(free),
 			need = progress::bytes(need)
 		),
-		h: "the peak is the archive plus what unpacks beside it, and the archive is deleted as soon as it is unpacked"
+		h: "peak is archive plus what unpacks beside it, archive deleted right after unpack"
 	)
 }
 

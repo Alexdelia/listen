@@ -48,11 +48,10 @@ fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
 
 fn asked(listen: &Listen) -> hmerr::Result<bool> {
 	println!(
-		"\n{F}the listen dump {B}{name}{D}{F} is unpacked in the cache, next to an index that is \
-		already built.{D}\n\
-		{F}building again replaces that index and releases the dump, which takes a while.{D}",
+		"\n{F}listen dump {B}{name}{D}{F} unpacked next to a built index, \
+		rebuilding replaces it and may be long{D}",
 		name = listen.name
 	);
 
-	ux::ask_yn("rebuild the index from it", true).map_err(|e| ioe!("stdin", e).into())
+	ux::ask_yn("rebuild index", true).map_err(|e| ioe!("stdin", e).into())
 }

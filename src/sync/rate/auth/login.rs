@@ -10,8 +10,7 @@ use super::{Client, token};
 const SCOPE: &str = "rating";
 
 pub(super) fn run(client: &Client) -> hmerr::Result<Option<String>> {
-	let login =
-		ux::ask_yn("login to musicbrainz to sync rating?", true).map_err(|e| ioe!("stdin", e))?;
+	let login = ux::ask_yn("login to musicbrainz", true).map_err(|e| ioe!("stdin", e))?;
 
 	if !login {
 		return Ok(None);
