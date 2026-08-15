@@ -62,13 +62,17 @@ fn parse(line: &str) -> Option<Entry> {
 pub(super) fn small(url: &str, into: &Path) -> hmerr::Result<()> {
 	prepare(into)?;
 
-	let status = Command::new(PROGRAM)
+	let out = Command::new(PROGRAM)
 		.args(["--quiet", url, &into.to_string_lossy()])
-		.status()
+		.output()
 		.map_err(|e| missing_rsync(&e.to_string()))?;
 
-	if !status.success() {
-		return Err(ge!(format!("{R}{B}{PROGRAM}{D}{R} could not fetch {B}{url}{D}")).into());
+	if !out.status.success() {
+		return Err(ge!(format!(
+			"{R}{B}{PROGRAM}{D}{R} could not fetch {B}{url}{D}\n{}{D}",
+			String::from_utf8_lossy(&out.stderr).trim()
+		))
+		.into());
 	}
 
 	Ok(())
