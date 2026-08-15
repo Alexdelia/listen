@@ -103,7 +103,7 @@ fn unknown(name: &str) -> GenericError {
 
 fn report(meta: &index::Meta, library: &seed::Library) {
 	println!(
-		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}",
+		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {M}{F}listen{D} {CYA}{user} {F}user{D}",
 		built = meta.built,
 		recording = human_readable_number::text(meta.recording),
 		listen = human_readable_number::text(meta.user_listen),
