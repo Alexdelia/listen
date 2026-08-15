@@ -1058,4 +1058,10 @@
 	(s: "89cf2ecd-2713-4673-b3f6-37890c9b0812", q: 3, playlist: ["calm"]),
 	(s: "ec3ab78e-cc18-4ec4-8a7c-c8fd1cd948c8", q: 3, playlist: []),
 	(s: "3fb90635-3f64-470a-ad24-a15b0c8b41bb", q: 3, playlist: ["charged"]),
+	(s: "353fed15-4001-4b94-977c-e925c57617e3", q: 1, playlist: []),
+	(s: "41082acc-79c7-45b1-9049-f73426eb7968", q: 1, playlist: []),
+	(s: "d1bdbdf2-b2f0-4500-ae33-e4880e38e5d7", q: 0, playlist: []),
+	(s: "a3d59d03-f692-4410-a4f8-2e60a0766c5b", q: 1, playlist: ["aggressive"]),
+	(s: "e6f462e6-1b3c-415e-8d8b-94e55ce7900e", q: 1, playlist: []),
+	(s: "5388d68b-13d1-4e6f-be19-d1589c3ebcac", q: 2, playlist: ["calm"]),
 ]
