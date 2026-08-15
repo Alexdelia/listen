@@ -39,7 +39,7 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !progress::ask("download it", false)? {
+	if !progress::ask("download", true)? {
 		return Err(refused().into());
 	}
 

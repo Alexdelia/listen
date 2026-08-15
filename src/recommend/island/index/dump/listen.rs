@@ -79,7 +79,7 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !progress::ask("download it", false)? {
+	if !progress::ask("download", true)? {
 		return Err(refused().into());
 	}
 
