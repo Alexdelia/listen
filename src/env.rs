@@ -1,13 +1,20 @@
+use std::sync::OnceLock;
+
 use ansi::abbrev::{B, D, G, M, R, Y};
 use hmerr::{ge, ioe};
 
 const DOTENV_FILE: &str = ".env";
+
+const FALSE: [&str; 4] = ["0", "false", "no", "off"];
+
+static DOTENV: OnceLock<()> = OnceLock::new();
 
 #[derive(Clone, Copy)]
 pub enum Var {
 	SoundcloudClientId,
 	MusicBrainzClientId,
 	MusicBrainzClientSecret,
+	Keep,
 }
 
 impl Var {
@@ -16,6 +23,7 @@ impl Var {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
 			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",
 			Self::MusicBrainzClientSecret => "MUSICBRAINZ_CLIENT_SECRET",
+			Self::Keep => "DECLARATIVE_LISTEN_KEEP",
 		}
 	}
 }
@@ -35,11 +43,25 @@ pub fn load() -> hmerr::Result<()> {
 	}
 }
 
+fn read_dotenv() {
+	DOTENV.get_or_init(|| {
+		let _ = dotenvy::dotenv();
+	});
+}
+
 pub fn get_opt(key: Var) -> Option<String> {
+	read_dotenv();
+
 	std::env::var(key.key()).ok().filter(|v| !v.is_empty())
 }
 
+pub fn get_bool(key: Var) -> bool {
+	get_opt(key).is_some_and(|value| !FALSE.contains(&value.trim().to_lowercase().as_str()))
+}
+
 pub fn get(key: Var) -> hmerr::Result<String> {
+	read_dotenv();
+
 	let key = key.key();
 
 	match std::env::var(key) {

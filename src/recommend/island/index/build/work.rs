@@ -6,7 +6,10 @@ use std::{
 use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
-use super::super::open::{USER_LISTEN, USER_STAT};
+use super::super::{
+	keep,
+	open::{USER_LISTEN, USER_STAT},
+};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
@@ -17,9 +20,9 @@ pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	let dump = &format!("{FORMAT} {dump}");
 
 	if stamped(&work, DUMP).as_deref() != Some(dump.as_str()) {
-		discard(&work)?;
+		discard_unusable(&work)?;
 		for stale in published(dir) {
-			discard(&stale)?;
+			discard_unusable(&stale)?;
 		}
 	}
 
@@ -30,7 +33,7 @@ pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 }
 
 pub(super) fn release(work: &Path) {
-	if discard(work).is_ok() {
+	if keep::discard(work).is_ok() {
 		return;
 	}
 
@@ -58,7 +61,7 @@ fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn discard(path: &Path) -> hmerr::Result<()> {
+fn discard_unusable(path: &Path) -> hmerr::Result<()> {
 	if path.is_dir() {
 		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 	} else if path.is_file() {

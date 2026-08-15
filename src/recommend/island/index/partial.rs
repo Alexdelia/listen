@@ -2,6 +2,8 @@ use std::{fs, path::Path};
 
 use hmerr::ioe;
 
+use super::keep;
+
 const EXT: &str = "writing";
 
 pub(super) fn write(
@@ -11,7 +13,7 @@ pub(super) fn write(
 	let partial = into.with_extension(EXT);
 
 	if let Err(e) = produce(&partial) {
-		let _ = fs::remove_file(&partial);
+		let _ = keep::discard(&partial);
 		return Err(e);
 	}
 

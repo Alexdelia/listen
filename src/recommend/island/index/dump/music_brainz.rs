@@ -8,7 +8,7 @@ use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
 
 use super::{
-	super::{partial, progress},
+	super::{keep, partial, progress},
 	rsync, space,
 };
 
@@ -55,8 +55,8 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 	let table = unpack(root, archive.size)?;
 	load(&table, link)?;
 
-	fs::remove_file(root.join(ARCHIVE)).map_err(|e| ioe!(ARCHIVE, e))?;
-	fs::remove_dir_all(&table).map_err(|e| ioe!(table.to_string_lossy(), e))?;
+	keep::discard(&root.join(ARCHIVE))?;
+	keep::discard(&table)?;
 
 	Ok(())
 }

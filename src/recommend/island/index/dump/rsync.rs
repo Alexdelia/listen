@@ -3,7 +3,7 @@ use std::{fs, path::Path, process::Command};
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge, ioe};
 
-use super::super::progress;
+use super::super::{keep, progress};
 
 pub(super) const PROGRAM: &str = "rsync";
 pub(super) const HOST: &str = "rsync://data.metabrainz.org/musicbrainz";
@@ -180,11 +180,7 @@ pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> 
 
 pub(super) fn forget(dir: &Path, name: &[&str]) -> hmerr::Result<()> {
 	for name in name {
-		let path = dir.join(name);
-
-		if path.exists() {
-			fs::remove_file(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-		}
+		keep::discard(&dir.join(name))?;
 	}
 
 	Ok(())

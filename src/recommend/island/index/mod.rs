@@ -1,5 +1,6 @@
 mod build;
 mod dump;
+mod keep;
 mod open;
 mod partial;
 mod progress;

@@ -6,7 +6,10 @@ use std::{
 use ansi::abbrev::{B, D, F, R, Y};
 use hmerr::{GenericError, ge, ioe};
 
-use super::{super::progress, rsync, space};
+use super::{
+	super::{keep, progress},
+	rsync, space,
+};
 
 const MODULE: &str = "listenbrainz/fullexport";
 const PREFIX: &str = "listenbrainz-dump-";
@@ -96,7 +99,7 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 	rsync::forget(root, &[&checksum])?;
 
 	let dir = unpack(&tar, root, archive.size)?;
-	fs::remove_file(&tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+	keep::discard(&tar)?;
 
 	Ok(Listen {
 		name: name_of(&dir),
@@ -131,14 +134,14 @@ pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
-	println!(
-		"{F}the index is built, releasing the {B}{Y}{size}{D}{F} dump it came from{D}",
-		size = progress::bytes(weight(&listen.dir))
-	);
+	if !keep::requested() {
+		println!(
+			"{F}the index is built, releasing the {B}{Y}{size}{D}{F} dump it came from{D}",
+			size = progress::bytes(weight(&listen.dir))
+		);
+	}
 
-	fs::remove_dir_all(&listen.dir).map_err(|e| ioe!(listen.dir.to_string_lossy(), e))?;
-
-	Ok(())
+	keep::discard(&listen.dir)
 }
 
 fn weight(dir: &Path) -> u64 {
