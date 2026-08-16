@@ -62,27 +62,26 @@ eligible as (
 			where ra.recording_id = b.recording_id
 		)
 ),
-credit as (
-	select ra.recording_id,
-		string_agg(ra.artist_mbid::varchar, ',' order by ra.artist_mbid) as credit
-	from recording_artist ra
-	semi join eligible e on e.recording_id = ra.recording_id
-	group by 1
-),
 scored as (
-	select e.island, e.mbid, e.backer, e.global_plays, c.credit,
+	select e.island, e.recording_id, e.mbid, e.backer, e.global_plays,
 		e.weight / pow(greatest(e.global_plays, 1), ?) as score
 	from eligible e
-	join credit c using (recording_id)
 ),
-best_of_credit as (
-	select *, row_number() over (partition by credit order by score desc, mbid) as rank
-	from scored
+per_artist as (
+	select s.*,
+		row_number() over (partition by ra.artist_mbid order by s.score desc, s.mbid) as rank
+	from scored s
+	join recording_artist ra using (recording_id)
+),
+best_of_artist as (
+	select island, mbid, backer, global_plays, score
+	from per_artist
+	group by all
+	having max(rank) = 1
 ),
 ranked as (
 	select *, row_number() over (partition by island order by score desc, mbid) as position
-	from best_of_credit
-	where rank = 1
+	from best_of_artist
 )
 select island::bigint, mbid::varchar, score::float, backer::bigint, global_plays::bigint
 from ranked
@@ -326,6 +325,28 @@ insert into user_listen values {listen};
 			!candidate(&[(SEED, 100), (LOVED, 100)])
 				.iter()
 				.any(|candidate| candidate.mbid.to_string() == mbid(SEED))
+		);
+	}
+
+	#[test]
+	fn a_recording_sharing_an_artist_with_a_better_one_stays_out() {
+		let index = index(&every(&[(LOVED, 100), (OTHER, 100)]), &uniform(MIN_BACKER));
+		index
+			.db
+			.execute_batch(&format!(
+				"insert into recording_artist values ({OTHER}, '{shared}');",
+				shared = artist(LOVED)
+			))
+			.unwrap();
+
+		let candidate = served(&index, MIN_BACKER);
+
+		assert_eq!(
+			candidate
+				.iter()
+				.map(|candidate| candidate.mbid.to_string())
+				.collect::<Vec<_>>(),
+			vec![mbid(LOVED)]
 		);
 	}
 
