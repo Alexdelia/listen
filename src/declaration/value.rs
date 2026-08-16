@@ -3,7 +3,7 @@ use super::{Q, Q_MAX};
 pub type Value = u8;
 
 const VALUE: [Value; Q_MAX as usize + 1] = [
-	20,  // 1
+	5,   // 0.25
 	50,  // 2.5
 	70,  // 3.5
 	90,  // 4.5
