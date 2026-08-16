@@ -13,13 +13,6 @@ pub async fn remove(sync: &[Source], tx: Sender<Status>) {
 			.await
 			.map_err(|e| ioe!(path.to_string_lossy(), e).to_string());
 
-		report(
-			&tx,
-			Status {
-				action: Action::RemoveFile,
-				status,
-			},
-		)
-		.await;
+		report(&tx, Action::RemoveFile, status).await;
 	}
 }

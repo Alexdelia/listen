@@ -138,12 +138,12 @@ fn assign<'l>(list: &[Entry], listen: &'l ListenCount, meta: &Meta) -> Assignmen
 
 		let listened = Song::new(&l.track, &l.artist);
 
-		let Some(best) = song
+		let matched = song
 			.iter()
-			.flatten()
-			.filter_map(|s| s.matches(&listened))
-			.max()
-		else {
+			.map(|s| s.as_ref().and_then(|s| s.matches(&listened)))
+			.collect::<Vec<_>>();
+
+		let Some(best) = matched.iter().flatten().copied().max() else {
 			if let Some(i) = unique_title(&song, &listened) {
 				per_entry[i] += l.count;
 				consumed.insert(mbid);
@@ -152,8 +152,8 @@ fn assign<'l>(list: &[Entry], listen: &'l ListenCount, meta: &Meta) -> Assignmen
 		};
 
 		consumed.insert(mbid);
-		for (i, s) in song.iter().enumerate() {
-			if s.as_ref().and_then(|s| s.matches(&listened)) == Some(best) {
+		for (i, matched) in matched.iter().enumerate() {
+			if *matched == Some(best) {
 				per_entry[i] += l.count;
 			}
 		}

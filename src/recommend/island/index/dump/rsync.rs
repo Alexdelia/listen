@@ -1,13 +1,20 @@
-use std::{fs, path::Path, process::Command};
+use std::{
+	fs,
+	path::Path,
+	process::{Command, Output},
+};
 
 use indicatif::ProgressBar;
 
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge, ioe};
 
-use super::super::{keep, progress};
+use super::{
+	super::{board::Board, keep, progress},
+	board::{DOWNLOAD, VERIFY},
+};
 
-pub(super) const PROGRAM: &str = "rsync";
+const PROGRAM: &str = "rsync";
 pub(super) const HOST: &str = "rsync://data.metabrainz.org/musicbrainz";
 
 pub(super) const CHECKSUM_EXT: &str = ".sha256";
@@ -22,23 +29,29 @@ pub(super) struct Entry {
 }
 
 pub(super) fn list(url: &str) -> hmerr::Result<Vec<Entry>> {
+	let out = ran(&["--list-only", url], "list", url)?;
+
+	Ok(String::from_utf8_lossy(&out)
+		.lines()
+		.filter_map(parse)
+		.collect())
+}
+
+fn ran(argument: &[&str], attempt: &str, url: &str) -> hmerr::Result<Vec<u8>> {
 	let out = Command::new(PROGRAM)
-		.args(["--list-only", url])
+		.args(argument)
 		.output()
 		.map_err(|e| missing_rsync(&e.to_string()))?;
 
 	if !out.status.success() {
 		return Err(ge!(format!(
-			"{R}{B}{PROGRAM}{D}{R} could not list {B}{url}{D}\n{}{D}",
+			"{R}{B}{PROGRAM}{D}{R} could not {attempt} {B}{url}{D}\n{}{D}",
 			String::from_utf8_lossy(&out.stderr).trim()
 		))
 		.into());
 	}
 
-	Ok(String::from_utf8_lossy(&out.stdout)
-		.lines()
-		.filter_map(parse)
-		.collect())
+	Ok(out.stdout)
 }
 
 fn parse(line: &str) -> Option<Entry> {
@@ -59,26 +72,31 @@ fn parse(line: &str) -> Option<Entry> {
 	})
 }
 
-pub(super) fn small(url: &str, into: &Path) -> hmerr::Result<()> {
+fn small(url: &str, into: &Path) -> hmerr::Result<()> {
 	prepare(into)?;
-
-	let out = Command::new(PROGRAM)
-		.args(["--quiet", url, &into.to_string_lossy()])
-		.output()
-		.map_err(|e| missing_rsync(&e.to_string()))?;
-
-	if !out.status.success() {
-		return Err(ge!(format!(
-			"{R}{B}{PROGRAM}{D}{R} could not fetch {B}{url}{D}\n{}{D}",
-			String::from_utf8_lossy(&out.stderr).trim()
-		))
-		.into());
-	}
+	ran(&["--quiet", url, &into.to_string_lossy()], "fetch", url)?;
 
 	Ok(())
 }
 
-pub(super) fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
+pub(super) fn secured(
+	board: &Board,
+	url: &str,
+	root: &Path,
+	name: &str,
+	checksum: &str,
+) -> hmerr::Result<()> {
+	board.run(DOWNLOAD, |bar| {
+		pull(&format!("{url}{name}"), &root.join(name), bar)
+	})?;
+
+	small(&format!("{url}{checksum}"), &root.join(checksum))?;
+	board.run(VERIFY, |_| verify(root, checksum))?;
+
+	forget(root, &[checksum])
+}
+
+fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
 	prepare(into)?;
 
 	progress::rsync(
@@ -108,7 +126,7 @@ fn prepare(into: &Path) -> hmerr::Result<()> {
 	Ok(())
 }
 
-pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
+fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 	let path = dir.join(sums);
 
 	if !path.exists() {
@@ -143,11 +161,7 @@ fn digest_owner(sums: &str) -> &str {
 }
 
 fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
-	let out = Command::new(SHA256SUM)
-		.arg(archive)
-		.current_dir(dir)
-		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")))?;
+	let out = summed(&[archive], dir)?;
 
 	if !out.status.success() {
 		return Err(ge!(format!(
@@ -165,13 +179,17 @@ fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
 }
 
 fn checked_list(dir: &Path, sums: &str) -> hmerr::Result<bool> {
-	let out = Command::new(SHA256SUM)
-		.args(["--check", "--ignore-missing", sums])
+	Ok(summed(&["--check", "--ignore-missing", sums], dir)?
+		.status
+		.success())
+}
+
+fn summed(argument: &[&str], dir: &Path) -> hmerr::Result<Output> {
+	Command::new(SHA256SUM)
+		.args(argument)
 		.current_dir(dir)
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")))?;
-
-	Ok(out.status.success())
+		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")).into())
 }
 
 pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> {
@@ -184,7 +202,7 @@ pub(super) fn latest_marker(module: &str, into: &Path) -> hmerr::Result<String> 
 	Ok(name.trim().to_string())
 }
 
-pub(super) fn forget(dir: &Path, name: &[&str]) -> hmerr::Result<()> {
+fn forget(dir: &Path, name: &[&str]) -> hmerr::Result<()> {
 	for name in name {
 		keep::discard(&dir.join(name))?;
 	}

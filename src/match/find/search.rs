@@ -3,7 +3,7 @@ use std::process::Command;
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::streaming_source::StreamingSource;
+use crate::streaming_source::{StreamingSource, YT_DLP};
 
 use super::push_unique;
 
@@ -38,7 +38,7 @@ fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
 	);
 	let end = RESULT_PER_QUERY.to_string();
 
-	let output = Command::new("yt-dlp")
+	let output = Command::new(YT_DLP)
 		.args([
 			"--flat-playlist",
 			"--no-warnings",
@@ -49,11 +49,11 @@ fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
 			&url,
 		])
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}yt-dlp{D}\n{e}")))?;
+		.map_err(|e| ge!(format!("{R}failed to execute {B}{YT_DLP}{D}\n{e}")))?;
 
 	if !output.status.success() {
 		return Err(ge!(format!(
-			"{R}yt-dlp failed to search {B}{query}{D}\n{e}",
+			"{R}{YT_DLP} failed to search {B}{query}{D}\n{e}",
 			e = String::from_utf8_lossy(&output.stderr),
 		))
 		.into());

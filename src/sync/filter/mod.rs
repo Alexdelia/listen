@@ -26,6 +26,10 @@ pub struct SyncEntry {
 	pub remove: Vec<Source>,
 }
 
+fn touched<K>(_: &K, sync: &mut SyncEntry) -> bool {
+	!sync.add.is_empty() || !sync.remove.is_empty()
+}
+
 pub fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
 
@@ -46,17 +50,15 @@ pub fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	}
 
 	remove::fs(&existing.fs, &mut ret.fs.remove);
-	remove::q(&existing.q, &mut ret.q);
-	remove::playlist(&existing.playlist, &mut ret.playlist);
+	remove::grouped(&existing.q, &mut ret.q);
+	remove::grouped(&existing.playlist, &mut ret.playlist);
 
-	ret.q
-		.retain(|_, v| !v.add.is_empty() || !v.remove.is_empty());
-	ret.playlist
-		.retain(|_, v| !v.add.is_empty() || !v.remove.is_empty());
+	ret.q.retain(touched);
+	ret.playlist.retain(touched);
 
 	sort::fs(&mut ret.fs);
-	sort::q(&mut ret.q);
-	sort::playlist(&mut ret.playlist);
+	sort::grouped(&mut ret.q);
+	sort::grouped(&mut ret.playlist);
 
 	Ok(ret)
 }

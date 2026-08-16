@@ -46,12 +46,7 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 
 	let board = board::music_brainz(archive.size)?;
 
-	board.run(board::DOWNLOAD, |bar| {
-		rsync::pull(&format!("{url}{ARCHIVE}"), &root.join(ARCHIVE), bar)
-	})?;
-	rsync::small(&format!("{url}{SUMS}"), &root.join(SUMS))?;
-	board.run(board::VERIFY, |_| rsync::verify(root, SUMS))?;
-	rsync::forget(root, &[SUMS])?;
+	rsync::secured(&board, &url, root, ARCHIVE, SUMS)?;
 
 	let table = board.run(board::UNPACK, |bar| unpack(root, bar))?;
 	board.run(board::RELATION, |_| load(&table, link))?;

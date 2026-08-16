@@ -2,7 +2,7 @@ use std::{path::Path, process::Command};
 
 use crate::library;
 
-const PROGRAM: &str = "yt-dlp";
+pub(crate) const PROGRAM: &str = "yt-dlp";
 
 const PLAYER_CLIENT_SERVING_NON_403_URL: &str = "youtube:player_client=web_embedded,default";
 

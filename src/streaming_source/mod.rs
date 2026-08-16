@@ -9,6 +9,8 @@ use musicbrainz_rs::entity::{recording::Recording, relations::RelationContent, u
 
 use run::run;
 
+pub(crate) use yt_dlp::PROGRAM as YT_DLP;
+
 const STREAMING_RELATION: [&str; 2] = ["free streaming", "streaming"];
 
 pub fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {

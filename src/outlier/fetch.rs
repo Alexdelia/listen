@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R, Y};
 use hmerr::ge;
 use serde::{Deserialize, Serialize};
 
-use crate::{declaration::Source, meta_brainz};
+use crate::{declaration::Source, listen_brainz};
 
 const RANGE: &str = "all_time";
 const PAGE: usize = 1000;
@@ -56,26 +56,11 @@ pub(super) fn listen_count(username: &str) -> hmerr::Result<ListenCount> {
 }
 
 fn page(username: &str, offset: usize) -> hmerr::Result<Payload> {
-	let url = format!(
-		"https://api.listenbrainz.org/1/stats/user/{username}/recordings?range={RANGE}&count={PAGE}&offset={offset}"
-	);
-
-	meta_brainz::block_ready();
-
-	let body = ureq::get(&url)
-		.call()
-		.map_err(|e| {
-			ge!(format!(
-				"{R}failed to fetch listen stats for {B}{username}{D}\n{e}"
-			))
-		})?
-		.body_mut()
-		.read_to_string()
-		.map_err(|e| {
-			ge!(format!(
-				"{R}failed to read listen stats for {B}{username}{D}\n{e}"
-			))
-		})?;
+	let body = listen_brainz::get(
+		&format!("stats/user/{username}/recordings?range={RANGE}&count={PAGE}&offset={offset}"),
+		&format!("{R}failed to fetch listen stats for {B}{username}{D}"),
+	)?
+	.body;
 
 	if body.trim().is_empty() {
 		return Err(ge!(

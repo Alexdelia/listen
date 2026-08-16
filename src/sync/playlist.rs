@@ -14,31 +14,17 @@ use super::{
 };
 
 pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
-	let path = library::playlist::q_path(q);
-	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
-
-	report(
-		&tx,
-		Status {
-			action: Action::SyncPlaylist,
-			status,
-		},
-	)
-	.await;
+	synced(&library::playlist::q_path(q), sync_entry, &tx).await;
 }
 
 pub async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status>) {
-	let path = library::playlist::path(&playlist);
-	let status = sync(&path, sync_entry).map_err(|e| e.to_string());
+	synced(&library::playlist::path(&playlist), sync_entry, &tx).await;
+}
 
-	report(
-		&tx,
-		Status {
-			action: Action::SyncPlaylist,
-			status,
-		},
-	)
-	.await;
+async fn synced(path: &Path, sync_entry: SyncEntry, tx: &Sender<Status>) {
+	let status = sync(path, sync_entry).map_err(|e| e.to_string());
+
+	report(tx, Action::SyncPlaylist, status).await;
 }
 
 fn sync<P>(path: P, sync: SyncEntry) -> hmerr::Result<()>

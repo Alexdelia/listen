@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use crate::declaration::Q;
-
 use super::SyncEntry;
 
 impl SyncEntry {
@@ -15,13 +13,7 @@ pub fn fs(sync: &mut SyncEntry) {
 	sync.sort();
 }
 
-pub fn q(sync: &mut HashMap<Q, SyncEntry>) {
-	for entry in sync.values_mut() {
-		entry.sort();
-	}
-}
-
-pub fn playlist(sync: &mut HashMap<String, SyncEntry>) {
+pub fn grouped<K>(sync: &mut HashMap<K, SyncEntry>) {
 	for entry in sync.values_mut() {
 		entry.sort();
 	}

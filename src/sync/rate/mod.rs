@@ -64,13 +64,6 @@ pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 			})
 			.map_err(|e| e.to_string());
 
-		report(
-			&tx,
-			Status {
-				action: Action::SubmitRating(chunk.len()),
-				status,
-			},
-		)
-		.await;
+		report(&tx, Action::SubmitRating(chunk.len()), status).await;
 	}
 }

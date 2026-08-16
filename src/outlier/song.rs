@@ -166,29 +166,24 @@ fn remove_edge_bracket(s: &str) -> String {
 }
 
 fn matching_open(c: &[char]) -> Option<usize> {
-	let mut depth = 0usize;
-
-	for (i, ch) in c.iter().enumerate().rev() {
-		if BRACKET_CLOSE.contains(ch) {
-			depth += 1;
-		} else if BRACKET_OPEN.contains(ch) {
-			depth -= 1;
-			if depth == 0 {
-				return Some(i);
-			}
-		}
-	}
-
-	None
+	balanced(c.iter().enumerate().rev(), &BRACKET_CLOSE, &BRACKET_OPEN)
 }
 
 fn matching_close(c: &[char]) -> Option<usize> {
+	balanced(c.iter().enumerate(), &BRACKET_OPEN, &BRACKET_CLOSE)
+}
+
+fn balanced<'c>(
+	char: impl Iterator<Item = (usize, &'c char)>,
+	deeper: &[char],
+	shallower: &[char],
+) -> Option<usize> {
 	let mut depth = 0usize;
 
-	for (i, ch) in c.iter().enumerate() {
-		if BRACKET_OPEN.contains(ch) {
+	for (i, ch) in char {
+		if deeper.contains(ch) {
 			depth += 1;
-		} else if BRACKET_CLOSE.contains(ch) {
+		} else if shallower.contains(ch) {
 			depth -= 1;
 			if depth == 0 {
 				return Some(i);

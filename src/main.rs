@@ -6,6 +6,7 @@ mod declaration;
 mod env;
 mod format;
 mod library;
+mod listen_brainz;
 mod r#match;
 mod meta_brainz;
 mod music_brainz;

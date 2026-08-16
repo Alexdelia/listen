@@ -23,6 +23,8 @@ pub struct Status {
 	clippy::expect_used,
 	reason = "the receiver lives in progress() and is dropped only after every sender, so a send can only fail during shutdown when there is nowhere left to report to"
 )]
-pub async fn report(tx: &Sender<Status>, status: Status) {
-	tx.send(status).await.expect("failed to send status");
+pub async fn report(tx: &Sender<Status>, action: Action, status: Result<(), String>) {
+	tx.send(Status { action, status })
+		.await
+		.expect("failed to send status");
 }

@@ -8,6 +8,8 @@ use hmerr::{ioe, se};
 
 use crate::declaration::{Q, Source};
 
+use super::file;
+
 pub const DIR: &str = "./output/playlist";
 
 pub const PREFIX: &str = "+q";
@@ -69,29 +71,15 @@ pub struct Existing {
 pub fn existing() -> hmerr::Result<Existing> {
 	let mut ret = Existing::default();
 
-	let output = fs::read_dir(DIR).map_err(|e| ioe!(DIR, e))?;
+	for found in file::with_extension(DIR, EXT)? {
+		let list = parse_content(
+			&fs::read_to_string(&found.path).map_err(|e| ioe!(found.path.to_string_lossy(), e))?,
+		);
 
-	for entry in output {
-		let entry = entry.map_err(|e| ioe!(DIR, e))?;
-
-		let path = entry.path();
-		if !path.is_file() || path.extension().map(|ext| ext.to_str()) != Some(Some(EXT)) {
-			continue;
-		}
-
-		let Some(name) = path.file_stem() else {
-			continue;
-		};
-
-		let list =
-			parse_content(&fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?);
-
-		let name = name.to_string_lossy();
-		if name.starts_with(PREFIX) {
-			let q = parse_q(&name)?;
-			ret.q.insert(q, list);
+		if found.stem.starts_with(PREFIX) {
+			ret.q.insert(parse_q(&found.stem)?, list);
 		} else {
-			ret.playlist.insert(name.to_string(), list);
+			ret.playlist.insert(found.stem, list);
 		}
 	}
 

@@ -66,12 +66,9 @@ impl feed::Feed for Stream {
 			return Ok(None);
 		};
 
-		let name = self
-			.island
-			.get(self.turn)
-			.map(|island| island.name.clone())
-			.unwrap_or_default();
-		let member = self.island.get(self.turn).map_or(0, |island| island.member);
+		let island = self.island.get(self.turn);
+		let name = island.map(|island| island.name.clone()).unwrap_or_default();
+		let member = island.map_or(0, |island| island.member);
 
 		log::append(
 			&self.log,

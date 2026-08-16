@@ -92,12 +92,7 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 
 	let board = board::listen(archive.size)?;
 
-	board.run(board::DOWNLOAD, |bar| {
-		rsync::pull(&format!("{url}{name}", name = archive.name), &tar, bar)
-	})?;
-	rsync::small(&format!("{url}{checksum}"), &root.join(&checksum))?;
-	board.run(board::VERIFY, |_| rsync::verify(root, &checksum))?;
-	rsync::forget(root, &[&checksum])?;
+	rsync::secured(&board, &url, root, &archive.name, &checksum)?;
 
 	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
 	keep::discard(&tar)?;

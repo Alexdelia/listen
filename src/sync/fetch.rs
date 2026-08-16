@@ -35,24 +35,15 @@ pub async fn fetch(sync: &[Source], tx: Sender<Status>) {
 		let Ok(recording) = res else {
 			report(
 				&tx,
-				Status {
-					action: Action::FetchMusicBrainz,
-					status: Err(format!("{R}failed to fetch {B}{entry}{D}\n{res:#?}")),
-				},
+				Action::FetchMusicBrainz,
+				Err(format!("{R}failed to fetch {B}{entry}{D}\n{res:#?}")),
 			)
 			.await;
 
 			continue;
 		};
 
-		report(
-			&tx,
-			Status {
-				action: Action::FetchMusicBrainz,
-				status: Ok(()),
-			},
-		)
-		.await;
+		report(&tx, Action::FetchMusicBrainz, Ok(())).await;
 
 		let entry = *entry;
 
@@ -81,10 +72,8 @@ async fn fetch_recording(
 	let Some(relations) = &recording.relations else {
 		report(
 			tx,
-			Status {
-				action: Action::FetchStreaming,
-				status: Err(format!("{R}no relations for {B}{entry} ({title}){D}")),
-			},
+			Action::FetchStreaming,
+			Err(format!("{R}no relations for {B}{entry} ({title}){D}")),
 		)
 		.await;
 
@@ -98,12 +87,10 @@ async fn fetch_recording(
 	if urls.is_empty() {
 		report(
 			tx,
-			Status {
-				action: Action::FetchStreaming,
-				status: Err(format!(
-					"{R}no streaming urls for {B}{entry} ({title}){D}\n{Y}{relations:#?}{D}"
-				)),
-			},
+			Action::FetchStreaming,
+			Err(format!(
+				"{R}no streaming urls for {B}{entry} ({title}){D}\n{Y}{relations:#?}{D}"
+			)),
 		)
 		.await;
 
@@ -118,14 +105,7 @@ async fn fetch_recording(
 	for url in urls {
 		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
 			Ok(()) => {
-				report(
-					tx,
-					Status {
-						action: Action::FetchStreaming,
-						status: Ok(()),
-					},
-				)
-				.await;
+				report(tx, Action::FetchStreaming, Ok(())).await;
 
 				return Some(path);
 			}
@@ -138,12 +118,10 @@ async fn fetch_recording(
 	if let Some(e) = err {
 		report(
 			tx,
-			Status {
-				action: Action::FetchStreaming,
-				status: Err(format!(
-					"{R}failed to download {B}{entry} ({title}){D}\n{e}"
-				)),
-			},
+			Action::FetchStreaming,
+			Err(format!(
+				"{R}failed to download {B}{entry} ({title}){D}\n{e}"
+			)),
 		)
 		.await;
 	}
@@ -154,12 +132,5 @@ async fn fetch_recording(
 async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
 	let status = tag::write(&path, &recording);
 
-	report(
-		tx,
-		Status {
-			action: Action::AddMetadata,
-			status,
-		},
-	)
-	.await;
+	report(tx, Action::AddMetadata, status).await;
 }

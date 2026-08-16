@@ -3,7 +3,7 @@ use std::process::Command;
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::streaming_source::StreamingSource;
+use crate::streaming_source::{StreamingSource, YT_DLP};
 
 const YT_DLP_ABSENT_FIELD: &str = "NA";
 
@@ -30,7 +30,7 @@ impl Info {
 }
 
 pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
-	let output = Command::new("yt-dlp")
+	let output = Command::new(YT_DLP)
 		.args([
 			"--skip-download",
 			"--no-warnings",
@@ -39,7 +39,7 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 			&watch(id),
 		])
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}yt-dlp{D}\n{e}")))?;
+		.map_err(|e| ge!(format!("{R}failed to execute {B}{YT_DLP}{D}\n{e}")))?;
 
 	if !output.status.success() {
 		return Ok(None);

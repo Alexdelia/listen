@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+	collections::{HashMap, HashSet},
+	hash::Hash,
+};
 
 use crate::declaration::{Entry, Q, Source};
 
@@ -18,14 +21,7 @@ pub fn q(
 	entry: &Entry,
 ) {
 	for q in 0..=entry.q {
-		if let Some(q) = existing.get_mut(&q)
-			&& q.contains(&entry.s)
-		{
-			q.remove(&entry.s);
-			continue;
-		}
-
-		add.entry(q).or_default().add.push(entry.s);
+		grouped(existing, add, &q, entry.s);
 	}
 }
 
@@ -35,13 +31,24 @@ pub fn playlist(
 	entry: &Entry,
 ) {
 	for playlist in &entry.playlist {
-		if let Some(set) = existing.get_mut(playlist)
-			&& set.contains(&entry.s)
-		{
-			set.remove(&entry.s);
-			continue;
-		}
-
-		add.entry(playlist.clone()).or_default().add.push(entry.s);
+		grouped(existing, add, playlist, entry.s);
 	}
+}
+
+fn grouped<K>(
+	existing: &mut HashMap<K, HashSet<Source>>,
+	add: &mut HashMap<K, SyncEntry>,
+	key: &K,
+	source: Source,
+) where
+	K: Clone + Eq + Hash,
+{
+	if let Some(set) = existing.get_mut(key)
+		&& set.contains(&source)
+	{
+		set.remove(&source);
+		return;
+	}
+
+	add.entry(key.clone()).or_default().add.push(source);
 }

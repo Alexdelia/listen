@@ -9,7 +9,7 @@ mod remove;
 mod report;
 mod tag;
 
-use std::{future::IntoFuture, path::Path, thread};
+use std::{path::Path, thread};
 
 use async_std::{channel::Sender, task::block_on};
 use hmerr::ioe;
@@ -98,10 +98,8 @@ fn acquire_rating(pending: Option<rate::Pending>, tx: &Sender<Status>) -> Rating
 		Err(e) => {
 			block_on(channel::report(
 				tx,
-				Status {
-					action: Action::SubmitRating(0),
-					status: Err(e.to_string()),
-				},
+				Action::SubmitRating(0),
+				Err(e.to_string()),
 			));
 			Rating::Failed(pending.rating.len())
 		}
@@ -114,33 +112,28 @@ fn process(
 	tx: Sender<Status>,
 ) {
 	if let Some((bearer, pending)) = rating {
-		let txc = tx.clone();
-		thread::spawn(move || {
-			block_on(rate::sync(bearer, pending, txc).into_future());
-		});
+		detach(&tx, |tx| block_on(rate::sync(bearer, pending, tx)));
 	}
 
-	let txc = tx.clone();
-	thread::spawn(move || {
-		block_on(fetch::fetch(&sync.fs.add, txc).into_future());
-	});
-	let txc = tx.clone();
-	thread::spawn(move || {
-		block_on(remove::remove(&sync.fs.remove, txc).into_future());
+	detach(&tx, move |tx| block_on(fetch::fetch(&sync.fs.add, tx)));
+	detach(&tx, move |tx| {
+		block_on(remove::remove(&sync.fs.remove, tx));
 	});
 
 	for (q, sync) in sync.q {
-		let txc = tx.clone();
-		thread::spawn(move || {
-			block_on(playlist::q(q, sync, txc).into_future());
-		});
+		detach(&tx, move |tx| block_on(playlist::q(q, sync, tx)));
 	}
 	for (playlist, sync) in sync.playlist {
-		let txc = tx.clone();
-		thread::spawn(move || {
-			block_on(playlist::playlist(playlist, sync, txc).into_future());
+		detach(&tx, move |tx| {
+			block_on(playlist::playlist(playlist, sync, tx));
 		});
 	}
 
 	drop(tx);
+}
+
+fn detach(tx: &Sender<Status>, work: impl FnOnce(Sender<Status>) + Send + 'static) {
+	let tx = tx.clone();
+
+	thread::spawn(move || work(tx));
 }
