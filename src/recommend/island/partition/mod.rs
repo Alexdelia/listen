@@ -10,8 +10,6 @@ use super::{
 	seed::{Library, Seed},
 };
 
-pub(super) const GRANULARITY: f64 = 1.0;
-
 const THRESHOLD: f64 = 0.15;
 const MIN_MEMBER: usize = 10;
 

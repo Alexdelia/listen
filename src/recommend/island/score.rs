@@ -2,7 +2,6 @@ use crate::declaration::Source;
 
 use super::{attraction, cohort::Member, index::Index};
 
-pub(super) const POPULARITY_DAMP: f32 = 0.6;
 pub(super) const MIN_BACKER: u32 = 5;
 
 const PER_ISLAND: usize = 200;
@@ -166,6 +165,8 @@ semi join seed_artist s on s.artist_mbid = al.artist_mbid;
 
 #[cfg(test)]
 mod tests {
+	use crate::args::POPULARITY_DAMP;
+
 	use super::{super::index::Meta, *};
 
 	const SEED: u32 = 0;

@@ -4,6 +4,9 @@ use clap::Parser;
 
 use crate::declaration::Source;
 
+pub const POPULARITY_DAMP: f32 = 1.0 / 3.0;
+pub const GRANULARITY: f64 = 1.5;
+
 #[derive(Parser)]
 #[command(about)]
 #[command(args_conflicts_with_subcommands = true)]
@@ -12,7 +15,7 @@ pub struct Args {
 	pub command: Option<Command>,
 
 	/// path to the ron file where the listens are declared
-	#[clap(default_value = "listen.ron")]
+	#[arg(default_value = "listen.ron")]
 	pub path: PathBuf,
 
 	/// refetch metadata from musicbrainz and rewrite tags for every downloaded recording
@@ -46,29 +49,29 @@ pub enum Command {
 		#[arg(short, long)]
 		unlistened: bool,
 		/// which listenbrainz recommendation to walk through
-		#[arg(short, long, default_value = "all")]
+		#[arg(short, long, value_enum, default_value_t = RecommendSource::All)]
 		source: RecommendSource,
 		/// in which order to walk the recordings of an artist
-		#[arg(long, default_value = "popularity")]
+		#[arg(long, value_enum, default_value_t = RecommendSort::Popularity)]
 		sort: RecommendSort,
 		#[command(flatten)]
 		island: IslandArg,
 	},
 	/// print the shell completion script for this command and its nix dev shell wrapper
 	Completion {
-		#[arg(default_value = "bash")]
+		#[arg(value_enum, default_value_t = clap_complete::Shell::Bash)]
 		shell: clap_complete::Shell,
 	},
 }
 
 #[derive(clap::Args)]
 pub struct IslandArg {
-	/// how hard to damp popularity, 0 keeps scene hits, above 0.8 reaches the untrustworthy [0.6]
-	#[arg(long)]
-	pub popularity_damp: Option<f32>,
-	/// island granularity, higher splits broad islands into narrower ones [1.0]
-	#[arg(long)]
-	pub granularity: Option<f32>,
+	/// how hard to damp popularity, 0 keeps scene hits, above 0.8 reaches the untrustworthy
+	#[arg(long, default_value_t = POPULARITY_DAMP)]
+	pub popularity_damp: f32,
+	/// island granularity, higher splits broad islands into narrower ones
+	#[arg(long, default_value_t = GRANULARITY)]
+	pub granularity: f64,
 	/// pin the stream to the islands whose name contains this
 	#[arg(long)]
 	pub island: Option<String>,

@@ -3,7 +3,7 @@ use hmerr::ge;
 
 use clap::ValueEnum;
 
-use crate::args::{IslandArg, RecommendSort, RecommendSource};
+use crate::args::{GRANULARITY, IslandArg, POPULARITY_DAMP, RecommendSort, RecommendSource};
 
 use super::target::Target;
 
@@ -48,7 +48,7 @@ fn ensure_island_arg(arg: &IslandArg) -> hmerr::Result<()> {
 		ensure_built_island_arg(arg, built_by)?;
 	}
 
-	if arg.popularity_damp.is_some_and(|damp| damp < 0.0) {
+	if arg.popularity_damp < 0.0 {
 		return Err(ge!(
 			format!("{R}{B}--popularity-damp{D}{R} cannot be negative{D}"),
 			h: "0 leaves popularity alone, 0.6 is the discovery setting, higher digs further"
@@ -56,14 +56,19 @@ fn ensure_island_arg(arg: &IslandArg) -> hmerr::Result<()> {
 		.into());
 	}
 
-	if arg
-		.granularity
-		.is_some_and(|granularity| granularity <= 0.0)
-	{
+	if arg.granularity <= 0.0 {
 		return Err(ge!(format!("{R}{B}--granularity{D}{R} has to be above zero{D}")).into());
 	}
 
 	Ok(())
+}
+
+fn tuned_popularity_damp(arg: &IslandArg) -> bool {
+	arg.popularity_damp != POPULARITY_DAMP
+}
+
+fn tuned_granularity(arg: &IslandArg) -> bool {
+	arg.granularity != GRANULARITY
 }
 
 fn built_by(arg: &IslandArg) -> Option<&'static str> {
@@ -87,7 +92,7 @@ fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> hmerr::Result<()>
 		.into());
 	}
 
-	if arg.granularity.is_some() {
+	if tuned_granularity(arg) {
 		return Err(ge!(
 			format!("{R}{B}--granularity{D}{R} cannot split an island built by {B}{built_by}{D}"),
 			h: "granularity only tunes the islands detected out of the whole declaration"
@@ -104,8 +109,8 @@ fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Resu
 		("--ask", arg.ask),
 		("--seed", !arg.seed.is_empty()),
 		("--genre", !arg.genre.is_empty()),
-		("--popularity-damp", arg.popularity_damp.is_some()),
-		("--granularity", arg.granularity.is_some()),
+		("--popularity-damp", tuned_popularity_damp(arg)),
+		("--granularity", tuned_granularity(arg)),
 	];
 
 	let Some((flag, _)) = unusable.iter().find(|(_, given)| *given) else {
@@ -347,8 +352,8 @@ mod tests {
 
 	fn no_arg() -> IslandArg {
 		IslandArg {
-			popularity_damp: None,
-			granularity: None,
+			popularity_damp: POPULARITY_DAMP,
+			granularity: GRANULARITY,
 			island: None,
 			ask: false,
 			seed: Vec::new(),
@@ -379,7 +384,7 @@ mod tests {
 				RecommendSource::All,
 				&IslandArg {
 					ask: true,
-					granularity: Some(1.5),
+					granularity: 1.5,
 					..no_arg()
 				}
 			)
@@ -394,7 +399,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						popularity_damp: Some(-1.0),
+						popularity_damp: -1.0,
 						..no_arg()
 					}
 				)
@@ -410,7 +415,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						granularity: Some(0.0),
+						granularity: 0.0,
 						..no_arg()
 					}
 				)
@@ -454,7 +459,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						granularity: Some(1.5),
+						granularity: 1.5,
 						seed: vec![Source::from_bytes([2; 16])],
 						..no_arg()
 					}
@@ -465,7 +470,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						granularity: Some(1.5),
+						granularity: 1.5,
 						genre: vec!["eurobeat".to_string()],
 						..no_arg()
 					}
@@ -481,7 +486,7 @@ mod tests {
 			ensure_arg(
 				RecommendSource::Island,
 				&IslandArg {
-					granularity: Some(1.5),
+					granularity: 1.5,
 					island: Some("touhou".to_string()),
 					..no_arg()
 				}
