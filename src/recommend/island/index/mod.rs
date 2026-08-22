@@ -8,6 +8,7 @@ mod parallel;
 mod partial;
 mod progress;
 mod query;
+mod recording_listener;
 mod shard;
 mod user_stat;
 mod work;
@@ -31,6 +32,7 @@ pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 		rebuilt(&dir, &listen, declaration)?;
 	} else {
 		user_stat::derive(&dir)?;
+		recording_listener::derive(&dir)?;
 
 		if let Some(listen) = repaired(&dir)? {
 			rebuilt(&dir, &listen, declaration)?;

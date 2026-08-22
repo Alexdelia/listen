@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::{
 	super::{
-		open::{USER_LISTEN, USER_STAT},
+		open::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
 		work,
 	},
 	board::Stage,
@@ -13,7 +13,7 @@ pub(super) use work::{publish, release};
 const DIR: &str = "build";
 const DUMP: &str = "dump";
 const LISTENER: &str = "listener";
-const FORMAT: u32 = 3;
+const FORMAT: u32 = 4;
 
 pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 	work::opened(dir, DIR, DUMP, &format!("{FORMAT} {dump}"))
@@ -31,8 +31,13 @@ pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 	work::stamp(work, LISTENER, own)
 }
 
-fn pooled() -> [&'static str; 3] {
-	[Stage::Stat.title(), USER_STAT, USER_LISTEN]
+fn pooled() -> [&'static str; 4] {
+	[
+		Stage::Stat.title(),
+		USER_STAT,
+		USER_LISTEN,
+		RECORDING_LISTENER,
+	]
 }
 
 #[cfg(test)]

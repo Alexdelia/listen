@@ -10,7 +10,8 @@ pub(super) struct Candidate {
 	pub mbid: Source,
 	pub score: f32,
 	pub backer: u32,
-	pub plays: u32,
+	pub listener: u32,
+	pub plays: u64,
 }
 
 pub(super) fn of(
@@ -21,9 +22,19 @@ pub(super) fn of(
 	known_artist(index)?;
 	enlist(index, cohort)?;
 
-	let mut candidate: Vec<Vec<Candidate>> = (0..cohort.len()).map(|_| Vec::new()).collect();
+	let mut statement = index.db.prepare(&ranked())?;
 
-	let mut statement = index.db.prepare(&format!(
+	let mut row = statement.query(duckdb::params![
+		MIN_BACKER,
+		damp,
+		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
+	])?;
+
+	collected(&mut row, cohort.len())
+}
+
+fn ranked() -> String {
+	format!(
 		r"
 with usual_library as (
 	select median(recording)::float as recording from user_stat
@@ -50,9 +61,10 @@ backing as (
 	group by 1, 2
 ),
 eligible as (
-	select b.recording_id, b.island, b.weight, b.backer, r.mbid, r.global_plays
+	select b.recording_id, b.island, b.weight, b.backer, r.mbid, l.listener, l.plays
 	from backing b
 	join recording r using (recording_id)
+	join recording_listener l using (recording_id)
 	where b.backer >= ?
 		and b.weight > 0
 		and not exists (select 1 from declared d where d.mbid::uuid = r.mbid)
@@ -63,8 +75,8 @@ eligible as (
 		)
 ),
 scored as (
-	select e.island, e.recording_id, e.mbid, e.backer, e.global_plays,
-		e.weight / pow(greatest(e.global_plays, 1), ?) as score
+	select e.island, e.recording_id, e.mbid, e.backer, e.listener, e.plays,
+		e.weight / pow(greatest(e.listener, 1), ?) as score
 	from eligible e
 ),
 per_artist as (
@@ -74,7 +86,7 @@ per_artist as (
 	join recording_artist ra using (recording_id)
 ),
 best_of_artist as (
-	select island, mbid, backer, global_plays, score
+	select island, mbid, backer, listener, plays, score
 	from per_artist
 	group by all
 	having max(rank) = 1
@@ -83,26 +95,25 @@ ranked as (
 	select *, row_number() over (partition by island order by score desc, mbid) as position
 	from best_of_artist
 )
-select island::bigint, mbid::varchar, score::float, backer::bigint, global_plays::bigint
+select island::bigint, mbid::varchar, score::float, backer::bigint, listener::bigint, plays::bigint
 from ranked
 where position <= ?
 order by island, position
 ",
 		weight = attraction::WEIGHT
-	))?;
+	)
+}
 
-	let mut row = statement.query(duckdb::params![
-		MIN_BACKER,
-		damp,
-		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
-	])?;
+fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec<Candidate>>> {
+	let mut candidate: Vec<Vec<Candidate>> = (0..island).map(|_| Vec::new()).collect();
 
 	while let Some(row) = row.next()? {
 		let island: i64 = row.get(0)?;
 		let mbid: String = row.get(1)?;
 		let score: f32 = row.get(2)?;
 		let backer: i64 = row.get(3)?;
-		let plays: i64 = row.get(4)?;
+		let listener: i64 = row.get(4)?;
+		let plays: i64 = row.get(5)?;
 
 		let Ok(mbid) = mbid.parse() else {
 			continue;
@@ -118,7 +129,8 @@ order by island, position
 			mbid,
 			score,
 			backer: u32::try_from(backer).unwrap_or(u32::MAX),
-			plays: u32::try_from(plays).unwrap_or(u32::MAX),
+			listener: u32::try_from(listener).unwrap_or(u32::MAX),
+			plays: u64::try_from(plays).unwrap_or(u64::MAX),
 		});
 	}
 
@@ -191,21 +203,24 @@ mod tests {
 
 		db.execute_batch(&format!(
 			r"
-create table recording (recording_id uinteger, mbid uuid, global_plays uinteger);
+create table recording (recording_id uinteger, mbid uuid);
 create table recording_artist (recording_id uinteger, artist_mbid uuid);
 create table artist_link (artist_mbid uuid, related_mbid uuid);
 create table user_listen (user_id uinteger, recording_id uinteger, plays usmallint);
 create table user_stat (user_id uinteger, center float, low float, high float, recording uinteger);
 create table declared (mbid varchar, q utinyint);
 insert into recording values
-	({SEED}, '{seed}', 1000), ({LOVED}, '{loved}', 1000),
-	({BRUSHED}, '{brushed}', 1000), ({OTHER}, '{other}', 1000);
+	({SEED}, '{seed}'), ({LOVED}, '{loved}'),
+	({BRUSHED}, '{brushed}'), ({OTHER}, '{other}');
 insert into recording_artist values
 	({SEED}, '{seed_artist}'), ({LOVED}, '{loved_artist}'),
 	({BRUSHED}, '{brushed_artist}'), ({OTHER}, '{other_artist}');
 insert into declared values ('{seed}', 4);
 insert into user_stat values {library};
 insert into user_listen values {listen};
+create table recording_listener as
+	select recording_id, count(*)::uinteger as listener, sum(plays)::ubigint as plays
+	from user_listen group by 1;
 ",
 			seed = mbid(SEED),
 			loved = mbid(LOVED),
@@ -350,6 +365,37 @@ insert into user_listen values {listen};
 				.map(|candidate| candidate.mbid.to_string())
 				.collect::<Vec<_>>(),
 			vec![mbid(LOVED)]
+		);
+	}
+
+	#[test]
+	fn a_recording_more_of_the_pool_plays_scores_below_an_equally_loved_rarity() {
+		let crowd = 20;
+		let known: Vec<(u32, u32, u32)> = (MIN_BACKER..MIN_BACKER + crowd)
+			.map(|user| (user, LOVED, 100))
+			.collect();
+		let listen = [every(&[(LOVED, 100), (OTHER, 100)]), known].concat();
+
+		let candidate = served(&index(&listen, &uniform(MIN_BACKER)), MIN_BACKER);
+
+		assert!(score(&candidate, OTHER) > score(&candidate, LOVED));
+	}
+
+	#[test]
+	fn a_listener_repeating_a_recording_forever_never_makes_it_popular() {
+		let obsessed: Vec<(u32, u32, u32)> = (0..MIN_BACKER)
+			.map(|user| (user, LOVED, u32::from(u16::MAX)))
+			.collect();
+		let listen = [obsessed, every(&[(OTHER, 100)])].concat();
+
+		let candidate = served(&index(&listen, &uniform(MIN_BACKER)), MIN_BACKER);
+
+		assert_eq!(
+			candidate
+				.iter()
+				.map(|candidate| candidate.listener)
+				.collect::<Vec<_>>(),
+			vec![MIN_BACKER, MIN_BACKER]
 		);
 	}
 

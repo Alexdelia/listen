@@ -3,6 +3,7 @@ mod board;
 mod library;
 mod pool;
 mod recording;
+mod recording_listener;
 mod scan;
 mod seed;
 mod user_listen;
@@ -44,6 +45,8 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 		|| user_stat::of(&scan, &work, &library, &pool),
 		|| user_listen::of(&scan, &work, &library, &pool, &recording),
 	)?;
+
+	recording_listener::of(&scan, &work)?;
 
 	let meta = open::Meta {
 		built: Utc::now().date_naive().to_string(),

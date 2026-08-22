@@ -12,8 +12,7 @@ pub(super) fn of(scan: &Scan, dir: &Path, library: &Path) -> hmerr::Result<PathB
 			r"
 select
 	(row_number() over (order by mbid) - 1)::uinteger as recording_id,
-	mbid,
-	sum(plays)::uinteger as global_plays
+	mbid
 from {library}
 group by mbid
 ",

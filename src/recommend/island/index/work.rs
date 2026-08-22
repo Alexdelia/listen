@@ -8,12 +8,18 @@ use hmerr::ioe;
 
 use super::{
 	keep,
-	open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
+	open::{self, Meta, RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
 	progress,
 };
 
-pub(super) fn published() -> [&'static str; 4] {
-	[RECORDING, RECORDING_ARTIST, USER_STAT, USER_LISTEN]
+pub(super) fn published() -> [&'static str; 5] {
+	[
+		RECORDING,
+		RECORDING_ARTIST,
+		RECORDING_LISTENER,
+		USER_STAT,
+		USER_LISTEN,
+	]
 }
 
 pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
@@ -95,7 +101,7 @@ mod tests {
 	}
 
 	fn staged(work: &Path) {
-		for part in [RECORDING, RECORDING_ARTIST, USER_STAT] {
+		for part in [RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_STAT] {
 			let _ = fs::write(work.join(part), b"fresh");
 		}
 

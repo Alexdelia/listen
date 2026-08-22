@@ -12,12 +12,12 @@ pub(super) const DIR: &str = "index";
 pub(super) const META: &str = "meta.json";
 pub(super) const RECORDING: &str = "recording.parquet";
 pub(super) const RECORDING_ARTIST: &str = "recording_artist.parquet";
+pub(super) const RECORDING_LISTENER: &str = "recording_listener.parquet";
 pub(super) const USER_LISTEN: &str = "user_listen";
 pub(super) const USER_STAT: &str = "user_stat.parquet";
 pub(super) const ARTIST_LINK: &str = "artist_link.parquet";
 pub(super) const BUCKET: u32 = 8;
 pub(super) const PLAY_CEILING: u16 = u16::MAX;
-pub(super) const GLOBAL_PLAY_CEILING: u32 = u32::MAX;
 
 const MEMORY_LIMIT: &str = "4GB";
 
@@ -71,6 +71,10 @@ pub(super) fn predates_stat(dir: &Path) -> bool {
 	scanned(dir) && !dir.join(USER_STAT).exists()
 }
 
+pub(super) fn predates_listener(dir: &Path) -> bool {
+	scanned(dir) && !dir.join(RECORDING_LISTENER).exists()
+}
+
 pub(super) fn scanned(dir: &Path) -> bool {
 	[RECORDING, RECORDING_ARTIST, META]
 		.iter()
@@ -109,6 +113,7 @@ pub(super) fn open(dir: &Path) -> hmerr::Result<Index> {
 		r"
 create view recording as select * from read_parquet('{dir}/{RECORDING}');
 create view recording_artist as select * from read_parquet('{dir}/{RECORDING_ARTIST}');
+create view recording_listener as select * from read_parquet('{dir}/{RECORDING_LISTENER}');
 create view user_listen as select * from read_parquet('{dir}/{USER_LISTEN}/*.parquet');
 create view user_stat as select * from read_parquet('{dir}/{USER_STAT}');
 create view artist_link as select * from read_parquet('{dir}/{ARTIST_LINK}');
@@ -177,7 +182,13 @@ mod tests {
 		let into = dir.join(USER_LISTEN);
 		let _ = fs::create_dir_all(&into);
 
-		for part in [RECORDING, RECORDING_ARTIST, USER_STAT, META] {
+		for part in [
+			RECORDING,
+			RECORDING_ARTIST,
+			RECORDING_LISTENER,
+			USER_STAT,
+			META,
+		] {
 			let _ = fs::write(dir.join(part), b"built");
 		}
 		for bucket in 0..bucket {
@@ -192,6 +203,7 @@ mod tests {
 
 		assert!(indexed(&dir));
 		assert!(!predates_stat(&dir));
+		assert!(!predates_listener(&dir));
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -203,6 +215,17 @@ mod tests {
 
 		assert!(!indexed(&dir));
 		assert!(predates_stat(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_written_before_the_listener_count_still_counts_as_one() {
+		let dir = scratch("uncounted");
+		lay_out(&dir, BUCKET);
+		let _ = fs::remove_file(dir.join(RECORDING_LISTENER));
+
+		assert!(indexed(&dir));
+		assert!(predates_listener(&dir));
 		let _ = fs::remove_dir_all(&dir);
 	}
 

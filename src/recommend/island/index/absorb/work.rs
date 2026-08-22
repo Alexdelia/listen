@@ -16,7 +16,7 @@ pub(super) use work::{publish, release};
 const DIR: &str = "absorb";
 const FROM: &str = "from";
 const REACH: &str = "reach.json";
-const FORMAT: u32 = 1;
+const FORMAT: u32 = 2;
 
 const DELTA: &str = "delta";
 const MERGE: &str = "merge";

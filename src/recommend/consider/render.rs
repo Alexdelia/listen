@@ -42,10 +42,12 @@ fn label(origin: &Origin) -> String {
 			member,
 			score,
 			backer,
+			listener,
 			plays,
 			..
 		} => format!(
-			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
+			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
+			{B}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }
@@ -127,6 +129,26 @@ mod tests {
 		let shown = label(&collaborative_filtering(0.432_1, None));
 
 		assert!(shown.contains("0.432"), "{shown}");
+	}
+
+	#[test]
+	fn an_island_recommendation_shows_its_play_before_its_listener_before_its_backer() {
+		let shown = label(&Origin::Island {
+			name: "touhou / speedcore".to_string(),
+			member: 30,
+			score: 1993.2,
+			backer: 51,
+			listener: 671,
+			plays: 7083,
+			position: 0,
+		});
+
+		let play = shown.find("7083").unwrap_or_default();
+		let listener = shown.find("671").unwrap_or_default();
+		let backer = shown.find("51").unwrap_or_default();
+
+		assert!(play < listener && listener < backer, "{shown}");
+		assert!(shown.contains("1993.200"), "{shown}");
 	}
 
 	#[test]

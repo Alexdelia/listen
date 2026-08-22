@@ -13,11 +13,12 @@ pub(super) enum Stage {
 	Recording,
 	Credit,
 	Listen,
+	Listener,
 	Stat,
 	UserStat,
 }
 
-const PLAN: [Stage; 9] = [
+const PLAN: [Stage; 10] = [
 	Stage::Download,
 	Stage::Verify,
 	Stage::Unpack,
@@ -25,6 +26,7 @@ const PLAN: [Stage; 9] = [
 	Stage::Recording,
 	Stage::Credit,
 	Stage::Listen,
+	Stage::Listener,
 	Stage::Stat,
 	Stage::UserStat,
 ];
@@ -46,6 +48,7 @@ impl Stage {
 			Self::Recording => "recording",
 			Self::Credit => "credit",
 			Self::Listen => "listen",
+			Self::Listener => "listener",
 			Self::Stat => "stat",
 			Self::UserStat => "user stat",
 		}
@@ -56,7 +59,7 @@ impl Stage {
 			Self::Download | Self::Unpack => Measure::Byte(chain.byte),
 			Self::Verify | Self::Fold => Measure::Step(chain.dump),
 			Self::Listen | Self::Stat => Measure::Step(u64::from(BUCKET)),
-			Self::Recording | Self::Credit | Self::UserStat => Measure::Step(ONCE),
+			Self::Recording | Self::Credit | Self::Listener | Self::UserStat => Measure::Step(ONCE),
 		}
 	}
 }

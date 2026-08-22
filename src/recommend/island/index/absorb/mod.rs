@@ -3,6 +3,7 @@ mod board;
 mod chain;
 mod delta;
 mod recording;
+mod recording_listener;
 mod user_listen;
 mod user_stat;
 mod work;
@@ -187,6 +188,7 @@ fn merge(
 	let recording = recording::of(db, board, &merge)?;
 	artist::of(db, board, &merge, &recording)?;
 	let row = user_listen::of(db, board, &merge, &recording)?;
+	recording_listener::of(db, board, &merge)?;
 	let user = user_stat::of(db, board, &merge)?;
 
 	let meta = Meta {
@@ -226,7 +228,7 @@ mod tests {
 	use super::{
 		super::{
 			build,
-			open::{RECORDING, USER_LISTEN, USER_STAT},
+			open::{RECORDING, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
 		},
 		*,
 	};
@@ -436,6 +438,7 @@ mod tests {
 		db.execute_batch(&format!(
 			r"
 create view recording as select * from read_parquet('{index}/{RECORDING}');
+create view recording_listener as select * from read_parquet('{index}/{RECORDING_LISTENER}');
 create view user_listen as select * from read_parquet('{index}/{USER_LISTEN}/*.parquet');
 create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 ",
@@ -454,6 +457,17 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 				"select coalesce(sum(ul.plays), 0)::bigint from user_listen ul \
 				join recording r using (recording_id) where ul.user_id = {user} \
 				and r.mbid = '{mbid}'",
+				mbid = mbid(recording)
+			),
+		)
+	}
+
+	fn pooled(index: &Path, recording: usize, of: &str) -> i64 {
+		one(
+			index,
+			&format!(
+				"select coalesce(max(l.{of}), 0)::bigint from recording_listener l \
+				join recording r using (recording_id) where r.mbid = '{mbid}'",
 				mbid = mbid(recording)
 			),
 		)
@@ -479,6 +493,28 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 
 		assert_eq!(held, 4);
 		assert_eq!(plays(&index, POOLED, 0), 6);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_listener_the_index_already_counts_never_counts_twice_for_playing_a_recording_again() {
+		let (dir, index, meta) = built("counted");
+		let held = pooled(&index, 0, "listener");
+
+		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day()));
+
+		assert_eq!(held, i64::from(POOL_USER));
+		assert_eq!(
+			pooled(&index, 0, "listener"),
+			i64::from(POOL_USER),
+			"a replay is not a listener, and a listener outside the pool is not one either"
+		);
+		assert_eq!(
+			pooled(&index, 0, "plays"),
+			i64::from(POOL_USER) * 4 + 2,
+			"the plays of the pool are what grows instead"
+		);
+		assert_eq!(pooled(&index, FRESH, "listener"), 2);
 		let _ = fs::remove_dir_all(&dir);
 	}
 

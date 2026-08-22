@@ -39,7 +39,8 @@ pub(super) enum Origin {
 		member: usize,
 		score: f32,
 		backer: u32,
-		plays: u32,
+		listener: u32,
+		plays: u64,
 		position: usize,
 	},
 }
