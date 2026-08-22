@@ -78,7 +78,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_recording_weighs_as_many_listeners_as_play_it_however_often_they_repeat_it() {
+	fn a_listener_playing_a_recording_once_counts_as_much_as_one_repeating_it_forever() {
 		let dir = holding(
 			"repeat",
 			&[(1, REPEATED, 200), (2, REPEATED, 1), (3, BRUSHED, 4)],

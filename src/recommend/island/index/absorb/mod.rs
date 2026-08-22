@@ -500,8 +500,13 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 	fn a_listener_the_index_already_counts_never_counts_twice_for_playing_a_recording_again() {
 		let (dir, index, meta) = built("counted");
 		let held = pooled(&index, 0, "listener");
+		let day = vec![
+			listen(POOLED, 0, 2),
+			listen(POOLED + 2, FRESH, 1),
+			listen(OUTSIDER, 0, 3),
+		];
 
-		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day()));
+		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day));
 
 		assert_eq!(held, i64::from(POOL_USER));
 		assert_eq!(
@@ -514,7 +519,11 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 			i64::from(POOL_USER) * 4 + 2,
 			"the plays of the pool are what grows instead"
 		);
-		assert_eq!(pooled(&index, FRESH, "listener"), 2);
+		assert_eq!(
+			pooled(&index, FRESH, "listener"),
+			1,
+			"a listener that played it once is a listener"
+		);
 		let _ = fs::remove_dir_all(&dir);
 	}
 
