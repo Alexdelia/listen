@@ -32,7 +32,6 @@ pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 		rebuilt(&dir, &listen, declaration)?;
 	} else {
 		user_stat::derive(&dir)?;
-		recording_listener::derive(&dir)?;
 
 		if let Some(listen) = repaired(&dir)? {
 			rebuilt(&dir, &listen, declaration)?;
@@ -40,6 +39,7 @@ pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 	}
 
 	absorbed(&dir)?;
+	recording_listener::derive(&dir)?;
 
 	dump::artist_link(&dir.join(open::ARTIST_LINK))?;
 
