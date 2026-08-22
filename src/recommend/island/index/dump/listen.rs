@@ -84,8 +84,6 @@ pub(super) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 	let archive = rsync::biggest(&url, EXT)?;
 	let tar = root.join(&archive.name);
 
-	space::require(root, space::unpacking(&tar, archive.size))?;
-
 	progress::say(format!(
 		"\n{F}listen dump {B}{dump}{D}{F}: {B}{Y}{size}{D}{F}, {B}{Y}+{size}{D}{F} unpacked, \
 		deleted once index built{D}",
@@ -97,6 +95,8 @@ pub(super) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 	if !progress::ask("download", offer.enter_is)? {
 		return Ok(None);
 	}
+
+	space::require(root, space::unpacking(&tar, archive.size))?;
 
 	let board = board::listen(archive.size)?;
 
