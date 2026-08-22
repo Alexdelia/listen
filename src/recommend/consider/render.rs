@@ -143,9 +143,15 @@ mod tests {
 			position: 0,
 		});
 
-		let play = shown.find("7083").unwrap_or_default();
-		let listener = shown.find("671").unwrap_or_default();
-		let backer = shown.find("51").unwrap_or_default();
+		let at = |of: &str| {
+			shown
+				.find(of)
+				.unwrap_or_else(|| unreachable!("{of} not shown in {shown}"))
+		};
+
+		let play = at("7083");
+		let listener = at("671");
+		let backer = at("51");
 
 		assert!(play < listener && listener < backer, "{shown}");
 		assert!(shown.contains("1993.200"), "{shown}");
