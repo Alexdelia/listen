@@ -135,10 +135,10 @@ mod tests {
 
 		db.execute_batch(&format!(
 			r"
-create table recording (recording_id uinteger, mbid uuid, global_plays uinteger);
+create table recording (recording_id uinteger, mbid uuid);
 create table user_listen (user_id uinteger, recording_id uinteger, plays usmallint);
 create table user_stat (user_id uinteger, center float, low float, high float, recording uinteger);
-insert into recording values (0, '{DECLARED}', 1000);
+insert into recording values (0, '{DECLARED}');
 insert into user_stat select range, {center}, 0, {high}, 100 from range({member});
 {listen}
 ",

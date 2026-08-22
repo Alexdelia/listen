@@ -8,6 +8,7 @@ mod parallel;
 mod partial;
 mod progress;
 mod query;
+mod recording_listener;
 mod shard;
 mod user_stat;
 mod work;
@@ -38,6 +39,7 @@ pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
 	}
 
 	absorbed(&dir)?;
+	recording_listener::derive(&dir)?;
 
 	dump::artist_link(&dir.join(open::ARTIST_LINK))?;
 
@@ -55,11 +57,20 @@ fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
 
 	let built = open::meta(dir)?.dump;
 
-	if !newer(&listen, &built) {
+	let Some(reason) = worth_rebuilding(dir, &listen, &built) else {
 		return Ok(None);
+	};
+
+	Ok(asked(&listen, &reason)?.then_some(listen))
+}
+
+fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> {
+	if newer(listen, built) {
+		return Some(format!("newer than the index built from {B}{built}{D}{F}"));
 	}
 
-	Ok(asked(&listen, &built)?.then_some(listen))
+	open::predates_stat(dir)
+		.then(|| "the index it was built for predates its listener stat".to_owned())
 }
 
 fn newer(listen: &Listen, built: &str) -> bool {
@@ -69,10 +80,10 @@ fn newer(listen: &Listen, built: &str) -> bool {
 		.is_none_or(|(unpacked, built)| unpacked > built)
 }
 
-fn asked(listen: &Listen, built: &str) -> hmerr::Result<bool> {
+fn asked(listen: &Listen, reason: &str) -> hmerr::Result<bool> {
 	progress::say(format!(
-		"\n{F}listen dump {B}{name}{D}{F} unpacked next to an index built from {B}{built}{D}{F}, \
-		rebuilding replaces it and may be long{D}",
+		"\n{F}listen dump {B}{name}{D}{F} unpacked, {reason}, \
+		rebuilding replaces the index, resets what it absorbed and may be long{D}",
 		name = listen.name
 	));
 
@@ -128,7 +139,7 @@ fn listed<T>(published: hmerr::Result<T>) -> Option<T> {
 
 #[cfg(test)]
 mod tests {
-	use std::path::PathBuf;
+	use std::{fs, path::PathBuf};
 
 	use super::*;
 
@@ -159,5 +170,66 @@ mod tests {
 	#[test]
 	fn a_dump_whose_name_says_nothing_is_still_offered() {
 		assert!(newer(&listen("listen"), BUILT));
+	}
+
+	fn whole(name: &str) -> PathBuf {
+		let dir = std::env::temp_dir().join(format!("declarative_listen_ensure_{name}"));
+		let _ = fs::remove_dir_all(&dir);
+		let into = dir.join(open::USER_LISTEN);
+		let _ = fs::create_dir_all(&into);
+
+		for part in [
+			open::RECORDING,
+			open::RECORDING_ARTIST,
+			open::RECORDING_LISTENER,
+			open::USER_STAT,
+			open::META,
+		] {
+			let _ = fs::write(dir.join(part), b"built");
+		}
+		for bucket in 0..open::BUCKET {
+			let _ = fs::write(into.join(open::shard(bucket)), b"built");
+		}
+
+		dir
+	}
+
+	#[test]
+	fn an_index_holding_every_part_is_not_rebuilt_from_the_dump_it_was_built_from() {
+		let dir = whole("whole");
+
+		assert!(worth_rebuilding(&dir, &listen(BUILT), BUILT).is_none());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_predating_the_listener_count_counts_it_where_it_stands_rather_than_rebuild() {
+		let dir = whole("uncounted");
+		let _ = fs::remove_file(dir.join(open::RECORDING_LISTENER));
+
+		assert!(worth_rebuilding(&dir, &listen(BUILT), BUILT).is_none());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_predating_the_listener_stat_is_offered_the_dump_it_was_built_from() {
+		let dir = whole("unstated");
+		let _ = fs::remove_file(dir.join(open::USER_STAT));
+
+		let reason = worth_rebuilding(&dir, &listen(BUILT), BUILT).unwrap_or_default();
+
+		assert!(reason.contains("listener stat"), "{reason}");
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_newer_dump_is_offered_to_an_index_holding_every_part() {
+		let dir = whole("newer");
+
+		let reason = worth_rebuilding(&dir, &listen("2026-08-16 00:00:03.000000+00:00"), BUILT)
+			.unwrap_or_default();
+
+		assert!(reason.contains(BUILT), "{reason}");
+		let _ = fs::remove_dir_all(&dir);
 	}
 }

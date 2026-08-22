@@ -78,6 +78,7 @@ impl feed::Feed for Stream {
 				member,
 				score: candidate.score,
 				backer: candidate.backer,
+				listener: candidate.listener,
 				plays: candidate.plays,
 				popularity_damp: self.popularity_damp,
 				granularity: self.granularity,
@@ -96,6 +97,7 @@ impl feed::Feed for Stream {
 				member,
 				score: candidate.score,
 				backer: candidate.backer,
+				listener: candidate.listener,
 				plays: candidate.plays,
 				position,
 			},
@@ -193,7 +195,8 @@ mod tests {
 					mbid: Source::from_bytes(byte),
 					score: 1.0,
 					backer: 5,
-					plays: 10,
+					listener: 10,
+					plays: 40,
 				}
 			})
 			.collect()

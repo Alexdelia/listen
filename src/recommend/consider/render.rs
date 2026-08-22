@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, CYA, D, F, G, M, Y};
+use ansi::abbrev::{B, BLU, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
@@ -42,10 +42,12 @@ fn label(origin: &Origin) -> String {
 			member,
 			score,
 			backer,
+			listener,
 			plays,
 			..
 		} => format!(
-			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{backer} {F}backer{D} {G}{member} {F}seed{D}"
+			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
+			{BLU}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }
@@ -127,6 +129,32 @@ mod tests {
 		let shown = label(&collaborative_filtering(0.432_1, None));
 
 		assert!(shown.contains("0.432"), "{shown}");
+	}
+
+	#[test]
+	fn an_island_recommendation_shows_its_play_before_its_listener_before_its_backer() {
+		let shown = label(&Origin::Island {
+			name: "touhou / speedcore".to_string(),
+			member: 30,
+			score: 1993.2,
+			backer: 51,
+			listener: 671,
+			plays: 7083,
+			position: 0,
+		});
+
+		let at = |of: &str| {
+			shown
+				.find(of)
+				.unwrap_or_else(|| unreachable!("{of} not shown in {shown}"))
+		};
+
+		let play = at("7083");
+		let listener = at("671");
+		let backer = at("51");
+
+		assert!(play < listener && listener < backer, "{shown}");
+		assert!(shown.contains("1993.200"), "{shown}");
 	}
 
 	#[test]

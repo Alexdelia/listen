@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
 use super::{
-	super::{
-		board::Board,
-		open::{GLOBAL_PLAY_CEILING, RECORDING},
-		query,
-	},
+	super::{board::Board, open::RECORDING, query},
 	board::{self, Stage},
 	work::{self, LIBRARY, Merge},
 };
@@ -27,23 +23,17 @@ top as (
 	select coalesce(max(recording_id), 0) as taken from held
 ),
 delta as (
-	select mbid, sum(plays)::ubigint as plays from {library} group by 1
+	select distinct mbid from {library}
 ),
 fresh as (
-	select d.mbid, d.plays from delta d anti join held h on h.mbid = d.mbid
+	select d.mbid from delta d anti join held h on h.mbid = d.mbid
 )
-select
-	h.recording_id,
-	h.mbid,
-	least(h.global_plays::ubigint + coalesce(d.plays, 0), {GLOBAL_PLAY_CEILING})::uinteger
-		as global_plays
+select h.recording_id, h.mbid
 from held h
-left join delta d on d.mbid = h.mbid
 union all
 select
 	((select taken from top) + row_number() over (order by f.mbid))::uinteger as recording_id,
-	f.mbid,
-	least(f.plays, {GLOBAL_PLAY_CEILING})::uinteger as global_plays
+	f.mbid
 from fresh f
 ",
 				held = merge.index.join(RECORDING).display(),

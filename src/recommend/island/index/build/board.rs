@@ -15,9 +15,10 @@ pub(super) enum Stage {
 	Stat,
 	UserStat,
 	Listen,
+	Listener,
 }
 
-const PLAN: [Stage; 10] = [
+const PLAN: [Stage; 11] = [
 	Stage::Library,
 	Stage::Compact,
 	Stage::Recording,
@@ -28,6 +29,7 @@ const PLAN: [Stage; 10] = [
 	Stage::Stat,
 	Stage::UserStat,
 	Stage::Listen,
+	Stage::Listener,
 ];
 
 const ONCE: u64 = 1;
@@ -45,6 +47,7 @@ impl Stage {
 			Self::Stat => "stat",
 			Self::UserStat => "user stat",
 			Self::Listen => "listen",
+			Self::Listener => "listener",
 		}
 	}
 
@@ -52,7 +55,12 @@ impl Stage {
 		match self {
 			Self::Library | Self::Artist => batch,
 			Self::Compact | Self::Stat | Self::Listen => u64::from(super::super::open::BUCKET),
-			Self::Recording | Self::Own | Self::Pool | Self::Credit | Self::UserStat => ONCE,
+			Self::Recording
+			| Self::Own
+			| Self::Pool
+			| Self::Credit
+			| Self::UserStat
+			| Self::Listener => ONCE,
 		}
 	}
 }

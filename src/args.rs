@@ -66,7 +66,7 @@ pub enum Command {
 
 #[derive(clap::Args)]
 pub struct IslandArg {
-	/// how hard to damp popularity, 0 keeps scene hits, above 0.8 reaches the untrustworthy
+	/// how hard to damp how many listeners already play it
 	#[arg(long, default_value_t = POPULARITY_DAMP)]
 	pub popularity_damp: f32,
 	/// island granularity, higher splits broad islands into narrower ones
