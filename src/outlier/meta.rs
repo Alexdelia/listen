@@ -34,6 +34,14 @@ pub(super) fn label(mbid: Source) -> String {
 }
 
 pub(super) fn join(title: &str, artist: &str) -> String {
+	joined(title, artist, &format!("{DIM}-{D}"))
+}
+
+pub(super) fn plain(title: &str, artist: &str) -> String {
+	joined(title, artist, "-")
+}
+
+fn joined(title: &str, artist: &str, separator: &str) -> String {
 	let title = title.trim();
 	let artist = artist.trim();
 
@@ -41,6 +49,6 @@ pub(super) fn join(title: &str, artist: &str) -> String {
 		(true, true) => String::new(),
 		(false, true) => title.to_string(),
 		(true, false) => artist.to_string(),
-		(false, false) => format!("{title} {DIM}-{D} {artist}"),
+		(false, false) => format!("{title} {separator} {artist}"),
 	}
 }

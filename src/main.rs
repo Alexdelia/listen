@@ -39,9 +39,16 @@ fn main() -> hmerr::Result<()> {
 		username,
 		refresh,
 		interactive,
+		api,
 	}) = &args.command
 	{
-		return outlier::run(&args.path, username.as_deref(), *refresh, *interactive);
+		return outlier::run(
+			&args.path,
+			username.as_deref(),
+			*refresh,
+			*interactive,
+			*api,
+		);
 	}
 
 	if let Some(Command::Recommend {

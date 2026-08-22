@@ -30,7 +30,7 @@ pub enum Command {
 		/// musicbrainz.org recording MBID
 		mbid: Source,
 	},
-	/// compare declared q against listenbrainz listen counts to surface outliers
+	/// compare declared q against listen counts, off the unpacked dump or listenbrainz api
 	Outlier {
 		/// listenbrainz.org username, cached and optional after the first use
 		username: Option<String>,
@@ -40,6 +40,9 @@ pub enum Command {
 		/// review each outlier and apply a new q to the ron file
 		#[arg(short, long)]
 		interactive: bool,
+		/// read the capped listenbrainz api stats even when a listen dump is unpacked
+		#[arg(long)]
+		api: bool,
 	},
 	/// resolve listenbrainz recommendations to matches and append new ones
 	Recommend {

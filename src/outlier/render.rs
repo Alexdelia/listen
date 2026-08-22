@@ -6,13 +6,15 @@ use ansi::{
 use crate::format;
 
 use super::analyze::{Analysis, Record, Undeclared};
-use super::meta;
+use super::{cache, meta};
 
-pub(super) fn render(analysis: &Analysis) {
+const CAP: usize = 50;
+
+pub(super) fn render(analysis: &Analysis, username: &str) {
 	matched(analysis);
 	median(analysis);
 	outlier(&analysis.outlier);
-	undeclared(&analysis.undeclared);
+	undeclared(&analysis.undeclared, username);
 }
 
 pub(super) fn matched(analysis: &Analysis) {
@@ -83,7 +85,7 @@ pub(super) fn line(record: &Record) {
 	);
 }
 
-pub(super) fn undeclared(undeclared: &[Undeclared]) {
+pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 	println!(
 		"\n{B}{M}{count}{D} {M}listen not in file{D}",
 		count = undeclared.len()
@@ -94,9 +96,38 @@ pub(super) fn undeclared(undeclared: &[Undeclared]) {
 		return;
 	}
 
-	for undeclared in undeclared {
+	for undeclared in undeclared.iter().take(CAP) {
 		undeclared_line(undeclared);
 	}
+
+	let Some(more) = undeclared.len().checked_sub(CAP).filter(|more| *more > 0) else {
+		return;
+	};
+
+	println!("{DIM}+{more} more{D}");
+
+	match cache::undeclared::write(username, &listed(undeclared)) {
+		Ok(path) => println!("{B}{CYA}{path}{D}", path = path.display()),
+		Err(e) => eprintln!("{e}"),
+	}
+}
+
+fn listed(undeclared: &[Undeclared]) -> String {
+	use std::fmt::Write;
+
+	undeclared
+		.iter()
+		.fold(String::new(), |mut listed, undeclared| {
+			let _ = writeln!(
+				listed,
+				"{listen:>6} {mbid} {label}",
+				listen = undeclared.listen,
+				mbid = undeclared.mbid,
+				label = meta::plain(&undeclared.track, &undeclared.artist)
+			);
+
+			listed
+		})
 }
 
 fn undeclared_line(undeclared: &Undeclared) {
@@ -106,4 +137,40 @@ fn undeclared_line(undeclared: &Undeclared) {
 		mbid = undeclared.mbid,
 		label = meta::join(&undeclared.track, &undeclared.artist),
 	);
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use crate::declaration::Source;
+
+	fn undeclared(count: usize) -> Vec<Undeclared> {
+		(0..count)
+			.map(|i| Undeclared {
+				mbid: Source::from_u128(i as u128),
+				listen: 9,
+				track: "Fairy Dance".to_string(),
+				artist: "UNDEAD CORPORATION".to_string(),
+			})
+			.collect()
+	}
+
+	#[test]
+	fn the_whole_list_is_written_out_however_little_of_it_is_printed() {
+		let listed = listed(&undeclared(CAP + 7));
+
+		assert_eq!(listed.lines().count(), CAP + 7);
+	}
+
+	#[test]
+	fn what_is_written_out_holds_no_escape_sequence() {
+		let listed = listed(&undeclared(3));
+
+		assert!(!listed.contains('\x1b'), "{listed}");
+		assert!(
+			listed.contains("Fairy Dance - UNDEAD CORPORATION"),
+			"{listed}"
+		);
+	}
 }

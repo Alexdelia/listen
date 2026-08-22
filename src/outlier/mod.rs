@@ -1,6 +1,7 @@
 mod age;
 mod analyze;
 mod cache;
+mod dump;
 mod fetch;
 mod interactive;
 mod meta;
@@ -15,28 +16,48 @@ use crate::declaration::parse;
 
 use fetch::ListenCount;
 
+struct Listened {
+	count: ListenCount,
+	covered_ago: u64,
+}
+
 pub fn run(
 	path: &Path,
 	username: Option<&str>,
 	refresh: bool,
 	interactive: bool,
+	api: bool,
 ) -> hmerr::Result<()> {
 	let username = crate::cache::username::resolve(username)?;
 
 	let list = parse::parse(path)?;
-	let listen = listen(&username, refresh)?;
+	let listened = listened(&username, refresh, api)?;
 	let age = age::days_since_added(path)?;
 	let meta = meta::declared(&list);
 
-	let analysis = analyze::analyze(&list, &listen, &age, &meta);
+	let analysis = analyze::analyze(&list, &listened.count, &age, &meta, listened.covered_ago);
 
 	if interactive {
-		return interactive::run(&analysis, path);
+		return interactive::run(&analysis, path, &username);
 	}
 
-	render::render(&analysis);
+	render::render(&analysis, &username);
 
 	Ok(())
+}
+
+fn listened(username: &str, refresh: bool, api: bool) -> hmerr::Result<Listened> {
+	if !api && let Some(held) = dump::listen(username, refresh)? {
+		return Ok(Listened {
+			covered_ago: age::days_since(held.covered)?,
+			count: held.count,
+		});
+	}
+
+	Ok(Listened {
+		count: listen(username, refresh)?,
+		covered_ago: 0,
+	})
 }
 
 fn listen(username: &str, refresh: bool) -> hmerr::Result<ListenCount> {

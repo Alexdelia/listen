@@ -4,6 +4,7 @@ mod build;
 mod dump;
 mod keep;
 mod open;
+pub(crate) mod own;
 mod parallel;
 mod partial;
 mod progress;
