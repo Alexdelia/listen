@@ -1109,4 +1109,7 @@
 	(s: "9c8213fc-0517-4490-9fd4-80f103537c75", q: 3, playlist: ["normie"]),
 	(s: "41ab93ac-7401-47f8-a984-525ece3a3677", q: 1, playlist: ["normie"]),
 	(s: "eda4b4af-21ef-4494-8657-f68ec116d4ad", q: 2, playlist: []),
+	(s: "fb2a0f98-bb1e-4403-81de-78f744c0977e", q: 1, playlist: []),
+	(s: "1ceb8c64-92c6-4f41-ae37-e9e0fa22923f", q: 0, playlist: []),
+	(s: "513e3848-9d1f-4615-8c09-8f209b145bed", q: 1, playlist: []),
 ]
