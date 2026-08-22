@@ -7,7 +7,7 @@ use super::{
 		dump::{self, Incremental, Pending},
 		progress,
 	},
-	Fresh, Gap, board, reach, scan,
+	Fold, Gap, board, reach, scan,
 };
 
 pub(super) fn run(
@@ -16,7 +16,8 @@ pub(super) fn run(
 	pending: &[&Pending],
 	own: u32,
 	reached: &str,
-) -> hmerr::Result<Fresh> {
+	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
+) -> hmerr::Result<()> {
 	let planned = board::of(&board::chain(pending))?;
 
 	let downloading = board::start(&planned, board::Stage::Download)?;
@@ -24,67 +25,74 @@ pub(super) fn run(
 	let unpacking = board::start(&planned, board::Stage::Unpack)?;
 	let reading = board::start(&planned, board::Stage::Listen)?;
 
-	let mut fresh = Fresh {
-		reached: reached.to_string(),
-		covered: 0,
-		play: Vec::new(),
-		gap: Vec::new(),
-	};
+	let mut reached = reached.to_string();
 
 	for pending in pending {
 		dump::pull(root, pending, &downloading, &verifying)?;
 		let incremental = dump::opened(root, pending, &unpacking)?;
 
-		taken(db, &incremental, own, &mut fresh)?;
+		let taken = taken(db, &incremental, own, &reached)?;
 		reading.inc(1);
-
 		dump::release(&incremental)?;
+
+		if let Some(taken) = taken {
+			reached.clone_from(&taken.reached);
+			keep(taken)?;
+		}
 	}
 
-	Ok(fresh)
+	Ok(())
 }
 
 fn taken(
 	db: &duckdb::Connection,
 	incremental: &Incremental,
 	own: u32,
-	fresh: &mut Fresh,
-) -> hmerr::Result<()> {
-	if reach::behind(&fresh.reached, &incremental.start) {
-		skipped(incremental, fresh);
-		return Ok(());
+	reached: &str,
+) -> hmerr::Result<Option<Fold>> {
+	if reach::behind(reached, &incremental.start) {
+		return Ok(skipped(incremental, reached));
 	}
 
-	if reach::lost(&fresh.reached, &incremental.start) {
-		out_of_reach(&fresh.reached, &incremental.start);
-		missed(fresh, &incremental.start);
+	let mut gap = Vec::new();
+
+	if reach::lost(reached, &incremental.start) {
+		out_of_reach(reached, &incremental.start);
+		gap.push(missed(reached, &incremental.start));
 	}
 
 	let scanned = scan::of(db, &incremental.dir, own)?;
-	fresh.play.extend(scanned.play);
-	fresh.covered = fresh.covered.max(scanned.covered);
-	fresh.reached.clone_from(&incremental.end);
 
-	Ok(())
+	Ok(Some(Fold {
+		reached: incremental.end.clone(),
+		covered: scanned.covered,
+		play: scanned.play,
+		gap,
+	}))
 }
 
-fn skipped(incremental: &Incremental, fresh: &mut Fresh) {
+fn skipped(incremental: &Incremental, reached: &str) -> Option<Fold> {
 	already_counted(&incremental.name);
 
-	if !reach::lost(&fresh.reached, &incremental.end) {
-		return;
+	if !reach::lost(reached, &incremental.end) {
+		return None;
 	}
 
-	stays_out(&fresh.reached, &incremental.end);
-	missed(fresh, &incremental.end);
-	fresh.reached.clone_from(&incremental.end);
+	stays_out(reached, &incremental.end);
+
+	Some(Fold {
+		reached: incremental.end.clone(),
+		covered: 0,
+		play: Vec::new(),
+		gap: vec![missed(reached, &incremental.end)],
+	})
 }
 
-fn missed(fresh: &mut Fresh, to: &str) {
-	fresh.gap.push(Gap {
-		from: fresh.reached.clone(),
+fn missed(reached: &str, to: &str) -> Gap {
+	Gap {
+		from: reached.to_string(),
 		to: to.to_string(),
-	});
+	}
 }
 
 fn out_of_reach(reached: &str, start: &str) {
@@ -125,84 +133,46 @@ mod tests {
 		}
 	}
 
-	fn fresh(reached: &str) -> Fresh {
-		Fresh {
-			reached: reached.to_string(),
-			covered: 0,
-			play: Vec::new(),
-			gap: Vec::new(),
-		}
+	fn take(reached: &str, incremental: &Incremental) -> Option<Fold> {
+		let db = duckdb::Connection::open_in_memory().unwrap_or_else(|_| unreachable!());
+
+		taken(&db, incremental, OWN, reached).unwrap_or_else(|e| unreachable!("{e}"))
 	}
 
-	fn window(fresh: &Fresh) -> Vec<(String, String)> {
-		fresh
-			.gap
+	fn window(fold: &Fold) -> Vec<(String, String)> {
+		fold.gap
 			.iter()
 			.map(|gap| (gap.from.clone(), gap.to.clone()))
 			.collect()
 	}
 
-	fn take(fresh: &mut Fresh, incremental: &Incremental) {
-		let db = duckdb::Connection::open_in_memory().unwrap_or_else(|_| unreachable!());
-
-		taken(&db, incremental, OWN, fresh).unwrap_or_else(|e| unreachable!("{e}"));
-	}
-
 	#[test]
 	fn a_dump_starting_where_the_count_stopped_adds_what_it_holds_of_ours() {
 		let dir = dump("folded", &[listen(OWN, AAAA, "2026-08-21 10:00:00")]);
-		let mut fresh = fresh("2026-08-21 00:00:03.155180+00:00");
 
-		take(
-			&mut fresh,
+		let taken = take(
+			"2026-08-21 00:00:03.155180+00:00",
 			&incremental(
 				"listenbrainz-dump-2026-08-22",
 				"2026-08-21 00:00:03.155180+00:00",
 				"2026-08-22 00:00:02.641933+00:00",
 				dir.clone(),
 			),
-		);
+		)
+		.unwrap_or_else(|| unreachable!());
 
-		assert_eq!(fresh.play.len(), 1);
-		assert_eq!(fresh.reached, "2026-08-22 00:00:02.641933+00:00");
-		assert!(window(&fresh).is_empty());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn a_window_no_dump_covers_is_written_down_as_a_hole_in_the_count() {
-		let dir = dump("holed", &[listen(OWN, AAAA, "2026-07-23 10:00:00")]);
-		let mut fresh = fresh("2026-07-12 00:00:04.001868+00:00");
-
-		take(
-			&mut fresh,
-			&incremental(
-				"listenbrainz-dump-2026-07-24",
-				"2026-07-23 00:00:03.690928+00:00",
-				"2026-07-24 00:00:02.000000+00:00",
-				dir.clone(),
-			),
-		);
-
-		assert_eq!(fresh.play.len(), 1);
-		assert_eq!(fresh.reached, "2026-07-24 00:00:02.000000+00:00");
-		assert_eq!(
-			window(&fresh),
-			[(
-				"2026-07-12 00:00:04.001868+00:00".to_string(),
-				"2026-07-23 00:00:03.690928+00:00".to_string()
-			)]
-		);
+		assert_eq!(taken.play.len(), 1);
+		assert_eq!(taken.reached, "2026-08-22 00:00:02.641933+00:00");
+		assert!(window(&taken).is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
 	fn a_dump_reaching_no_further_than_the_count_is_skipped_rather_than_counted_twice() {
 		let dir = dump("twice", &[listen(OWN, AAAA, "2026-07-11 10:00:00")]);
-		let mut fresh = fresh("2026-07-12 00:00:04.001868+00:00");
 
-		take(
-			&mut fresh,
+		let taken = take(
+			"2026-07-12 00:00:04.001868+00:00",
 			&incremental(
 				"listenbrainz-dump-2026-07-12",
 				"2026-07-11 00:00:02.000000+00:00",
@@ -211,34 +181,59 @@ mod tests {
 			),
 		);
 
-		assert!(fresh.play.is_empty());
-		assert_eq!(fresh.reached, "2026-07-12 00:00:04.001868+00:00");
-		assert!(window(&fresh).is_empty());
+		assert!(taken.is_none());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
 	fn a_dump_reaching_back_into_the_count_and_past_it_leaves_its_whole_window_out() {
 		let dir = dump("straddle", &[listen(OWN, AAAA, "2026-07-12 10:00:00")]);
-		let mut fresh = fresh("2026-07-12 00:00:04.001868+00:00");
 
-		take(
-			&mut fresh,
+		let taken = take(
+			"2026-07-12 00:00:04.001868+00:00",
 			&incremental(
 				"listenbrainz-dump-2026-07-13",
 				"2026-07-12 00:00:02.000000+00:00",
 				"2026-07-13 00:00:02.000000+00:00",
 				dir.clone(),
 			),
-		);
+		)
+		.unwrap_or_else(|| unreachable!());
 
-		assert!(fresh.play.is_empty());
-		assert_eq!(fresh.reached, "2026-07-13 00:00:02.000000+00:00");
+		assert!(taken.play.is_empty());
+		assert_eq!(taken.reached, "2026-07-13 00:00:02.000000+00:00");
 		assert_eq!(
-			window(&fresh),
+			window(&taken),
 			[(
 				"2026-07-12 00:00:04.001868+00:00".to_string(),
 				"2026-07-13 00:00:02.000000+00:00".to_string()
+			)]
+		);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_window_no_dump_covers_is_written_down_as_a_hole_in_the_count() {
+		let dir = dump("holed", &[listen(OWN, AAAA, "2026-07-23 10:00:00")]);
+
+		let taken = take(
+			"2026-07-12 00:00:04.001868+00:00",
+			&incremental(
+				"listenbrainz-dump-2026-07-24",
+				"2026-07-23 00:00:03.690928+00:00",
+				"2026-07-24 00:00:02.000000+00:00",
+				dir.clone(),
+			),
+		)
+		.unwrap_or_else(|| unreachable!());
+
+		assert_eq!(taken.play.len(), 1);
+		assert_eq!(taken.reached, "2026-07-24 00:00:02.000000+00:00");
+		assert_eq!(
+			window(&taken),
+			[(
+				"2026-07-12 00:00:04.001868+00:00".to_string(),
+				"2026-07-23 00:00:03.690928+00:00".to_string()
 			)]
 		);
 		let _ = fs::remove_dir_all(&dir);

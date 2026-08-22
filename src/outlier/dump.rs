@@ -41,10 +41,7 @@ pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held
 		return Ok(None);
 	};
 
-	if folded(&mut held)? {
-		cache::dump::write(username, &held)?;
-	}
-
+	folded(username, &mut held)?;
 	announce(username, &held)?;
 
 	Ok(Some(held))
@@ -64,17 +61,21 @@ fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 	scanned(username)
 }
 
-fn folded(held: &mut Held) -> hmerr::Result<bool> {
-	let Some(fresh) = own::fresh(held.reach())? else {
-		return Ok(false);
-	};
+fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
+	let reached = held.reach().to_string();
 
-	merge(&mut held.count, fresh.play);
-	held.covered = held.covered.max(fresh.covered);
-	held.gap.extend(fresh.gap);
-	held.reached = fresh.reached;
+	own::fresh(&reached, &mut |fold| {
+		absorbed(held, fold);
 
-	Ok(true)
+		cache::dump::write(username, held)
+	})
+}
+
+fn absorbed(held: &mut Held, fold: own::Fold) {
+	merge(&mut held.count, fold.play);
+	held.covered = held.covered.max(fold.covered);
+	held.gap.extend(fold.gap);
+	held.reached = fold.reached;
 }
 
 fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
@@ -156,8 +157,11 @@ fn covered(covered: i64) -> String {
 mod tests {
 	use super::*;
 
+	const MBID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
 	const DUMP: &str = "2026-07-12 00:00:04.001868+00:00";
 	const NEWER: &str = "2026-08-16 00:00:03.000000+00:00";
+	const LATEST: &str = "2026-08-22 00:00:02.641933+00:00";
 
 	fn held() -> Held {
 		Held {
@@ -176,6 +180,21 @@ mod tests {
 			track: "Fairy Dance".to_string(),
 			artist: "UNDEAD CORPORATION".to_string(),
 		}
+	}
+
+	fn fold(reached: &str, plays: u32, gap: Vec<Gap>) -> own::Fold {
+		own::Fold {
+			reached: reached.to_string(),
+			covered: 0,
+			play: vec![play(MBID, plays)],
+			gap,
+		}
+	}
+
+	fn counted(held: &Held, mbid: &str) -> Option<u32> {
+		held.count
+			.get(&mbid.parse().unwrap_or_default())
+			.map(|listen| listen.count)
 	}
 
 	fn dump_of(held: Option<Held>) -> Option<String> {
@@ -225,8 +244,33 @@ mod tests {
 	}
 
 	#[test]
+	fn every_incremental_lands_on_the_count_as_it_is_read_not_once_the_chain_is_over() {
+		let mut held = held();
+
+		absorbed(&mut held, fold(NEWER, 40, Vec::new()));
+
+		assert_eq!(held.reach(), NEWER);
+		assert_eq!(counted(&held, MBID), Some(40));
+
+		absorbed(
+			&mut held,
+			fold(
+				LATEST,
+				2,
+				vec![Gap {
+					from: NEWER.to_string(),
+					to: LATEST.to_string(),
+				}],
+			),
+		);
+
+		assert_eq!(held.reach(), LATEST);
+		assert_eq!(counted(&held, MBID), Some(42));
+		assert_eq!(held.gap.len(), 1);
+	}
+
+	#[test]
 	fn what_an_incremental_adds_lands_on_the_count_the_dump_left() {
-		const MBID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 		const FRESH: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 		let mut count = ListenCount::new();

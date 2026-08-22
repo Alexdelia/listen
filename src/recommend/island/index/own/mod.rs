@@ -23,7 +23,7 @@ pub(crate) struct Own {
 	pub play: Vec<Play>,
 }
 
-pub(crate) struct Fresh {
+pub(crate) struct Fold {
 	pub reached: String,
 	pub covered: i64,
 	pub play: Vec<Play>,
@@ -57,26 +57,29 @@ pub(crate) fn played() -> hmerr::Result<Option<Own>> {
 	}))
 }
 
-pub(crate) fn fresh(reached: &str) -> hmerr::Result<Option<Fresh>> {
+pub(crate) fn fresh(
+	reached: &str,
+	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
+) -> hmerr::Result<()> {
 	let dir = open::dir()?;
 
 	let Some(own) = open::own(&dir) else {
-		return Ok(None);
+		return Ok(());
 	};
 
 	let Some(pending) = published(dump::pending(reached)) else {
-		return Ok(None);
+		return Ok(());
 	};
 	let pending: Vec<&Pending> = pending.iter().collect();
 
 	if pending.is_empty() || !offered(&pending)? {
-		return Ok(None);
+		return Ok(());
 	}
 
 	let root = dump::root()?;
 	dump::room(&root, &pending, AT_ONCE)?;
 
-	fold::run(&open::session(&dir)?, &root, &pending, own, reached).map(Some)
+	fold::run(&open::session(&dir)?, &root, &pending, own, reached, keep)
 }
 
 fn published(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
