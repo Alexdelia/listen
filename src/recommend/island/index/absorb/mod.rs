@@ -46,12 +46,33 @@ pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result
 	})?;
 
 	if !work::folded(&work, LIBRARY) {
-		progress::say(format!("{F}nothing absorbed{D}"));
-
-		return Ok(());
+		return skipped(dir, meta, &reach);
 	}
 
 	merge(&db, &board, dir, &work, meta, reach)
+}
+
+fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<()> {
+	progress::say(format!("{F}nothing absorbed{D}"));
+
+	if reach.absorbed > 0 || reach.gap.len() == held.gap.len() {
+		return Ok(());
+	}
+
+	open::write_meta(
+		dir,
+		&Meta {
+			reached: Some(reach.covered.clone()),
+			gap: reach.gap.clone(),
+			..held.clone()
+		},
+	)?;
+
+	progress::say(format!(
+		"{Y}the window those dumps left uncovered is recorded on the index{D}"
+	));
+
+	Ok(())
 }
 
 fn left<'a>(pending: &'a [Pending], covered: &str) -> hmerr::Result<Vec<&'a Pending>> {
@@ -606,6 +627,53 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 		assert_eq!(reach.absorbed, 0);
 		assert_eq!(reach.gap.len(), 1);
 		assert_eq!(reach.covered, NEXT);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_chain_that_folded_nothing_still_records_the_window_it_skipped() {
+		let (dir, index, meta) = built("skipped");
+		let work = work::open(&index, meta.covered()).unwrap_or_default();
+		let db = open::session(&work).unwrap_or_else(|_| unreachable!());
+		let mut reach = work::reach(&work, &meta);
+
+		taken(
+			&db,
+			&work,
+			&mut reach,
+			&incremental(&dir, BEFORE_THE_INDEX, &day()),
+		)
+		.unwrap_or_else(|e| unreachable!("{e}"));
+
+		assert!(!work::folded(&work, LIBRARY));
+		skipped(&index, &meta, &reach).unwrap_or_else(|e| unreachable!("{e}"));
+
+		let now = open::meta(&index).unwrap_or_else(|_| unreachable!());
+
+		assert_eq!(now.covered(), NEXT);
+		assert_eq!(now.gap.len(), 1);
+		assert_eq!(now.absorbed, 0);
+		assert_eq!(
+			now.recording, meta.recording,
+			"the parts it published nothing over never moved"
+		);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_chain_that_skipped_nothing_leaves_the_index_as_it_stands() {
+		let (dir, index, meta) = built("quiet");
+		let work = work::open(&index, meta.covered()).unwrap_or_default();
+		let reach = work::reach(&work, &meta);
+
+		skipped(&index, &meta, &reach).unwrap_or_else(|e| unreachable!("{e}"));
+
+		assert!(
+			open::meta(&index)
+				.unwrap_or_else(|_| unreachable!())
+				.reached
+				.is_none()
+		);
 		let _ = fs::remove_dir_all(&dir);
 	}
 

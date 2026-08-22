@@ -27,7 +27,7 @@ pub(crate) struct Gap {
 	pub to: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Meta {
 	pub built: String,
 	pub dump: String,
