@@ -208,7 +208,7 @@ mod tests {
 	}
 
 	#[test]
-	fn an_index_written_before_the_listener_stat_is_one_to_recover_not_to_build_again() {
+	fn an_index_written_before_the_listener_stat_is_one_to_recover() {
 		let dir = scratch("predate");
 		lay_out(&dir, BUCKET);
 		let _ = fs::remove_file(dir.join(USER_STAT));
