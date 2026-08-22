@@ -350,6 +350,8 @@ mod tests {
 		}
 	}
 
+	const TUNED_GRANULARITY: f64 = GRANULARITY * 2.0;
+
 	fn no_arg() -> IslandArg {
 		IslandArg {
 			popularity_damp: POPULARITY_DAMP,
@@ -384,7 +386,7 @@ mod tests {
 				RecommendSource::All,
 				&IslandArg {
 					ask: true,
-					granularity: 1.5,
+					granularity: TUNED_GRANULARITY,
 					..no_arg()
 				}
 			)
@@ -459,7 +461,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						granularity: 1.5,
+						granularity: TUNED_GRANULARITY,
 						seed: vec![Source::from_bytes([2; 16])],
 						..no_arg()
 					}
@@ -470,7 +472,7 @@ mod tests {
 				ensure_arg(
 					source,
 					&IslandArg {
-						granularity: 1.5,
+						granularity: TUNED_GRANULARITY,
 						genre: vec!["eurobeat".to_string()],
 						..no_arg()
 					}
@@ -486,7 +488,7 @@ mod tests {
 			ensure_arg(
 				RecommendSource::Island,
 				&IslandArg {
-					granularity: 1.5,
+					granularity: TUNED_GRANULARITY,
 					island: Some("touhou".to_string()),
 					..no_arg()
 				}
