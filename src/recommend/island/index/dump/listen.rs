@@ -98,15 +98,14 @@ pub(super) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 		return Ok(None);
 	}
 
-	let checksum = format!(
-		"{name}{ext}",
-		name = archive.name,
-		ext = rsync::CHECKSUM_EXT
-	);
-
 	let board = board::listen(archive.size)?;
 
-	rsync::secured(&board, &url, root, &archive.name, &checksum)?;
+	board.run(board::DOWNLOAD, |bar| {
+		rsync::pull(&format!("{url}{name}", name = archive.name), &tar, bar)
+	})?;
+	board.run(board::VERIFY, |_| {
+		rsync::checked(&url, root, &rsync::checksum(&archive.name))
+	})?;
 
 	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
 	keep::discard(&tar)?;

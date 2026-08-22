@@ -4,6 +4,7 @@ mod build;
 mod dump;
 mod keep;
 mod open;
+mod parallel;
 mod partial;
 mod progress;
 mod query;

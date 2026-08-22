@@ -30,7 +30,7 @@ pub(super) fn joined<T>(done: thread::Result<Result<T, String>>) -> hmerr::Resul
 		Ok(Ok(value)) => Ok(value),
 		Ok(Err(e)) => Err(ge!(e).into()),
 		Err(_) => Err(ge!(
-			format!("{R}a build stage {B}died{D}"),
+			format!("{R}a stage {B}died{D}"),
 			h: "what it had already written is kept, run again to resume from it"
 		)
 		.into()),

@@ -6,7 +6,7 @@ use std::{
 
 use indicatif::ProgressBar;
 
-use super::super::parallel;
+use super::super::super::parallel;
 
 pub(super) struct Lane {
 	free: Mutex<Vec<duckdb::Connection>>,

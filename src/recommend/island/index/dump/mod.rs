@@ -9,6 +9,7 @@ mod stamp;
 use std::path::{Path, PathBuf};
 
 use hmerr::ioe;
+use indicatif::ProgressBar;
 
 use crate::cache;
 
@@ -90,11 +91,29 @@ pub(super) fn weight(pending: &[Pending]) -> u64 {
 	incremental::weight(pending)
 }
 
-pub(super) fn fold(
+pub(super) fn room(root: &Path, pending: &[&Pending]) -> hmerr::Result<()> {
+	incremental::room(root, pending)
+}
+
+pub(super) fn pull(
+	root: &Path,
 	pending: &Pending,
-	fold: impl FnOnce(&Incremental) -> hmerr::Result<()>,
+	downloading: &ProgressBar,
+	verifying: &ProgressBar,
 ) -> hmerr::Result<()> {
-	incremental::take(&root()?, pending, fold)
+	incremental::pull(root, pending, downloading, verifying)
+}
+
+pub(super) fn opened(
+	root: &Path,
+	pending: &Pending,
+	bar: &ProgressBar,
+) -> hmerr::Result<Incremental> {
+	incremental::opened(root, pending, bar)
+}
+
+pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
+	incremental::release(incremental)
 }
 
 pub(super) fn artist_link(link: &Path) -> hmerr::Result<()> {

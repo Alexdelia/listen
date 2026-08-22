@@ -1,7 +1,6 @@
 mod artist;
 mod board;
 mod library;
-mod parallel;
 mod pool;
 mod recording;
 mod scan;
@@ -17,7 +16,7 @@ use chrono::Utc;
 
 use crate::declaration::parse;
 
-use super::{dump::Listen, open, progress};
+use super::{dump::Listen, open, parallel, progress};
 
 use scan::Scan;
 

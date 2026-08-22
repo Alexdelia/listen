@@ -1,5 +1,6 @@
 mod artist;
 mod board;
+mod chain;
 mod delta;
 mod recording;
 mod user_listen;
@@ -12,6 +13,7 @@ use ansi::abbrev::{B, D, F, G, Y};
 use chrono::Utc;
 
 use super::{
+	board::Board,
 	dump::{self, Incremental, Pending},
 	open::{self, Gap, Meta},
 	progress, query,
@@ -20,19 +22,23 @@ use super::{
 use work::{LIBRARY, Reach};
 
 pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result<()> {
+	let root = dump::root()?;
 	let work = work::open(dir, meta.covered())?;
 	let db = open::session(&work)?;
 	let mut reach = work::reach(&work, meta);
 
-	for pending in pending {
-		if pending.reach <= dump::reach(&reach.covered)? {
-			continue;
-		}
+	let left = left(pending, &reach.covered)?;
+	resuming(pending, &left);
+	dump::room(&root, &left)?;
 
-		dump::fold(pending, |incremental| {
-			taken(&db, &work, &mut reach, incremental)
-		})?;
-	}
+	let board = board::of(&board::Chain {
+		dump: u64::try_from(left.len()).unwrap_or_default(),
+		byte: left.iter().map(|pending| pending.size).sum(),
+	})?;
+
+	chain::each(&board, &root, &left, |incremental| {
+		taken(&db, &work, &mut reach, incremental)
+	})?;
 
 	if !work::folded(&work, LIBRARY) {
 		progress::say(format!("{F}nothing absorbed{D}"));
@@ -40,7 +46,28 @@ pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result
 		return Ok(());
 	}
 
-	merge(&db, dir, &work, meta, reach)
+	merge(&db, &board, dir, &work, meta, reach)
+}
+
+fn left<'a>(pending: &'a [Pending], covered: &str) -> hmerr::Result<Vec<&'a Pending>> {
+	let reached = dump::reach(covered)?;
+
+	Ok(pending
+		.iter()
+		.filter(|pending| pending.reach > reached)
+		.collect())
+}
+
+fn resuming(pending: &[Pending], left: &[&Pending]) {
+	if left.len() == pending.len() {
+		return;
+	}
+
+	progress::say(format!(
+		"{F}{B}{done}{D}{F} of them already absorbed by a previous run, {B}{left}{D}{F} left{D}",
+		done = pending.len() - left.len(),
+		left = left.len()
+	));
 }
 
 fn taken(
@@ -100,6 +127,7 @@ fn overlapping(work: &Path, reach: &mut Reach, incremental: &Incremental) -> hme
 
 fn merge(
 	db: &duckdb::Connection,
+	board: &Board,
 	dir: &Path,
 	work: &Path,
 	held: &Meta,
@@ -107,12 +135,10 @@ fn merge(
 ) -> hmerr::Result<()> {
 	announce(&reach);
 
-	let board = board::of()?;
-
-	let recording = recording::of(db, &board, dir, work)?;
-	artist::of(db, &board, dir, work, &recording)?;
-	let row = user_listen::of(db, &board, dir, work, &recording)?;
-	let user = user_stat::of(db, &board, work)?;
+	let recording = recording::of(db, board, dir, work)?;
+	artist::of(db, board, dir, work, &recording)?;
+	let row = user_listen::of(db, board, dir, work, &recording)?;
+	let user = user_stat::of(db, board, work)?;
 
 	let meta = Meta {
 		built: Utc::now().date_naive().to_string(),
@@ -311,13 +337,14 @@ mod tests {
 		let work = work::open(index, meta.covered())?;
 		let db = open::session(&work)?;
 		let mut reach = work::reach(&work, meta);
+		let board = board::of(&board::Chain { dump: 1, byte: 0 })?;
 
 		taken(&db, &work, &mut reach, incremental)?;
 
 		let held = reach.clone();
 
 		if work::folded(&work, LIBRARY) {
-			merge(&db, index, &work, meta, reach)?;
+			merge(&db, &board, index, &work, meta, reach)?;
 		}
 
 		Ok(held)

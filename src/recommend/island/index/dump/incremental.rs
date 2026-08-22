@@ -7,7 +7,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{GenericError, ge, ioe};
 use indicatif::ProgressBar;
 
-use super::{super::keep, board, listen, rsync, space, stamp};
+use super::{super::keep, listen, rsync, space, stamp};
 
 const MODULE: &str = "listenbrainz/incremental";
 const SUFFIX: &str = "-incremental";
@@ -18,6 +18,8 @@ const START: &str = "START_TIMESTAMP";
 const END: &str = "END_TIMESTAMP";
 const SEQUENCE: &str = "SCHEMA_SEQUENCE";
 const SEQUENCE_UNDERSTOOD: &str = "1";
+
+const AT_ONCE: u64 = 3;
 
 pub(crate) struct Pending {
 	pub name: String,
@@ -59,45 +61,52 @@ fn pending_of(entry: &rsync::Entry) -> Option<Pending> {
 	})
 }
 
-pub(super) fn take(
+pub(super) fn room(root: &Path, pending: &[&Pending]) -> hmerr::Result<()> {
+	let biggest = pending
+		.iter()
+		.map(|pending| pending.size)
+		.max()
+		.unwrap_or_default();
+
+	space::require(root, biggest.saturating_mul(AT_ONCE))
+}
+
+pub(super) fn pull(
 	root: &Path,
 	pending: &Pending,
-	fold: impl FnOnce(&Incremental) -> hmerr::Result<()>,
+	downloading: &ProgressBar,
+	verifying: &ProgressBar,
 ) -> hmerr::Result<()> {
-	let url = format!(
-		"{host}/{MODULE}/{name}/",
-		host = rsync::HOST,
-		name = pending.name
-	);
-	let tar = root.join(&pending.archive);
+	let url = url(&pending.name);
 
-	space::require(root, space::unpacking(&tar, pending.size))?;
+	rsync::pull(
+		&format!("{url}{archive}", archive = pending.archive),
+		&root.join(&pending.archive),
+		downloading,
+	)?;
+	rsync::checked(&url, root, &rsync::checksum(&pending.archive))?;
+	verifying.inc(1);
 
-	let checksum = format!(
-		"{archive}{ext}",
-		archive = pending.archive,
-		ext = rsync::CHECKSUM_EXT
-	);
+	Ok(())
+}
 
-	let board = board::incremental(pending.size)?;
+pub(super) fn opened(
+	root: &Path,
+	pending: &Pending,
+	bar: &ProgressBar,
+) -> hmerr::Result<Incremental> {
+	let dir = unpack(root, pending, bar)?;
+	keep::discard(&root.join(&pending.archive))?;
 
-	rsync::secured(&board, &url, root, &pending.archive, &checksum)?;
+	read(&dir, &pending.name)
+}
 
-	let dir = board.run(board::UNPACK, |bar| unpack(root, pending, bar))?;
-	keep::discard(&tar)?;
+pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
+	keep::discard(&incremental.dir)
+}
 
-	let incremental = read(&dir, &pending.name)?;
-
-	let folded = board.run(board::FOLD, |bar| {
-		fold(&incremental)?;
-		bar.inc(1);
-
-		Ok(())
-	});
-
-	discard(&incremental)?;
-
-	folded
+fn url(name: &str) -> String {
+	format!("{host}/{MODULE}/{name}/", host = rsync::HOST)
 }
 
 fn unpack(root: &Path, pending: &Pending, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
@@ -146,10 +155,6 @@ fn marker(dir: &Path, of: &str) -> hmerr::Result<String> {
 	let read = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
 	Ok(read.trim().to_string())
-}
-
-fn discard(incremental: &Incremental) -> hmerr::Result<()> {
-	keep::discard(&incremental.dir)
 }
 
 pub(super) fn weight(pending: &[Pending]) -> u64 {
