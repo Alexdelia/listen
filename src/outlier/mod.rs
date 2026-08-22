@@ -52,7 +52,7 @@ fn listened(username: &str, refresh: bool, api: bool) -> hmerr::Result<Listened>
 	if !api && let Some(held) = dump::listen(username, refresh)? {
 		return Ok(Listened {
 			covered: gap::covered(age::days_since(held.covered)?, &held.gap)?,
-			count: held.count,
+			count: held.counted(),
 		});
 	}
 

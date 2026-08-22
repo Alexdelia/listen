@@ -1,6 +1,6 @@
 use ansi::{
 	DIM,
-	abbrev::{B, D, F, G},
+	abbrev::{B, D, F, G, Y},
 };
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,20 @@ pub(super) struct Held {
 	pub gap: Vec<Gap>,
 	pub covered: i64,
 	pub count: ListenCount,
+	#[serde(default)]
+	pub fold: ListenCount,
+}
+
+struct Carried {
+	reached: String,
+	gap: Vec<Gap>,
+	covered: i64,
+	fold: ListenCount,
+}
+
+enum Kept {
+	Cached(Held),
+	Rescan(Option<Carried>),
 }
 
 impl Held {
@@ -33,6 +47,46 @@ impl Held {
 		}
 
 		&self.reached
+	}
+
+	pub(super) fn counted(&self) -> ListenCount {
+		let mut count = self.count.clone();
+
+		for (mbid, folded) in &self.fold {
+			let listen = count.entry(*mbid).or_insert_with(|| Listen {
+				count: 0,
+				track: folded.track.clone(),
+				artist: folded.artist.clone(),
+			});
+
+			listen.count = listen.count.saturating_add(folded.count);
+		}
+
+		count
+	}
+
+	fn apart(&self) -> bool {
+		!self.fold.is_empty() || self.reach() == self.dump
+	}
+
+	fn carried(self) -> Carried {
+		Carried {
+			reached: self.reach().to_string(),
+			gap: self.gap,
+			covered: self.covered,
+			fold: self.fold,
+		}
+	}
+}
+
+impl Carried {
+	fn of(dump: &str) -> Self {
+		Self {
+			reached: dump.to_string(),
+			gap: Vec::new(),
+			covered: 0,
+			fold: ListenCount::new(),
+		}
 	}
 }
 
@@ -49,16 +103,27 @@ pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held
 
 fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 	let unpacked = own::unpacked()?;
+	let cached = cache::dump::read(username)?;
+	let merged = cached.as_ref().is_some_and(|held| !held.apart());
 
-	if let Some(held) = kept(cache::dump::read(username)?, unpacked.as_deref(), refresh) {
-		return Ok(Some(held));
+	match kept(cached, unpacked.as_deref(), refresh) {
+		Kept::Cached(held) => Ok(Some(held)),
+		Kept::Rescan(_) if unpacked.is_none() => Ok(None),
+		Kept::Rescan(carried) => {
+			if merged && carried.is_none() {
+				merged_in();
+			}
+
+			scanned(username, carried)
+		}
 	}
+}
 
-	if unpacked.is_none() {
-		return Ok(None);
-	}
-
-	scanned(username)
+fn merged_in() {
+	println!(
+		"{Y}the cached count cannot tell the dump from what was folded onto it, \
+		reading the dump up again and asking for every incremental since{D}"
+	);
 }
 
 fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
@@ -72,7 +137,7 @@ fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 }
 
 fn absorbed(held: &mut Held, fold: own::Fold) {
-	merge(&mut held.count, fold.play);
+	merge(&mut held.fold, fold.play);
 	held.covered = held.covered.max(fold.covered);
 	held.gap.extend(fold.gap);
 	held.reached = fold.reached;
@@ -90,27 +155,40 @@ fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
 	}
 }
 
-fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Option<Held> {
-	let held = held?;
+fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Kept {
+	let Some(held) = held else {
+		return Kept::Rescan(None);
+	};
 
-	match unpacked {
-		None => Some(held),
-		Some(unpacked) => (!refresh && held.dump == unpacked).then_some(held),
+	let Some(unpacked) = unpacked else {
+		return Kept::Cached(held);
+	};
+
+	if held.dump != unpacked {
+		return Kept::Rescan(None);
 	}
+
+	if refresh {
+		return Kept::Rescan(held.apart().then(|| held.carried()));
+	}
+
+	Kept::Cached(held)
 }
 
-fn scanned(username: &str) -> hmerr::Result<Option<Held>> {
+fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Held>> {
 	println!("{F}reading own listen off the unpacked dump, once per dump{D}");
 
 	let Some(own) = own::played()? else {
 		return Ok(None);
 	};
 
+	let carried = carried.unwrap_or_else(|| Carried::of(&own.dump));
+
 	let held = Held {
-		reached: own.dump.clone(),
 		dump: own.dump,
-		gap: Vec::new(),
-		covered: own.covered,
+		reached: carried.reached,
+		gap: carried.gap,
+		covered: carried.covered.max(own.covered),
 		count: own
 			.play
 			.into_iter()
@@ -125,6 +203,7 @@ fn scanned(username: &str) -> hmerr::Result<Option<Held>> {
 				)
 			})
 			.collect(),
+		fold: carried.fold,
 	};
 
 	cache::dump::write(username, &held)?;
@@ -136,7 +215,7 @@ fn announce(username: &str, held: &Held) -> hmerr::Result<()> {
 	println!(
 		"{B}{G}{count}{D} recording off the dump for {B}{username}{D}, covering up to \
 		{B}{covered}{D} {DIM}({day} day ago, {B}--refresh{D}{DIM} to read the dump again){D}\n",
-		count = held.count.len(),
+		count = held.counted().len(),
 		covered = covered(held.covered),
 		day = age::days_since(held.covered)?
 	);
@@ -170,6 +249,7 @@ mod tests {
 			gap: Vec::new(),
 			covered: 1_783_814_404,
 			count: ListenCount::new(),
+			fold: ListenCount::new(),
 		}
 	}
 
@@ -191,44 +271,124 @@ mod tests {
 		}
 	}
 
-	fn counted(held: &Held, mbid: &str) -> Option<u32> {
-		held.count
+	fn plays(held: &Held, mbid: &str) -> Option<u32> {
+		held.counted()
 			.get(&mbid.parse().unwrap_or_default())
 			.map(|listen| listen.count)
 	}
 
-	fn dump_of(held: Option<Held>) -> Option<String> {
-		held.map(|held| held.dump)
+	fn cached_dump(kept: Kept) -> Option<String> {
+		match kept {
+			Kept::Cached(held) => Some(held.dump),
+			Kept::Rescan(_) => None,
+		}
+	}
+
+	fn carried(kept: Kept) -> Option<Carried> {
+		match kept {
+			Kept::Cached(_) => None,
+			Kept::Rescan(carried) => carried,
+		}
 	}
 
 	#[test]
 	fn what_was_read_off_the_dump_that_is_still_unpacked_is_read_again_from_the_cache() {
 		assert_eq!(
-			dump_of(kept(Some(held()), Some(DUMP), false)),
+			cached_dump(kept(Some(held()), Some(DUMP), false)),
 			Some(DUMP.into())
 		);
 	}
 
 	#[test]
 	fn a_newer_unpacked_dump_is_read_rather_than_what_the_cache_holds() {
-		assert!(kept(Some(held()), Some(NEWER), false).is_none());
+		assert!(cached_dump(kept(Some(held()), Some(NEWER), false)).is_none());
 	}
 
 	#[test]
 	fn a_refresh_reads_the_unpacked_dump_again() {
-		assert!(kept(Some(held()), Some(DUMP), true).is_none());
+		assert!(cached_dump(kept(Some(held()), Some(DUMP), true)).is_none());
+	}
+
+	#[test]
+	fn a_refresh_reads_the_dump_again_without_dropping_what_was_folded_onto_it() {
+		let mut folded = held();
+		absorbed(&mut folded, fold(LATEST, 7, Vec::new()));
+
+		let carried = carried(kept(Some(folded), Some(DUMP), true))
+			.unwrap_or_else(|| unreachable!("a refresh of the same dump carries the fold over"));
+
+		assert_eq!(carried.reached, LATEST);
+		assert_eq!(
+			carried
+				.fold
+				.get(&MBID.parse().unwrap_or_default())
+				.map(|l| l.count),
+			Some(7)
+		);
+	}
+
+	#[test]
+	fn a_cache_that_never_held_the_fold_apart_is_read_from_the_dump_up_again() {
+		let merged = Held {
+			reached: LATEST.to_string(),
+			count: ListenCount::from([(
+				MBID.parse().unwrap_or_default(),
+				Listen {
+					count: 47,
+					track: String::new(),
+					artist: String::new(),
+				},
+			)]),
+			..held()
+		};
+
+		assert!(carried(kept(Some(merged), Some(DUMP), true)).is_none());
+	}
+
+	#[test]
+	fn what_the_dump_counted_and_what_was_folded_onto_it_add_up() {
+		let mut held = Held {
+			count: ListenCount::from([(
+				MBID.parse().unwrap_or_default(),
+				Listen {
+					count: 30,
+					track: "Fairy Dance".to_string(),
+					artist: "UNDEAD CORPORATION".to_string(),
+				},
+			)]),
+			..held()
+		};
+
+		absorbed(&mut held, fold(LATEST, 5, Vec::new()));
+
+		assert_eq!(plays(&held, MBID), Some(35));
+	}
+
+	#[test]
+	fn a_newer_dump_is_a_baseline_of_its_own_with_nothing_folded_onto_it_yet() {
+		let mut folded = held();
+		absorbed(&mut folded, fold(LATEST, 7, Vec::new()));
+
+		assert!(carried(kept(Some(folded), Some(NEWER), false)).is_none());
 	}
 
 	#[test]
 	fn a_discarded_dump_leaves_the_cache_as_the_only_thing_it_was_read_into() {
-		assert_eq!(dump_of(kept(Some(held()), None, false)), Some(DUMP.into()));
-		assert_eq!(dump_of(kept(Some(held()), None, true)), Some(DUMP.into()));
+		assert_eq!(
+			cached_dump(kept(Some(held()), None, false)),
+			Some(DUMP.into())
+		);
+		assert_eq!(
+			cached_dump(kept(Some(held()), None, true)),
+			Some(DUMP.into())
+		);
 	}
 
 	#[test]
 	fn nothing_cached_is_nothing_to_keep() {
-		assert!(kept(None, Some(DUMP), false).is_none());
-		assert!(kept(None, None, false).is_none());
+		assert!(cached_dump(kept(None, Some(DUMP), false)).is_none());
+		assert!(cached_dump(kept(None, None, false)).is_none());
+		assert!(carried(kept(None, Some(DUMP), true)).is_none());
 	}
 
 	#[test]
@@ -250,7 +410,7 @@ mod tests {
 		absorbed(&mut held, fold(NEWER, 40, Vec::new()));
 
 		assert_eq!(held.reach(), NEWER);
-		assert_eq!(counted(&held, MBID), Some(40));
+		assert_eq!(plays(&held, MBID), Some(40));
 
 		absorbed(
 			&mut held,
@@ -265,7 +425,7 @@ mod tests {
 		);
 
 		assert_eq!(held.reach(), LATEST);
-		assert_eq!(counted(&held, MBID), Some(42));
+		assert_eq!(plays(&held, MBID), Some(42));
 		assert_eq!(held.gap.len(), 1);
 	}
 
