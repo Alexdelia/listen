@@ -69,19 +69,8 @@ fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> 
 		return Some(format!("newer than the index built from {B}{built}{D}{F}"));
 	}
 
-	missing(dir).map(|part| format!("the index it was built for predates its {part}"))
-}
-
-fn missing(dir: &Path) -> Option<&'static str> {
-	if open::predates_stat(dir) {
-		return Some("listener stat");
-	}
-
-	if open::predates_listener(dir) {
-		return Some("listener count");
-	}
-
-	None
+	open::predates_stat(dir)
+		.then(|| "the index it was built for predates its listener stat".to_owned())
 }
 
 fn newer(listen: &Listen, built: &str) -> bool {
@@ -94,7 +83,7 @@ fn newer(listen: &Listen, built: &str) -> bool {
 fn asked(listen: &Listen, reason: &str) -> hmerr::Result<bool> {
 	progress::say(format!(
 		"\n{F}listen dump {B}{name}{D}{F} unpacked, {reason}, \
-		rebuilding replaces the index and may be long{D}",
+		rebuilding replaces the index, resets what it absorbed and may be long{D}",
 		name = listen.name
 	));
 
@@ -214,13 +203,11 @@ mod tests {
 	}
 
 	#[test]
-	fn an_index_predating_the_listener_count_is_offered_the_dump_it_was_built_from() {
+	fn an_index_predating_the_listener_count_counts_it_where_it_stands_rather_than_rebuild() {
 		let dir = whole("uncounted");
 		let _ = fs::remove_file(dir.join(open::RECORDING_LISTENER));
 
-		let reason = worth_rebuilding(&dir, &listen(BUILT), BUILT).unwrap_or_default();
-
-		assert!(reason.contains("listener count"), "{reason}");
+		assert!(worth_rebuilding(&dir, &listen(BUILT), BUILT).is_none());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
