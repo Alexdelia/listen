@@ -9,17 +9,16 @@ use super::{
 		query,
 	},
 	board::{self, Stage},
-	work::{self, LIBRARY},
+	work::{self, LIBRARY, Merge},
 };
 
 pub(super) fn of(
 	db: &duckdb::Connection,
 	board: &Board,
-	dir: &Path,
-	work: &Path,
+	merge: &Merge,
 	recording: &Path,
 ) -> hmerr::Result<u64> {
-	let into = work.join(USER_LISTEN);
+	let into = merge.into.join(USER_LISTEN);
 	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 
 	let bar = board::start(board, Stage::Listen)?;
@@ -28,7 +27,7 @@ pub(super) fn of(
 		let shard = into.join(open::shard(bucket));
 
 		if !query::done(db, &shard) {
-			query::copy(db, &shard, &merged(dir, work, recording, bucket))?;
+			query::copy(db, &shard, &merged(merge, recording, bucket))?;
 		}
 
 		bar.inc(1);
@@ -37,7 +36,7 @@ pub(super) fn of(
 	query::count(db, &into.join("*.parquet"))
 }
 
-fn merged(dir: &Path, work: &Path, recording: &Path, bucket: u32) -> String {
+fn merged(merge: &Merge, recording: &Path, bucket: u32) -> String {
 	format!(
 		r"
 with delta as (
@@ -58,10 +57,14 @@ select
 from held h
 full outer join delta d on d.user_id = h.user_id and d.recording_id = h.recording_id
 ",
-		library = work::read(work, LIBRARY),
+		library = work::read(&merge.work, LIBRARY),
 		recording = recording.display(),
-		pool = dir.join(USER_STAT).display(),
-		shard = dir.join(USER_LISTEN).join(open::shard(bucket)).display(),
+		pool = merge.index.join(USER_STAT).display(),
+		shard = merge
+			.index
+			.join(USER_LISTEN)
+			.join(open::shard(bucket))
+			.display(),
 		plays = summed("coalesce(h.plays, 0)", "coalesce(d.plays, 0)")
 	)
 }

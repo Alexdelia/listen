@@ -3,17 +3,16 @@ use std::path::Path;
 use super::{
 	super::{board::Board, open::RECORDING_ARTIST, query},
 	board::{self, Stage},
-	work::{self, ARTIST},
+	work::{self, ARTIST, Merge},
 };
 
 pub(super) fn of(
 	db: &duckdb::Connection,
 	board: &Board,
-	dir: &Path,
-	work: &Path,
+	merge: &Merge,
 	recording: &Path,
 ) -> hmerr::Result<()> {
-	let into = work.join(RECORDING_ARTIST);
+	let into = merge.into.join(RECORDING_ARTIST);
 	let bar = board::start(board, Stage::Credit)?;
 
 	if !query::done(db, &into) {
@@ -31,8 +30,8 @@ from (
 	join read_parquet('{recording}') r on r.mbid = a.mbid
 )
 ",
-				held = dir.join(RECORDING_ARTIST).display(),
-				artist = work::read(work, ARTIST),
+				held = merge.index.join(RECORDING_ARTIST).display(),
+				artist = work::read(&merge.work, ARTIST),
 				recording = recording.display()
 			),
 		)?;

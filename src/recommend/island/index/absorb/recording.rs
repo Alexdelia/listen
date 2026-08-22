@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use super::{
 	super::{
@@ -7,16 +7,11 @@ use super::{
 		query,
 	},
 	board::{self, Stage},
-	work::{self, LIBRARY},
+	work::{self, LIBRARY, Merge},
 };
 
-pub(super) fn of(
-	db: &duckdb::Connection,
-	board: &Board,
-	dir: &Path,
-	work: &Path,
-) -> hmerr::Result<PathBuf> {
-	let into = work.join(RECORDING);
+pub(super) fn of(db: &duckdb::Connection, board: &Board, merge: &Merge) -> hmerr::Result<PathBuf> {
+	let into = merge.into.join(RECORDING);
 	let bar = board::start(board, Stage::Recording)?;
 
 	if !query::done(db, &into) {
@@ -51,8 +46,8 @@ select
 	least(f.plays, {GLOBAL_PLAY_CEILING})::uinteger as global_plays
 from fresh f
 ",
-				held = dir.join(RECORDING).display(),
-				library = work::read(work, LIBRARY)
+				held = merge.index.join(RECORDING).display(),
+				library = work::read(&merge.work, LIBRARY)
 			),
 		)?;
 	}

@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use hmerr::ioe;
 
@@ -10,10 +10,11 @@ use super::{
 		query,
 	},
 	board::{self, Stage},
+	work::Merge,
 };
 
-pub(super) fn of(db: &duckdb::Connection, board: &Board, work: &Path) -> hmerr::Result<u64> {
-	let partial = work.join(Stage::Stat.title());
+pub(super) fn of(db: &duckdb::Connection, board: &Board, merge: &Merge) -> hmerr::Result<u64> {
+	let partial = merge.into.join(Stage::Stat.title());
 	fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
 
 	let bar = board::start(board, Stage::Stat)?;
@@ -22,7 +23,7 @@ pub(super) fn of(db: &duckdb::Connection, board: &Board, work: &Path) -> hmerr::
 		let shard = partial.join(open::shard(bucket));
 
 		if !query::done(db, &shard) {
-			let listen = work.join(USER_LISTEN).join(open::shard(bucket));
+			let listen = merge.into.join(USER_LISTEN).join(open::shard(bucket));
 			query::copy(
 				db,
 				&shard,
@@ -37,7 +38,7 @@ pub(super) fn of(db: &duckdb::Connection, board: &Board, work: &Path) -> hmerr::
 	}
 	drop(bar);
 
-	let into = work.join(USER_STAT);
+	let into = merge.into.join(USER_STAT);
 	let bar = board::start(board, Stage::UserStat)?;
 
 	if !query::done(db, &into) {

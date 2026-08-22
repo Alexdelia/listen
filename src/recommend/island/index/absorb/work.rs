@@ -19,8 +19,16 @@ const REACH: &str = "reach.json";
 const FORMAT: u32 = 1;
 
 const DELTA: &str = "delta";
+const MERGE: &str = "merge";
+const AT: &str = "at";
 pub(super) const LIBRARY: &str = "library";
 pub(super) const ARTIST: &str = "artist";
+
+pub(super) struct Merge {
+	pub index: PathBuf,
+	pub work: PathBuf,
+	pub into: PathBuf,
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 pub(super) struct Reach {
@@ -31,6 +39,14 @@ pub(super) struct Reach {
 
 pub(super) fn open(dir: &Path, from: &str) -> hmerr::Result<PathBuf> {
 	work::opened(dir, DIR, FROM, &format!("{FORMAT} {from}"))
+}
+
+pub(super) fn merging(dir: &Path, work: &Path, covered: &str) -> hmerr::Result<Merge> {
+	Ok(Merge {
+		index: dir.to_path_buf(),
+		work: work.to_path_buf(),
+		into: work::opened(work, MERGE, AT, covered)?,
+	})
 }
 
 pub(super) fn reach(work: &Path, meta: &Meta) -> Reach {
@@ -77,7 +93,7 @@ fn held(work: &Path) -> Option<Reach> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{super::super::open::RECORDING, *};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_absorb_work_{name}"));
@@ -162,6 +178,38 @@ mod tests {
 		let again = open(&dir, "2026-08-22 00:00:02.641933+00:00").unwrap_or_default();
 
 		assert!(!folded(&again, LIBRARY));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_dump_folded_after_a_merge_staged_a_part_throws_that_part_away() {
+		let dir = dir("folded_after");
+		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
+		let merge = merging(&dir, &work, "2026-08-10 00:00:02.000000+00:00")
+			.unwrap_or_else(|_| unreachable!());
+		let staged = merge.into.join(RECORDING);
+		let _ = fs::write(&staged, b"merged");
+
+		let again = merging(&dir, &work, "2026-08-11 00:00:02.000000+00:00")
+			.unwrap_or_else(|_| unreachable!());
+
+		assert_eq!(again.into, merge.into);
+		assert!(!staged.exists());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_merge_retried_over_the_same_fold_keeps_what_it_staged() {
+		let dir = dir("retried");
+		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
+		let covered = "2026-08-10 00:00:02.000000+00:00";
+		let merge = merging(&dir, &work, covered).unwrap_or_else(|_| unreachable!());
+		let staged = merge.into.join(RECORDING);
+		let _ = fs::write(&staged, b"merged");
+
+		let _ = merging(&dir, &work, covered);
+
+		assert!(staged.exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
