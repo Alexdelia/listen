@@ -1119,4 +1119,10 @@
 	(s: "f5821e96-375b-47c5-8b6c-177bb0a7c9de", q: 1, playlist: []),
 	(s: "7f9c44ca-48f7-4ec4-b9ff-a2fd0255ff8d", q: 1, playlist: []),
 	(s: "69800340-d7f7-48d3-ad81-2b5a46c428de", q: 0, playlist: []),
+	(s: "2d89a4b6-0daf-4367-a96a-7d3ab414cd04", q: 1, playlist: []),
+	(s: "661d35c3-6ade-4367-af96-6c2898149906", q: 0, playlist: ["score"]),
+	(s: "1bfc064e-fcd0-406b-98ca-1ec69f72fef6", q: 0, playlist: []),
+	(s: "f3bba4cd-8018-468b-902e-bc8f029593e5", q: 3, playlist: ["normie"]),
+	(s: "b350a371-25ea-410d-8c3e-c138503a7cee", q: 2, playlist: ["normie"]),
+	(s: "c4006a0a-ed03-4e52-b5d0-ff6ce652a54a", q: 2, playlist: []),
 ]
