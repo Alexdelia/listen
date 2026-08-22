@@ -52,12 +52,25 @@ fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
 		return Ok(None);
 	};
 
-	Ok(asked(&listen)?.then_some(listen))
+	let built = open::meta(dir)?.dump;
+
+	if !newer(&listen, &built) {
+		return Ok(None);
+	}
+
+	Ok(asked(&listen, &built)?.then_some(listen))
 }
 
-fn asked(listen: &Listen) -> hmerr::Result<bool> {
+fn newer(listen: &Listen, built: &str) -> bool {
+	dump::reach(&listen.name)
+		.ok()
+		.zip(dump::reach(built).ok())
+		.is_none_or(|(unpacked, built)| unpacked > built)
+}
+
+fn asked(listen: &Listen, built: &str) -> hmerr::Result<bool> {
 	progress::say(format!(
-		"\n{F}listen dump {B}{name}{D}{F} unpacked next to a built index, \
+		"\n{F}listen dump {B}{name}{D}{F} unpacked next to an index built from {B}{built}{D}{F}, \
 		rebuilding replaces it and may be long{D}",
 		name = listen.name
 	));
@@ -120,5 +133,41 @@ fn listed<T>(published: hmerr::Result<T>) -> Option<T> {
 
 			None
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::path::PathBuf;
+
+	use super::*;
+
+	const BUILT: &str = "2026-07-12 00:00:04.001868+00:00";
+
+	fn listen(name: &str) -> Listen {
+		Listen {
+			dir: PathBuf::new(),
+			name: name.to_string(),
+		}
+	}
+
+	#[test]
+	fn the_dump_an_index_was_built_from_is_never_one_to_rebuild_from() {
+		assert!(!newer(&listen(BUILT), BUILT));
+	}
+
+	#[test]
+	fn a_dump_reaching_past_the_index_baseline_is_one_to_rebuild_from() {
+		assert!(newer(&listen("2026-08-16 00:00:03.000000+00:00"), BUILT));
+	}
+
+	#[test]
+	fn a_dump_older_than_the_index_baseline_is_left_where_it_lies() {
+		assert!(!newer(&listen("2026-06-01 00:00:03.000000+00:00"), BUILT));
+	}
+
+	#[test]
+	fn a_dump_whose_name_says_nothing_is_still_offered() {
+		assert!(newer(&listen("listen"), BUILT));
 	}
 }
