@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, CYA, D, F, G, M, Y};
+use ansi::abbrev::{B, BLU, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
@@ -47,7 +47,7 @@ fn label(origin: &Origin) -> String {
 			..
 		} => format!(
 			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
-			{B}{backer} {F}backer{D} {G}{member} {F}seed{D}"
+			{BLU}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
 	}
 }
