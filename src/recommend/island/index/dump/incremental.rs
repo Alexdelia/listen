@@ -155,7 +155,7 @@ fn marker(dir: &Path, of: &str) -> hmerr::Result<String> {
 	Ok(read.trim().to_string())
 }
 
-pub(super) fn weight(pending: &[Pending]) -> u64 {
+pub(super) fn weight(pending: &[&Pending]) -> u64 {
 	pending.iter().map(|pending| pending.size).sum()
 }
 
@@ -234,7 +234,10 @@ mod tests {
 			.collect();
 
 		assert_eq!(pending.len(), 2);
-		assert_eq!(weight(&pending), (1 << 20) + (1 << 21));
+		assert_eq!(
+			weight(&pending.iter().collect::<Vec<_>>()),
+			(1 << 20) + (1 << 21)
+		);
 	}
 
 	#[test]

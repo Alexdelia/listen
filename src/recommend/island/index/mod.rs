@@ -14,9 +14,9 @@ mod work;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F, Y};
+use ansi::abbrev::{B, D, F};
 
-use dump::{Listen, Pending};
+use dump::Listen;
 
 pub(super) use open::{Index, Meta};
 
@@ -106,22 +106,11 @@ fn absorbed(dir: &Path) -> hmerr::Result<()> {
 		return Ok(());
 	};
 
-	if pending.is_empty() || !offered(&pending)? {
+	if pending.is_empty() {
 		return Ok(());
 	}
 
 	absorb::run(dir, &meta, &pending)
-}
-
-fn offered(pending: &[Pending]) -> hmerr::Result<bool> {
-	progress::say(format!(
-		"\n{F}absorbing {B}{count}{D}{F} incremental dump, {B}{Y}{size}{D}{F}, \
-		each read once then deleted{D}",
-		count = pending.len(),
-		size = progress::bytes(dump::weight(pending))
-	));
-
-	progress::ask("download", true)
 }
 
 fn listed<T>(published: hmerr::Result<T>) -> Option<T> {

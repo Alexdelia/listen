@@ -24,16 +24,21 @@ use work::{LIBRARY, Reach};
 pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result<()> {
 	let root = dump::root()?;
 	let work = work::open(dir, meta.covered())?;
-	let db = open::session(&work)?;
 	let mut reach = work::reach(&work, meta);
 
 	let left = left(pending, &reach.covered)?;
 	resuming(pending, &left);
+
+	if !offered(&left)? {
+		return Ok(());
+	}
+
 	dump::room(&root, &left, chain::AT_ONCE)?;
 
+	let db = open::session(&work)?;
 	let board = board::of(&board::Chain {
 		dump: u64::try_from(left.len()).unwrap_or_default(),
-		byte: left.iter().map(|pending| pending.size).sum(),
+		byte: dump::weight(&left),
 	})?;
 
 	chain::each(&board, &root, &left, |incremental| {
@@ -56,6 +61,21 @@ fn left<'a>(pending: &'a [Pending], covered: &str) -> hmerr::Result<Vec<&'a Pend
 		.iter()
 		.filter(|pending| pending.reach > reached)
 		.collect())
+}
+
+fn offered(left: &[&Pending]) -> hmerr::Result<bool> {
+	if left.is_empty() {
+		return Ok(true);
+	}
+
+	progress::say(format!(
+		"\n{F}absorbing {B}{count}{D}{F} incremental dump, {B}{Y}{size}{D}{F}, \
+		each read once then deleted{D}",
+		count = left.len(),
+		size = progress::bytes(dump::weight(left))
+	));
+
+	progress::ask("download", true)
 }
 
 fn resuming(pending: &[Pending], left: &[&Pending]) {
@@ -199,6 +219,9 @@ mod tests {
 	const AFTER_A_HOLE: &str = "2026-07-20 00:00:03.000000+00:00";
 	const BEFORE_THE_INDEX: &str = "2026-07-01 00:00:03.000000+00:00";
 
+	const FOLDED: u64 = 1 << 20;
+	const WAITING: u64 = 1 << 21;
+
 	fn mbid(recording: usize) -> String {
 		format!("00000000-0000-0000-0000-{recording:012x}")
 	}
@@ -339,6 +362,15 @@ mod tests {
 			listen(POOLED, FRESH + 1, 3),
 			listen(POOLED + 1, FRESH + 1, 3),
 		]
+	}
+
+	fn waiting(reach: u64, size: u64) -> Pending {
+		Pending {
+			name: format!("listenbrainz-dump-2594-{reach}-incremental"),
+			archive: format!("listenbrainz-spark-dump-{reach}-incremental.tar"),
+			size,
+			reach,
+		}
 	}
 
 	fn built(name: &str) -> (PathBuf, PathBuf, Meta) {
@@ -623,6 +655,28 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 			LATER
 		);
 		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn what_a_previous_run_already_folded_is_never_offered_again() {
+		let chain = vec![
+			waiting(20_260_713_000_003, FOLDED),
+			waiting(20_260_714_000_003, WAITING),
+		];
+
+		let left = left(&chain, NEXT).unwrap_or_default();
+
+		assert_eq!(left.len(), 1);
+		assert_eq!(
+			dump::weight(&left),
+			WAITING,
+			"what is asked for is what is still to fetch"
+		);
+	}
+
+	#[test]
+	fn a_chain_a_previous_run_folded_whole_asks_for_nothing() {
+		assert!(offered(&[]).unwrap_or_default());
 	}
 
 	#[test]

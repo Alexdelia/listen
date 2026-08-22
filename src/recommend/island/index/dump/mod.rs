@@ -87,7 +87,7 @@ pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
 	stamp::reach(timestamp)
 }
 
-pub(super) fn weight(pending: &[Pending]) -> u64 {
+pub(super) fn weight(pending: &[&Pending]) -> u64 {
 	incremental::weight(pending)
 }
 
