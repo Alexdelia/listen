@@ -1,6 +1,6 @@
 use ansi::{
 	DIM,
-	abbrev::{B, CYA, D, F, G},
+	abbrev::{B, D, F, G},
 };
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
@@ -18,21 +18,40 @@ use super::{
 #[derive(Deserialize, Serialize)]
 pub(super) struct Held {
 	pub dump: String,
+	#[serde(default)]
+	pub reached: String,
 	pub covered: i64,
 	pub count: ListenCount,
 }
 
+impl Held {
+	fn reach(&self) -> &str {
+		if self.reached.is_empty() {
+			return &self.dump;
+		}
+
+		&self.reached
+	}
+}
+
 pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
+	let Some(mut held) = held(username, refresh)? else {
+		return Ok(None);
+	};
+
+	if folded(&mut held)? {
+		cache::dump::write(username, &held)?;
+	}
+
+	announce(username, &held)?;
+
+	Ok(Some(held))
+}
+
+fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 	let unpacked = own::unpacked()?;
 
 	if let Some(held) = kept(cache::dump::read(username)?, unpacked.as_deref(), refresh) {
-		announce(
-			&format!("{B}{CYA}cached{D}"),
-			username,
-			&held,
-			&format!(" {DIM}({B}--refresh{D}{DIM} to read the dump again){D}"),
-		)?;
-
 		return Ok(Some(held));
 	}
 
@@ -41,6 +60,30 @@ pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held
 	}
 
 	scanned(username)
+}
+
+fn folded(held: &mut Held) -> hmerr::Result<bool> {
+	let Some(fresh) = own::fresh(held.reach())? else {
+		return Ok(false);
+	};
+
+	merge(&mut held.count, fresh.play);
+	held.covered = held.covered.max(fresh.covered);
+	held.reached = fresh.reached;
+
+	Ok(true)
+}
+
+fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
+	for play in play {
+		let listen = count.entry(play.mbid).or_insert_with(|| Listen {
+			count: 0,
+			track: play.track,
+			artist: play.artist,
+		});
+
+		listen.count = listen.count.saturating_add(play.plays);
+	}
 }
 
 fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Option<Held> {
@@ -60,6 +103,7 @@ fn scanned(username: &str) -> hmerr::Result<Option<Held>> {
 	};
 
 	let held = Held {
+		reached: own.dump.clone(),
 		dump: own.dump,
 		covered: own.covered,
 		count: own
@@ -79,15 +123,14 @@ fn scanned(username: &str) -> hmerr::Result<Option<Held>> {
 	};
 
 	cache::dump::write(username, &held)?;
-	announce(&format!("{B}{G}read{D}"), username, &held, "")?;
 
 	Ok(Some(held))
 }
 
-fn announce(source: &str, username: &str, held: &Held, tail: &str) -> hmerr::Result<()> {
+fn announce(username: &str, held: &Held) -> hmerr::Result<()> {
 	println!(
-		"{source} {B}{count}{D} recording off the dump for {B}{username}{D}, \
-		covering up to {B}{covered}{D} {DIM}({day} day ago){D}{tail}\n",
+		"{B}{G}{count}{D} recording off the dump for {B}{username}{D}, covering up to \
+		{B}{covered}{D} {DIM}({day} day ago, {B}--refresh{D}{DIM} to read the dump again){D}\n",
 		count = held.count.len(),
 		covered = covered(held.covered),
 		day = age::days_since(held.covered)?
@@ -115,8 +158,18 @@ mod tests {
 	fn held() -> Held {
 		Held {
 			dump: DUMP.to_string(),
+			reached: String::new(),
 			covered: 1_783_814_404,
 			count: ListenCount::new(),
+		}
+	}
+
+	fn play(mbid: &str, plays: u32) -> own::Play {
+		own::Play {
+			mbid: mbid.parse().unwrap_or_default(),
+			plays,
+			track: "Fairy Dance".to_string(),
+			artist: "UNDEAD CORPORATION".to_string(),
 		}
 	}
 
@@ -152,6 +205,47 @@ mod tests {
 	fn nothing_cached_is_nothing_to_keep() {
 		assert!(kept(None, Some(DUMP), false).is_none());
 		assert!(kept(None, None, false).is_none());
+	}
+
+	#[test]
+	fn counts_read_before_an_incremental_was_folded_carry_on_from_the_dump_they_came_from() {
+		assert_eq!(held().reach(), DUMP);
+
+		let folded = Held {
+			reached: NEWER.to_string(),
+			..held()
+		};
+
+		assert_eq!(folded.reach(), NEWER);
+	}
+
+	#[test]
+	fn what_an_incremental_adds_lands_on_the_count_the_dump_left() {
+		const MBID: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+		const FRESH: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+		let mut count = ListenCount::new();
+		merge(&mut count, vec![play(MBID, 40)]);
+		merge(&mut count, vec![play(MBID, 2), play(FRESH, 7)]);
+
+		assert_eq!(
+			count
+				.get(&MBID.parse().unwrap_or_default())
+				.map(|l| l.count),
+			Some(42)
+		);
+		assert_eq!(
+			count
+				.get(&FRESH.parse().unwrap_or_default())
+				.map(|l| l.count),
+			Some(7)
+		);
+		assert_eq!(
+			count
+				.get(&FRESH.parse().unwrap_or_default())
+				.map(|l| l.track.clone()),
+			Some("Fairy Dance".to_string())
+		);
 	}
 
 	#[test]

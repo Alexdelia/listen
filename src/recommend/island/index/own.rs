@@ -1,11 +1,22 @@
 use std::path::Path;
 
+use ansi::abbrev::{B, D, F, Y};
+
 use crate::declaration::Source;
 
 use super::{
-	dump,
+	board::Board,
+	dump::{self, Pending},
 	open::{self, PLAY_CEILING},
+	progress::{self, Measure},
 };
+
+const AT_ONCE: u64 = 2;
+
+const DOWNLOAD: &str = "download";
+const VERIFY: &str = "verify";
+const UNPACK: &str = "unpack";
+const LISTEN: &str = "listen";
 
 pub(crate) struct Play {
 	pub mbid: Source,
@@ -16,6 +27,12 @@ pub(crate) struct Play {
 
 pub(crate) struct Own {
 	pub dump: String,
+	pub covered: i64,
+	pub play: Vec<Play>,
+}
+
+pub(crate) struct Fresh {
+	pub reached: String,
 	pub covered: i64,
 	pub play: Vec<Play>,
 }
@@ -50,6 +67,100 @@ pub(crate) fn played() -> hmerr::Result<Option<Own>> {
 		covered: scanned.covered,
 		play: scanned.play,
 	}))
+}
+
+pub(crate) fn fresh(reached: &str) -> hmerr::Result<Option<Fresh>> {
+	let dir = open::dir()?;
+
+	let Some(own) = open::own(&dir) else {
+		return Ok(None);
+	};
+
+	let pending = dump::pending(reached)?;
+	let pending: Vec<&Pending> = pending.iter().collect();
+
+	if pending.is_empty() || !offered(&pending)? {
+		return Ok(None);
+	}
+
+	let root = dump::root()?;
+	dump::room(&root, &pending, AT_ONCE)?;
+
+	folded(&open::session(&dir)?, &root, &pending, own, reached).map(Some)
+}
+
+fn offered(pending: &[&Pending]) -> hmerr::Result<bool> {
+	progress::say(format!(
+		"\n{F}{B}{count}{D}{F} incremental dump published since those counts were read, \
+		{B}{Y}{size}{D}{F}, each read once then deleted{D}",
+		count = pending.len(),
+		size = progress::bytes(dump::weight(pending))
+	));
+
+	progress::ask("download", true)
+}
+
+fn folded(
+	db: &duckdb::Connection,
+	root: &Path,
+	pending: &[&Pending],
+	own: u32,
+	reached: &str,
+) -> hmerr::Result<Fresh> {
+	let board = Board::of(&[
+		(DOWNLOAD, Measure::Byte(dump::weight(pending))),
+		(VERIFY, Measure::Step(step(pending))),
+		(UNPACK, Measure::Byte(dump::weight(pending))),
+		(LISTEN, Measure::Step(step(pending))),
+	])?;
+
+	let downloading = board.start(DOWNLOAD)?;
+	let verifying = board.start(VERIFY)?;
+	let unpacking = board.start(UNPACK)?;
+	let reading = board.start(LISTEN)?;
+
+	let mut fresh = Fresh {
+		reached: reached.to_string(),
+		covered: 0,
+		play: Vec::new(),
+	};
+
+	for pending in pending {
+		dump::pull(root, pending, &downloading, &verifying)?;
+		let incremental = dump::opened(root, pending, &unpacking)?;
+
+		if lost(&fresh.reached, &incremental.start) {
+			out_of_reach(&fresh.reached, &incremental.start);
+		}
+
+		let scanned = scanned(db, &incremental.dir, own)?;
+		fresh.play.extend(scanned.play);
+		fresh.covered = fresh.covered.max(scanned.covered);
+		fresh.reached.clone_from(&incremental.end);
+		reading.inc(1);
+
+		dump::release(&incremental)?;
+	}
+
+	Ok(fresh)
+}
+
+fn step(pending: &[&Pending]) -> u64 {
+	u64::try_from(pending.len()).unwrap_or_default()
+}
+
+fn lost(reached: &str, start: &str) -> bool {
+	dump::reach(start)
+		.ok()
+		.zip(dump::reach(reached).ok())
+		.is_some_and(|(start, reached)| start > reached)
+}
+
+fn out_of_reach(reached: &str, start: &str) {
+	progress::say(format!(
+		"{Y}nothing published covers {B}{reached}{D}{Y} to {B}{start}{D}{Y}, \
+		those listens stay out of the count{D}"
+	));
 }
 
 fn scanned(db: &duckdb::Connection, dump: &Path, own: u32) -> hmerr::Result<Scanned> {
@@ -226,6 +337,26 @@ mod tests {
 
 		assert_eq!(last, Some("2026-07-11 20:39:04".to_string()));
 		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_dump_starting_where_the_count_stopped_leaves_nothing_out_of_reach() {
+		assert!(!lost(
+			"2026-08-21 00:00:03.155180+00:00",
+			"2026-08-21 00:00:03.155180+00:00"
+		));
+		assert!(!lost(
+			"2026-08-22 00:00:02.641933+00:00",
+			"2026-08-21 00:00:03.155180+00:00"
+		));
+	}
+
+	#[test]
+	fn a_dump_starting_past_where_the_count_stopped_leaves_a_window_out_of_reach() {
+		assert!(lost(
+			"2026-07-12 00:00:04.001868+00:00",
+			"2026-07-23 00:00:03.690928+00:00"
+		));
 	}
 
 	#[test]
