@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
 	format::{DATE_FORMAT, TIME_FORMAT},
-	recommend::island::index::own,
+	recommend::island::index::own::{self, Gap},
 };
 
 use super::{
@@ -20,6 +20,8 @@ pub(super) struct Held {
 	pub dump: String,
 	#[serde(default)]
 	pub reached: String,
+	#[serde(default)]
+	pub gap: Vec<Gap>,
 	pub covered: i64,
 	pub count: ListenCount,
 }
@@ -69,6 +71,7 @@ fn folded(held: &mut Held) -> hmerr::Result<bool> {
 
 	merge(&mut held.count, fresh.play);
 	held.covered = held.covered.max(fresh.covered);
+	held.gap.extend(fresh.gap);
 	held.reached = fresh.reached;
 
 	Ok(true)
@@ -105,6 +108,7 @@ fn scanned(username: &str) -> hmerr::Result<Option<Held>> {
 	let held = Held {
 		reached: own.dump.clone(),
 		dump: own.dump,
+		gap: Vec::new(),
 		covered: own.covered,
 		count: own
 			.play
@@ -159,6 +163,7 @@ mod tests {
 		Held {
 			dump: DUMP.to_string(),
 			reached: String::new(),
+			gap: Vec::new(),
 			covered: 1_783_814_404,
 			count: ListenCount::new(),
 		}

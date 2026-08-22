@@ -12,6 +12,7 @@ use super::{
 	open, progress,
 };
 
+pub(crate) use open::Gap;
 pub(crate) use scan::Play;
 
 const AT_ONCE: u64 = 2;
@@ -26,6 +27,7 @@ pub(crate) struct Fresh {
 	pub reached: String,
 	pub covered: i64,
 	pub play: Vec<Play>,
+	pub gap: Vec<Gap>,
 }
 
 pub(crate) fn unpacked() -> hmerr::Result<Option<String>> {

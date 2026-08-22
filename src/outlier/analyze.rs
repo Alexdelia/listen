@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::declaration::{Entry, Q, Source};
 
-use super::{age::Age, fetch::ListenCount, meta::Meta, song::Song};
+use super::{age::Age, fetch::ListenCount, gap::Covered, meta::Meta, song::Song};
 
 const MIN_DAY: u64 = 21;
 
@@ -42,7 +42,7 @@ pub(super) fn analyze(
 	listen: &ListenCount,
 	age: &Age,
 	meta: &Meta,
-	covered_ago: u64,
+	covered: &Covered,
 ) -> Analysis {
 	let count = assign(list, listen, meta);
 	let consumed = count.consumed;
@@ -51,11 +51,7 @@ pub(super) fn analyze(
 		.iter()
 		.zip(count.per_entry)
 		.map(|(entry, count)| {
-			let days = age
-				.get(&entry.s)
-				.copied()
-				.unwrap_or(0)
-				.saturating_sub(covered_ago);
+			let days = covered.days(age.get(&entry.s).copied().unwrap_or(0));
 
 			(entry, count, days, rate(count, days))
 		})
@@ -257,7 +253,7 @@ fn cmp_rate(a: f64, b: f64) -> Ordering {
 mod tests {
 	use super::*;
 
-	use crate::outlier::fetch::Listen;
+	use crate::outlier::{fetch::Listen, gap::Window};
 
 	fn id(name: &str) -> Source {
 		let mut bytes = [0; 16];
@@ -271,6 +267,10 @@ mod tests {
 			q,
 			playlist: vec![],
 		}
+	}
+
+	fn covered(ago: u64) -> Covered {
+		Covered { ago, gap: vec![] }
 	}
 
 	fn play(count: u32, track: &str, artist: &str) -> Listen {
@@ -302,7 +302,7 @@ mod tests {
 			.collect::<ListenCount>();
 		let age = sample.iter().map(|(s, _, _)| (id(s), 100)).collect::<Age>();
 
-		let analysis = analyze(&list, &count, &age, &Meta::new(), 0);
+		let analysis = analyze(&list, &count, &age, &Meta::new(), &covered(0));
 
 		let by_mbid = analysis
 			.outlier
@@ -320,7 +320,7 @@ mod tests {
 		let list = vec![entry("declared", 4)];
 		let age = Age::from([(id("declared"), 100)]);
 
-		let analysis = analyze(&list, &ListenCount::new(), &age, &Meta::new(), 0);
+		let analysis = analyze(&list, &ListenCount::new(), &age, &Meta::new(), &covered(0));
 
 		assert_eq!(analysis.outlier.len(), 0);
 		assert_eq!(analysis.median.get(&4), Some(&0.0));
@@ -332,7 +332,7 @@ mod tests {
 		let count = ListenCount::from([(id("fresh"), play(1, "", ""))]);
 		let age = Age::from([(id("fresh"), MIN_DAY - 1)]);
 
-		let analysis = analyze(&list, &count, &age, &Meta::new(), 0);
+		let analysis = analyze(&list, &count, &age, &Meta::new(), &covered(0));
 
 		assert!(analysis.median.is_empty());
 		assert!(analysis.outlier.is_empty());
@@ -349,7 +349,7 @@ mod tests {
 		let age = sample_age(&["a", "b", "hole"]);
 		let meta = Meta::from([(id("hole"), ("Hole Song".to_string(), "Z".to_string()))]);
 
-		let analysis = analyze(&list, &count, &age, &meta, 0);
+		let analysis = analyze(&list, &count, &age, &meta, &covered(0));
 
 		assert!(
 			analysis
@@ -385,7 +385,7 @@ mod tests {
 			),
 		]);
 
-		let analysis = analyze(&list, &count, &age, &meta, 0);
+		let analysis = analyze(&list, &count, &age, &meta, &covered(0));
 
 		assert_eq!(analysis.median.get(&1), Some(&0.1));
 		assert_eq!(analysis.median.get(&4), Some(&1.0));
@@ -404,7 +404,7 @@ mod tests {
 			("Gnossienne no. 1".to_string(), "Otto Tolonen".to_string()),
 		)]);
 
-		let analysis = analyze(&list, &count, &age, &meta, 0);
+		let analysis = analyze(&list, &count, &age, &meta, &covered(0));
 
 		assert!(analysis.undeclared.is_empty());
 		assert_eq!(analysis.matched, 1);
@@ -429,7 +429,7 @@ mod tests {
 			),
 		]);
 
-		let analysis = analyze(&list, &count, &age, &meta, 0);
+		let analysis = analyze(&list, &count, &age, &meta, &covered(0));
 
 		assert_eq!(analysis.undeclared.len(), 1);
 		assert_eq!(analysis.matched, 0);
@@ -441,7 +441,7 @@ mod tests {
 		let count = ListenCount::from([(id("declared-before"), play(50, "", ""))]);
 		let age = Age::from([(id("declared-after"), 30), (id("declared-before"), 300)]);
 
-		let analysis = analyze(&list, &count, &age, &Meta::new(), 42);
+		let analysis = analyze(&list, &count, &age, &Meta::new(), &covered(42));
 
 		assert!(!analysis.median.contains_key(&4));
 		assert!(
@@ -458,10 +458,33 @@ mod tests {
 		let count = ListenCount::from([(id("declared"), play(60, "", ""))]);
 		let age = Age::from([(id("declared"), 100)]);
 
-		let covering = analyze(&list, &count, &age, &Meta::new(), 40);
-		let whole = analyze(&list, &count, &age, &Meta::new(), 0);
+		let covering = analyze(&list, &count, &age, &Meta::new(), &covered(40));
+		let whole = analyze(&list, &count, &age, &Meta::new(), &covered(0));
 
 		assert_eq!(covering.median.get(&4), Some(&1.0));
+		assert_eq!(whole.median.get(&4), Some(&0.6));
+	}
+
+	#[test]
+	fn a_rate_is_over_the_days_the_count_saw_not_over_the_ones_no_dump_covered() {
+		let list = vec![entry("declared", 4)];
+		let count = ListenCount::from([(id("declared"), play(60, "", ""))]);
+		let age = Age::from([(id("declared"), 100)]);
+
+		let holed = analyze(
+			&list,
+			&count,
+			&age,
+			&Meta::new(),
+			&Covered {
+				ago: 0,
+				gap: vec![Window { from: 50, to: 20 }],
+			},
+		);
+
+		let whole = analyze(&list, &count, &age, &Meta::new(), &covered(0));
+
+		assert_eq!(holed.median.get(&4), Some(&(60.0 / 70.0)));
 		assert_eq!(whole.median.get(&4), Some(&0.6));
 	}
 

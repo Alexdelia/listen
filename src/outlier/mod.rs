@@ -3,6 +3,7 @@ mod analyze;
 mod cache;
 mod dump;
 mod fetch;
+mod gap;
 mod interactive;
 mod meta;
 mod render;
@@ -15,10 +16,11 @@ use ansi::abbrev::{B, CYA, D, G};
 use crate::declaration::parse;
 
 use fetch::ListenCount;
+use gap::Covered;
 
 struct Listened {
 	count: ListenCount,
-	covered_ago: u64,
+	covered: Covered,
 }
 
 pub fn run(
@@ -35,7 +37,7 @@ pub fn run(
 	let age = age::days_since_added(path)?;
 	let meta = meta::declared(&list);
 
-	let analysis = analyze::analyze(&list, &listened.count, &age, &meta, listened.covered_ago);
+	let analysis = analyze::analyze(&list, &listened.count, &age, &meta, &listened.covered);
 
 	if interactive {
 		return interactive::run(&analysis, path, &username);
@@ -49,14 +51,14 @@ pub fn run(
 fn listened(username: &str, refresh: bool, api: bool) -> hmerr::Result<Listened> {
 	if !api && let Some(held) = dump::listen(username, refresh)? {
 		return Ok(Listened {
-			covered_ago: age::days_since(held.covered)?,
+			covered: gap::covered(age::days_since(held.covered)?, &held.gap)?,
 			count: held.count,
 		});
 	}
 
 	Ok(Listened {
 		count: listen(username, refresh)?,
-		covered_ago: 0,
+		covered: gap::covered(0, &[])?,
 	})
 }
 

@@ -7,7 +7,7 @@ use super::{
 		dump::{self, Incremental, Pending},
 		progress,
 	},
-	Fresh, board, reach, scan,
+	Fresh, Gap, board, reach, scan,
 };
 
 pub(super) fn run(
@@ -28,6 +28,7 @@ pub(super) fn run(
 		reached: reached.to_string(),
 		covered: 0,
 		play: Vec::new(),
+		gap: Vec::new(),
 	};
 
 	for pending in pending {
@@ -56,6 +57,7 @@ fn taken(
 
 	if reach::lost(&fresh.reached, &incremental.start) {
 		out_of_reach(&fresh.reached, &incremental.start);
+		missed(fresh, &incremental.start);
 	}
 
 	let scanned = scan::of(db, &incremental.dir, own)?;
@@ -74,7 +76,15 @@ fn skipped(incremental: &Incremental, fresh: &mut Fresh) {
 	}
 
 	stays_out(&fresh.reached, &incremental.end);
+	missed(fresh, &incremental.end);
 	fresh.reached.clone_from(&incremental.end);
+}
+
+fn missed(fresh: &mut Fresh, to: &str) {
+	fresh.gap.push(Gap {
+		from: fresh.reached.clone(),
+		to: to.to_string(),
+	});
 }
 
 fn out_of_reach(reached: &str, start: &str) {
@@ -120,7 +130,16 @@ mod tests {
 			reached: reached.to_string(),
 			covered: 0,
 			play: Vec::new(),
+			gap: Vec::new(),
 		}
+	}
+
+	fn window(fresh: &Fresh) -> Vec<(String, String)> {
+		fresh
+			.gap
+			.iter()
+			.map(|gap| (gap.from.clone(), gap.to.clone()))
+			.collect()
 	}
 
 	fn take(fresh: &mut Fresh, incremental: &Incremental) {
@@ -146,6 +165,34 @@ mod tests {
 
 		assert_eq!(fresh.play.len(), 1);
 		assert_eq!(fresh.reached, "2026-08-22 00:00:02.641933+00:00");
+		assert!(window(&fresh).is_empty());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_window_no_dump_covers_is_written_down_as_a_hole_in_the_count() {
+		let dir = dump("holed", &[listen(OWN, AAAA, "2026-07-23 10:00:00")]);
+		let mut fresh = fresh("2026-07-12 00:00:04.001868+00:00");
+
+		take(
+			&mut fresh,
+			&incremental(
+				"listenbrainz-dump-2026-07-24",
+				"2026-07-23 00:00:03.690928+00:00",
+				"2026-07-24 00:00:02.000000+00:00",
+				dir.clone(),
+			),
+		);
+
+		assert_eq!(fresh.play.len(), 1);
+		assert_eq!(fresh.reached, "2026-07-24 00:00:02.000000+00:00");
+		assert_eq!(
+			window(&fresh),
+			[(
+				"2026-07-12 00:00:04.001868+00:00".to_string(),
+				"2026-07-23 00:00:03.690928+00:00".to_string()
+			)]
+		);
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -166,6 +213,7 @@ mod tests {
 
 		assert!(fresh.play.is_empty());
 		assert_eq!(fresh.reached, "2026-07-12 00:00:04.001868+00:00");
+		assert!(window(&fresh).is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -186,6 +234,13 @@ mod tests {
 
 		assert!(fresh.play.is_empty());
 		assert_eq!(fresh.reached, "2026-07-13 00:00:02.000000+00:00");
+		assert_eq!(
+			window(&fresh),
+			[(
+				"2026-07-12 00:00:04.001868+00:00".to_string(),
+				"2026-07-13 00:00:02.000000+00:00".to_string()
+			)]
+		);
 		let _ = fs::remove_dir_all(&dir);
 	}
 }
