@@ -64,7 +64,9 @@ pub(crate) fn fresh(reached: &str) -> hmerr::Result<Option<Fresh>> {
 		return Ok(None);
 	};
 
-	let pending = dump::pending(reached)?;
+	let Some(pending) = published(dump::pending(reached)) else {
+		return Ok(None);
+	};
 	let pending: Vec<&Pending> = pending.iter().collect();
 
 	if pending.is_empty() || !offered(&pending)? {
@@ -77,6 +79,19 @@ pub(crate) fn fresh(reached: &str) -> hmerr::Result<Option<Fresh>> {
 	fold::run(&open::session(&dir)?, &root, &pending, own, reached).map(Some)
 }
 
+fn published(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
+	match pending {
+		Ok(pending) => Some(pending),
+		Err(e) => {
+			progress::say(format!(
+				"{F}cannot read what is published, keeping the counts as they stand{D}\n{e}"
+			));
+
+			None
+		}
+	}
+}
+
 fn offered(pending: &[&Pending]) -> hmerr::Result<bool> {
 	progress::say(format!(
 		"\n{F}{B}{count}{D}{F} incremental dump published since those counts were read, \
@@ -86,4 +101,21 @@ fn offered(pending: &[&Pending]) -> hmerr::Result<bool> {
 	));
 
 	progress::ask("download", true)
+}
+
+#[cfg(test)]
+mod tests {
+	use hmerr::ge;
+
+	use super::*;
+
+	#[test]
+	fn nothing_published_can_be_read_leaves_the_counts_where_they_are() {
+		assert!(published(Err(ge!("rsync is not here".to_string()).into())).is_none());
+	}
+
+	#[test]
+	fn what_is_published_is_read_as_it_comes() {
+		assert!(published(Ok(Vec::new())).is_some_and(|pending| pending.is_empty()));
+	}
 }
