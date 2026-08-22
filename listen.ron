@@ -818,7 +818,7 @@
 	(s: "30c928ee-955e-495e-8ad0-45da8dccfbec", q: 1, playlist: []),
 	(s: "8430b1ce-2a47-4cb8-9b65-e02b5b2949bd", q: 0, playlist: ["normie"]),
 	(s: "a41010d4-732f-4c94-be09-52083bcac49f", q: 1, playlist: []),
-	(s: "31c66cd0-afa9-425e-89ae-c7e7615e8ade", q: 2, playlist: ["aggressive"]),
+	(s: "31c66cd0-afa9-425e-89ae-c7e7615e8ade", q: 3, playlist: ["charged", "aggressive"]),
 	(s: "f0ee68bc-773d-4ffe-9815-f2450bbeb051", q: 1, playlist: ["normie"]),
 	(s: "6333bcb0-375a-4d6a-b657-3616015453ba", q: 2, playlist: ["normie"]),
 	(s: "833f00e1-781f-4edd-90e4-e52712618862", q: 1, playlist: ["normie"]),
