@@ -12,7 +12,7 @@ pub(super) use work::{publish, release};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
-const LISTENER: &str = "listener";
+const EXCLUDED: &str = "excluded";
 const FORMAT: u32 = 4;
 
 pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
@@ -22,13 +22,13 @@ pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
 pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 	let own = &own.to_string();
 
-	if work::stamped(work, LISTENER).as_deref() != Some(own.as_str()) {
+	if work::stamped(work, EXCLUDED).as_deref() != Some(own.as_str()) {
 		for part in pooled() {
 			work::discard_unusable(&work.join(part))?;
 		}
 	}
 
-	work::stamp(work, LISTENER, own)
+	work::stamp(work, EXCLUDED, own)
 }
 
 fn pooled() -> [&'static str; 4] {
