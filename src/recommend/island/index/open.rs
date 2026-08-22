@@ -16,8 +16,16 @@ pub(super) const USER_LISTEN: &str = "user_listen";
 pub(super) const USER_STAT: &str = "user_stat.parquet";
 pub(super) const ARTIST_LINK: &str = "artist_link.parquet";
 pub(super) const BUCKET: u32 = 8;
+pub(super) const PLAY_CEILING: u16 = u16::MAX;
+pub(super) const GLOBAL_PLAY_CEILING: u32 = u32::MAX;
 
 const MEMORY_LIMIT: &str = "4GB";
+
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct Gap {
+	pub from: String,
+	pub to: String,
+}
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct Meta {
@@ -25,9 +33,21 @@ pub(crate) struct Meta {
 	pub dump: String,
 	#[serde(default)]
 	pub own: Option<u32>,
+	#[serde(default)]
+	pub reached: Option<String>,
+	#[serde(default)]
+	pub gap: Vec<Gap>,
+	#[serde(default)]
+	pub absorbed: u32,
 	pub user: u64,
 	pub recording: u64,
 	pub user_listen: u64,
+}
+
+impl Meta {
+	pub(crate) fn covered(&self) -> &str {
+		self.reached.as_deref().unwrap_or(&self.dump)
+	}
 }
 
 pub(crate) struct Index {
@@ -126,7 +146,7 @@ pub(super) fn write_meta(dir: &Path, meta: &Meta) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn meta(dir: &Path) -> hmerr::Result<Meta> {
+pub(super) fn meta(dir: &Path) -> hmerr::Result<Meta> {
 	let path = dir.join(META);
 	let content = std::fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 

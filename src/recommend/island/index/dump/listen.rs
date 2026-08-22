@@ -9,19 +9,25 @@ use indicatif::ProgressBar;
 
 use super::{
 	super::{keep, progress},
-	board, rsync, space,
+	board, rsync, space, stamp,
 };
 
 const MODULE: &str = "listenbrainz/fullexport";
-const PREFIX: &str = "listenbrainz-dump-";
+pub(super) const PREFIX: &str = "listenbrainz-dump-";
 const SUFFIX: &str = "-full";
 const EXT: &str = ".tar";
 const STAMP: &str = "TIMESTAMP";
 const LISTEN: &str = "listen";
+const DECLINED: &str = "declined-full";
 
 pub(crate) struct Listen {
 	pub dir: PathBuf,
 	pub name: String,
+}
+
+pub(super) struct Offer {
+	pub reason: &'static str,
+	pub enter_is: bool,
 }
 
 pub(super) fn find(root: &Path) -> hmerr::Result<Option<Listen>> {
@@ -38,14 +44,14 @@ pub(super) fn find(root: &Path) -> hmerr::Result<Option<Listen>> {
 }
 
 fn name_of(dir: &Path) -> String {
-	stamp(dir).unwrap_or_else(|| {
+	timestamp(dir).unwrap_or_else(|| {
 		dir.file_name()
 			.map(|name| name.to_string_lossy().to_string())
 			.unwrap_or_default()
 	})
 }
 
-fn stamp(dir: &Path) -> Option<String> {
+fn timestamp(dir: &Path) -> Option<String> {
 	fs::read_to_string(dir.join(STAMP))
 		.ok()
 		.map(|stamp| stamp.trim().to_string())
@@ -66,8 +72,14 @@ fn holds_parquet(dir: &Path) -> hmerr::Result<bool> {
 	Ok(false)
 }
 
-pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
-	let dump = newest()?;
+pub(super) fn fetch(root: &Path, offer: &Offer) -> hmerr::Result<Option<Listen>> {
+	let dump =
+		newest()?.ok_or_else(|| ge!(format!("{R}nothing published under {B}{MODULE}{D}")))?;
+
+	fetch_named(root, &dump, offer)
+}
+
+pub(super) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Result<Option<Listen>> {
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::biggest(&url, EXT)?;
 	let tar = root.join(&archive.name);
@@ -80,8 +92,10 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !progress::ask("download", true)? {
-		return Err(refused().into());
+	progress::say(format!("{F}{reason}{D}", reason = offer.reason));
+
+	if !progress::ask("download", offer.enter_is)? {
+		return Ok(None);
 	}
 
 	let checksum = format!(
@@ -97,17 +111,35 @@ pub(super) fn fetch(root: &Path) -> hmerr::Result<Listen> {
 	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
 	keep::discard(&tar)?;
 
-	Ok(Listen {
+	Ok(Some(Listen {
 		name: name_of(&dir),
 		dir,
-	})
+	}))
 }
 
-fn newest() -> hmerr::Result<String> {
+pub(super) fn newer_than(reached: &str) -> hmerr::Result<Option<String>> {
+	let covered = stamp::reach(reached)?;
+
+	Ok(newest()?.filter(|name| reaches(name).is_some_and(|reach| reach > covered)))
+}
+
+pub(super) fn declined(root: &Path) -> Option<String> {
+	fs::read_to_string(root.join(DECLINED))
+		.ok()
+		.map(|name| name.trim().to_string())
+}
+
+pub(super) fn decline(root: &Path, dump: &str) -> hmerr::Result<()> {
+	let path = root.join(DECLINED);
+	fs::write(&path, dump).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+
+	Ok(())
+}
+
+fn newest() -> hmerr::Result<Option<String>> {
 	let published = rsync::list(&format!("{host}/{MODULE}/", host = rsync::HOST))?;
 
-	newest_of(published.into_iter().map(|entry| entry.name))
-		.ok_or_else(|| ge!(format!("{R}nothing published under {B}{MODULE}{D}")).into())
+	Ok(newest_of(published.into_iter().map(|entry| entry.name)))
 }
 
 fn newest_of(name: impl Iterator<Item = String>) -> Option<String> {
@@ -117,12 +149,11 @@ fn newest_of(name: impl Iterator<Item = String>) -> Option<String> {
 }
 
 fn number(name: &str) -> Option<u32> {
-	name.strip_prefix(PREFIX)?
-		.strip_suffix(SUFFIX)?
-		.split('-')
-		.next()?
-		.parse()
-		.ok()
+	stamp::published(name, PREFIX, SUFFIX).map(|published| published.number)
+}
+
+fn reaches(name: &str) -> Option<u64> {
+	stamp::published(name, PREFIX, SUFFIX).map(|published| published.reach)
 }
 
 pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
@@ -165,7 +196,7 @@ fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> 
 		.filter_map(Result::ok)
 		.map(|entry| entry.path())
 		.filter(|path| path.is_dir() && *path != dir)
-		.filter_map(|path| Some((stamp(&path)?, path)))
+		.filter_map(|path| Some((timestamp(&path)?, path)))
 		.max()
 		.map(|(_, path)| path)
 		.ok_or_else(|| ge!(format!("{R}the listen archive held no dump directory{D}")))?;
@@ -178,7 +209,7 @@ fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> 
 	Ok(dir)
 }
 
-fn refused() -> GenericError {
+pub(super) fn refused() -> GenericError {
 	ge!(
 		format!("{R}cancelled{D}"),
 		h: "the index is built from the dump, no dump means nothing to recommend from"

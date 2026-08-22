@@ -1,8 +1,10 @@
 mod board;
+mod incremental;
 mod listen;
 mod music_brainz;
 mod rsync;
 mod space;
+mod stamp;
 
 use std::path::{Path, PathBuf};
 
@@ -10,9 +12,22 @@ use hmerr::ioe;
 
 use crate::cache;
 
+pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
 
+use listen::Offer;
+
 const DIR: &str = "dump";
+
+const NO_INDEX: Offer = Offer {
+	reason: "no index yet, the whole dump is read once to build one",
+	enter_is: true,
+};
+
+const HOLED: Offer = Offer {
+	reason: "the index has a hole no incremental can fill, only a full dump repairs it",
+	enter_is: false,
+};
 
 pub(super) fn root() -> hmerr::Result<PathBuf> {
 	let root = cache::root()?.join(DIR);
@@ -26,7 +41,7 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 
 	match listen::find(&root)? {
 		Some(listen) => Ok(listen),
-		None => listen::fetch(&root),
+		None => listen::fetch(&root, &NO_INDEX)?.ok_or_else(|| listen::refused().into()),
 	}
 }
 
@@ -36,6 +51,50 @@ pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {
 
 pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 	listen::discard(listen)
+}
+
+pub(super) fn repairable(covered: &str) -> hmerr::Result<Option<String>> {
+	let root = root()?;
+
+	let Some(dump) = listen::newer_than(covered)? else {
+		return Ok(None);
+	};
+
+	if listen::declined(&root).as_deref() == Some(dump.as_str()) {
+		return Ok(None);
+	}
+
+	Ok(Some(dump))
+}
+
+pub(super) fn repair(dump: &str) -> hmerr::Result<Option<Listen>> {
+	let root = root()?;
+	let taken = listen::fetch_named(&root, dump, &HOLED)?;
+
+	if taken.is_none() {
+		listen::decline(&root, dump)?;
+	}
+
+	Ok(taken)
+}
+
+pub(super) fn pending(covered: &str) -> hmerr::Result<Vec<Pending>> {
+	incremental::pending(covered)
+}
+
+pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
+	stamp::reach(timestamp)
+}
+
+pub(super) fn weight(pending: &[Pending]) -> u64 {
+	incremental::weight(pending)
+}
+
+pub(super) fn fold(
+	pending: &Pending,
+	fold: impl FnOnce(&Incremental) -> hmerr::Result<()>,
+) -> hmerr::Result<()> {
+	incremental::take(&root()?, pending, fold)
 }
 
 pub(super) fn artist_link(link: &Path) -> hmerr::Result<()> {

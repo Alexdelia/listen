@@ -1,6 +1,4 @@
 mod lane;
-mod query;
-mod shard;
 mod size;
 
 use std::{
@@ -14,15 +12,20 @@ use super::{
 	super::{
 		board::{Board, Running},
 		open::{self, BUCKET},
+		query, shard,
 	},
 	board::{self, Stage},
 };
 
 use lane::Lane;
-use query::Unit;
 use size::Size;
 
 pub(super) use lane::Held;
+
+struct Unit {
+	into: PathBuf,
+	select: String,
+}
 
 pub(super) struct Scan {
 	pub work: PathBuf,

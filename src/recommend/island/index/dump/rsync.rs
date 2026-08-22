@@ -29,7 +29,25 @@ pub(super) struct Entry {
 }
 
 pub(super) fn list(url: &str) -> hmerr::Result<Vec<Entry>> {
-	let out = ran(&["--list-only", url], "list", url)?;
+	listed(&["--list-only", url], url)
+}
+
+pub(super) fn beneath(url: &str, pattern: &str) -> hmerr::Result<Vec<Entry>> {
+	listed(
+		&[
+			"--list-only",
+			"--recursive",
+			"--include=*/",
+			&format!("--include={pattern}"),
+			"--exclude=*",
+			url,
+		],
+		url,
+	)
+}
+
+fn listed(argument: &[&str], url: &str) -> hmerr::Result<Vec<Entry>> {
+	let out = ran(argument, "list", url)?;
 
 	Ok(String::from_utf8_lossy(&out)
 		.lines()

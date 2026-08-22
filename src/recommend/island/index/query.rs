@@ -1,11 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use super::super::super::partial;
-
-pub(super) struct Unit {
-	pub into: PathBuf,
-	pub select: String,
-}
+use super::partial;
 
 pub(super) fn copy(db: &duckdb::Connection, into: &Path, select: &str) -> hmerr::Result<()> {
 	partial::write(into, |partial| {
@@ -39,7 +34,7 @@ pub(super) fn count(db: &duckdb::Connection, of: &Path) -> hmerr::Result<u64> {
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
+	use std::{fs, path::PathBuf};
 
 	use super::*;
 

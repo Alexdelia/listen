@@ -107,6 +107,22 @@ fn report(meta: &index::Meta, library: &seed::Library) {
 		user = human_readable_number::text(meta.user),
 	);
 
+	if meta.absorbed > 0 {
+		println!(
+			"covered to {CYA}{covered}{D} {F}after{D} {CYA}{absorbed}{D} {F}incremental{D}",
+			covered = day(meta.covered()),
+			absorbed = meta.absorbed
+		);
+	}
+
+	for gap in &meta.gap {
+		println!(
+			"{Y}gap{D} {F}from{D} {CYA}{from}{D} {F}to{D} {CYA}{to}{D}",
+			from = day(&gap.from),
+			to = day(&gap.to)
+		);
+	}
+
 	let unsupported = library.unsupported();
 	if unsupported > 0 {
 		println!(
@@ -116,6 +132,10 @@ fn report(meta: &index::Meta, library: &seed::Library) {
 	}
 
 	println!();
+}
+
+fn day(timestamp: &str) -> &str {
+	timestamp.split(' ').next().unwrap_or(timestamp)
 }
 
 fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], library: &seed::Library) {
