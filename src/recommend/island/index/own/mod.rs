@@ -8,7 +8,7 @@ mod scan;
 use ansi::abbrev::{B, D, F, Y};
 
 use super::{
-	dump::{self, Pending},
+	dump::{self, Listen, Pending},
 	open, progress,
 };
 
@@ -31,7 +31,7 @@ pub(crate) struct Fold {
 }
 
 pub(crate) fn unpacked() -> hmerr::Result<Option<String>> {
-	Ok(dump::unpacked()?.map(|listen| listen.name))
+	Ok(dumped()?.map(|listen| listen.name))
 }
 
 pub(crate) fn played() -> hmerr::Result<Option<Own>> {
@@ -40,7 +40,7 @@ pub(crate) fn played() -> hmerr::Result<Option<Own>> {
 	let Some(own) = open::own(&dir) else {
 		return Ok(None);
 	};
-	let Some(listen) = dump::unpacked()? else {
+	let Some(listen) = dumped()? else {
 		return Ok(None);
 	};
 
@@ -67,6 +67,11 @@ pub(crate) fn fresh(
 		return Ok(());
 	};
 
+	if !stamped(reached) {
+		unreadable(reached);
+		return Ok(());
+	}
+
 	let Some(pending) = published(dump::pending(reached)) else {
 		return Ok(());
 	};
@@ -80,6 +85,37 @@ pub(crate) fn fresh(
 	dump::room(&root, &pending, AT_ONCE)?;
 
 	fold::run(&open::session(&dir)?, &root, &pending, own, reached, keep)
+}
+
+fn dumped() -> hmerr::Result<Option<Listen>> {
+	let Some(listen) = dump::unpacked()? else {
+		return Ok(None);
+	};
+
+	if !stamped(&listen.name) {
+		unstamped(&listen.name);
+		return Ok(None);
+	}
+
+	Ok(Some(listen))
+}
+
+fn stamped(name: &str) -> bool {
+	dump::reach(name).is_ok()
+}
+
+fn unreadable(reached: &str) {
+	progress::say(format!(
+		"{Y}the counts stop at {B}{reached}{D}{Y}, which is no timestamp to hold a dump against, \
+		nothing is folded onto them until they are read off a stamped dump again{D}"
+	));
+}
+
+fn unstamped(name: &str) {
+	progress::say(format!(
+		"{Y}the unpacked dump {B}{name}{D}{Y} carries no readable timestamp, \
+		its listens stay out of the counts until it is fetched again{D}"
+	));
 }
 
 fn published(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
@@ -111,6 +147,15 @@ mod tests {
 	use hmerr::ge;
 
 	use super::*;
+
+	#[test]
+	fn a_dump_directory_without_its_timestamp_is_no_dump_to_count_off() {
+		assert!(stamped("2026-07-12 00:00:04.001868+00:00"));
+		assert!(stamped("2026-07-12 00:00:04"));
+		assert!(!stamped("listen"));
+		assert!(!stamped("LATEST"));
+		assert!(!stamped(""));
+	}
 
 	#[test]
 	fn nothing_published_can_be_read_leaves_the_counts_where_they_are() {
