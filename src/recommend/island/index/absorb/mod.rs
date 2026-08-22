@@ -100,7 +100,7 @@ fn taken(
 	let start = dump::reach(&incremental.start)?;
 
 	if start < covered {
-		return overlapping(work, reach, incremental);
+		return overlapping(work, reach, incremental, covered);
 	}
 
 	if start > covered {
@@ -129,17 +129,23 @@ fn lost(reach: &mut Reach, start: &str) {
 	});
 }
 
-fn overlapping(work: &Path, reach: &mut Reach, incremental: &Incremental) -> hmerr::Result<()> {
+fn overlapping(
+	work: &Path,
+	reach: &mut Reach,
+	incremental: &Incremental,
+	covered: u64,
+) -> hmerr::Result<()> {
 	progress::say(format!(
 		"{Y}{B}{name}{D}{Y} reaches back into what the index already holds, \
 		skipped rather than counted twice{D}",
 		name = incremental.name
 	));
 
-	reach.gap.push(Gap {
-		from: reach.covered.clone(),
-		to: incremental.end.clone(),
-	});
+	if dump::reach(&incremental.end)? <= covered {
+		return Ok(());
+	}
+
+	lost(reach, &incremental.end);
 	reach.covered.clone_from(&incremental.end);
 
 	work::reached(work, reach)
@@ -697,6 +703,15 @@ create view user_stat as select * from read_parquet('{index}/{USER_STAT}');
 		assert_eq!(
 			reach.absorbed, 0,
 			"a dump the index already reached is skipped"
+		);
+		assert_eq!(
+			reach.covered,
+			meta.covered(),
+			"what the index reaches never moves backwards"
+		);
+		assert!(
+			reach.gap.is_empty(),
+			"a dump holding no window of its own leaves no hole to repair"
 		);
 		assert_eq!(plays(&index, POOLED, 0), once);
 		let _ = fs::remove_dir_all(&dir);
