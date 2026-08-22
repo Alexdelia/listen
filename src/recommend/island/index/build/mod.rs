@@ -1,7 +1,6 @@
 mod artist;
 mod board;
 mod library;
-mod parallel;
 mod pool;
 mod recording;
 mod scan;
@@ -17,7 +16,7 @@ use chrono::Utc;
 
 use crate::declaration::parse;
 
-use super::{dump::Listen, open, progress};
+use super::{dump::Listen, open, parallel, progress};
 
 use scan::Scan;
 
@@ -50,6 +49,9 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 		built: Utc::now().date_naive().to_string(),
 		dump: dump.name.clone(),
 		own: Some(pool.own),
+		reached: None,
+		gap: Vec::new(),
+		absorbed: 0,
 		user: scan.count(&pool.path)?,
 		recording: scan.count(&recording)?,
 		user_listen: row,

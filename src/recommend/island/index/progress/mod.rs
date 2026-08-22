@@ -134,10 +134,7 @@ pub(super) fn started(bar: &ProgressBar, title: &str, measure: Measure) -> hmerr
 		"cyan",
 	)?;
 
-	bar.set_style(match measure {
-		Measure::Step(_) => style.with_key(eta::KEY, Eta::new()),
-		Measure::Byte(_) => style,
-	});
+	bar.set_style(style.with_key(eta::KEY, Eta::new()));
 	bar.reset_elapsed();
 	bar.enable_steady_tick(SPIN);
 
@@ -154,6 +151,8 @@ fn style(title: &str, field: &str, color: &str) -> hmerr::Result<ProgressStyle> 
 }
 
 pub(super) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Result<()> {
+	let reached = bar.position();
+
 	let mut child = Command::new(program)
 		.args(arg)
 		.stdout(Stdio::piped())
@@ -164,7 +163,7 @@ pub(super) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Re
 	let complaint = complaint(&mut child);
 
 	if let Some(out) = child.stdout.take() {
-		follow(out, bar);
+		follow(out, bar, reached);
 	}
 
 	let status = child
@@ -195,7 +194,7 @@ pub(super) fn complaint(child: &mut Child) -> Option<thread::JoinHandle<String>>
 	}))
 }
 
-fn follow(mut out: impl Read, bar: &ProgressBar) {
+fn follow(mut out: impl Read, bar: &ProgressBar, reached: u64) {
 	let mut buffer = [0u8; READ];
 	let mut record = Vec::new();
 
@@ -207,7 +206,7 @@ fn follow(mut out: impl Read, bar: &ProgressBar) {
 		for byte in &buffer[..read] {
 			if *byte == b'\r' || *byte == b'\n' {
 				if let Some(done) = transferred(&String::from_utf8_lossy(&record)) {
-					bar.set_position(done);
+					bar.set_position(reached.saturating_add(done));
 				}
 				record.clear();
 			} else {
@@ -264,6 +263,35 @@ mod tests {
 	#[test]
 	fn a_size_without_a_percentage_is_not_progress() {
 		assert_eq!(transferred("1,234 something else"), None);
+	}
+
+	#[test]
+	fn a_transfer_carries_on_from_what_the_bar_already_reached() {
+		let bar = ProgressBar::hidden();
+		bar.set_length(1 << 20);
+		bar.set_position(4096);
+
+		follow(
+			&b"  2,048  50%  1.00MB/s 0:00:01\n"[..],
+			&bar,
+			bar.position(),
+		);
+
+		assert_eq!(bar.position(), 4096 + 2048);
+	}
+
+	#[test]
+	fn a_lone_transfer_starts_the_bar_where_it_stands() {
+		let bar = ProgressBar::hidden();
+		bar.set_length(1 << 20);
+
+		follow(
+			&b"  2,048  50%  1.00MB/s 0:00:01\n"[..],
+			&bar,
+			bar.position(),
+		);
+
+		assert_eq!(bar.position(), 2048);
 	}
 
 	#[test]

@@ -1,14 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-	super::open::{self, BUCKET},
+	super::open::{self, BUCKET, PLAY_CEILING},
 	board::Stage,
 	scan::Scan,
 };
 
 pub(super) const BUCKETED: &str = "library_bucket";
-
-const PLAY_CEILING: u32 = 65535;
 
 pub(super) fn of(scan: &Scan) -> hmerr::Result<PathBuf> {
 	let partial = scan.batched(Stage::Library, &|shard| {

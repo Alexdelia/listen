@@ -1,19 +1,14 @@
-use std::{
-	fs,
-	path::{Path, PathBuf},
-};
-
-use ansi::abbrev::{B, D, F};
-use hmerr::ioe;
+use std::path::{Path, PathBuf};
 
 use super::{
 	super::{
-		keep,
-		open::{self, Meta, RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
-		progress,
+		open::{USER_LISTEN, USER_STAT},
+		work,
 	},
 	board::Stage,
 };
+
+pub(super) use work::{publish, release};
 
 const DIR: &str = "build";
 const DUMP: &str = "dump";
@@ -21,89 +16,29 @@ const LISTENER: &str = "listener";
 const FORMAT: u32 = 3;
 
 pub(super) fn open(dir: &Path, dump: &str) -> hmerr::Result<PathBuf> {
-	let work = dir.join(DIR);
-	let dump = &format!("{FORMAT} {dump}");
-
-	if stamped(&work, DUMP).as_deref() != Some(dump.as_str()) {
-		discard_unusable(&work)?;
-	}
-
-	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
-	stamp(&work, DUMP, dump)?;
-
-	Ok(work)
+	work::opened(dir, DIR, DUMP, &format!("{FORMAT} {dump}"))
 }
 
 pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 	let own = &own.to_string();
 
-	if stamped(work, LISTENER).as_deref() != Some(own.as_str()) {
+	if work::stamped(work, LISTENER).as_deref() != Some(own.as_str()) {
 		for part in pooled() {
-			discard_unusable(&work.join(part))?;
+			work::discard_unusable(&work.join(part))?;
 		}
 	}
 
-	stamp(work, LISTENER, own)
-}
-
-pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
-	open::forget_meta(dir)?;
-
-	for part in published() {
-		let built = work.join(part);
-		let into = dir.join(part);
-
-		discard_unusable(&into)?;
-		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
-	}
-
-	open::write_meta(dir, meta)
-}
-
-pub(super) fn release(work: &Path) {
-	if keep::discard(work).is_ok() {
-		return;
-	}
-
-	progress::say(format!(
-		"{F}work directory kept at {B}{work}{D}",
-		work = work.display()
-	));
-}
-
-fn published() -> [&'static str; 4] {
-	[RECORDING, RECORDING_ARTIST, USER_STAT, USER_LISTEN]
+	work::stamp(work, LISTENER, own)
 }
 
 fn pooled() -> [&'static str; 3] {
 	[Stage::Stat.title(), USER_STAT, USER_LISTEN]
 }
 
-fn stamped(work: &Path, of: &str) -> Option<String> {
-	fs::read_to_string(work.join(of))
-		.ok()
-		.map(|stamp| stamp.trim().to_string())
-}
-
-fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
-	let path = work.join(of);
-	fs::write(&path, value).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
-}
-
-fn discard_unusable(path: &Path) -> hmerr::Result<()> {
-	if path.is_dir() {
-		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	} else if path.is_file() {
-		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	}
-
-	Ok(())
-}
-
 #[cfg(test)]
 mod tests {
+	use std::fs;
+
 	use super::{super::board::Stage, *};
 
 	fn dir(name: &str) -> PathBuf {
@@ -133,27 +68,6 @@ mod tests {
 		let _ = fs::write(&stat, b"built");
 
 		stat
-	}
-
-	fn staged(work: &Path) {
-		for part in [RECORDING, RECORDING_ARTIST, USER_STAT] {
-			let _ = fs::write(work.join(part), b"fresh");
-		}
-
-		let listen = work.join(USER_LISTEN);
-		let _ = fs::create_dir_all(&listen);
-		let _ = fs::write(listen.join("0.parquet"), b"fresh");
-	}
-
-	fn meta() -> Meta {
-		Meta {
-			built: "2026-08-15".to_string(),
-			dump: "20260712-000004".to_string(),
-			own: Some(1),
-			user: 5,
-			recording: 35,
-			user_listen: 200,
-		}
 	}
 
 	#[test]
@@ -254,69 +168,6 @@ mod tests {
 
 		assert!(listen.exists());
 		assert!(stat.exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn what_a_build_produces_reaches_the_index_only_when_it_publishes() {
-		let dir = dir("staged");
-		let stat = stat(&dir);
-		let work = open(&dir, "20260712-000004").unwrap_or_default();
-		staged(&work);
-
-		assert_eq!(fs::read(&stat).unwrap_or_default(), b"built");
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn publishing_puts_every_built_part_in_place() {
-		let dir = dir("publish");
-		let stat = stat(&dir);
-		let listen = shard(&dir, USER_LISTEN);
-		let work = open(&dir, "20260712-000004").unwrap_or_default();
-		staged(&work);
-
-		assert!(publish(&work, &dir, &meta()).is_ok());
-
-		assert_eq!(fs::read(&stat).unwrap_or_default(), b"fresh");
-		assert_eq!(fs::read(&listen).unwrap_or_default(), b"fresh");
-		for part in published() {
-			assert!(dir.join(part).exists(), "{part}");
-			assert!(!work.join(part).exists(), "{part}");
-		}
-		assert!(dir.join(open::META).exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn a_publish_that_cannot_finish_leaves_no_meta_vouching_for_a_half_swapped_index() {
-		let dir = dir("torn");
-		let _ = fs::write(dir.join(open::META), b"{}");
-		let work = open(&dir, "20260712-000004").unwrap_or_default();
-
-		assert!(publish(&work, &dir, &meta()).is_err());
-
-		assert!(!dir.join(open::META).exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn releasing_leaves_nothing_behind() {
-		let dir = dir("release");
-		let work = open(&dir, "20260712-000004").unwrap_or_default();
-		partial(&work);
-
-		release(&work);
-
-		assert!(!work.exists());
-		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn releasing_a_work_directory_that_is_already_gone_says_nothing() {
-		let dir = dir("absent");
-
-		release(&dir.join(DIR));
 		let _ = fs::remove_dir_all(&dir);
 	}
 }

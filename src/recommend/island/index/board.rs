@@ -60,6 +60,14 @@ impl Board {
 	}
 }
 
+impl Drop for Board {
+	fn drop(&mut self) {
+		for shown in &self.shown {
+			progress::ended(&shown.bar);
+		}
+	}
+}
+
 impl Deref for Running {
 	type Target = ProgressBar;
 

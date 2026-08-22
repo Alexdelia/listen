@@ -121,6 +121,33 @@ mod tests {
 	}
 
 	#[test]
+	fn a_stage_measured_in_bytes_projects_off_the_bytes_it_saw() {
+		const GIB: u64 = 1 << 30;
+
+		assert_eq!(
+			after(60, 2 * GIB).left(Some(6 * GIB), 2 * GIB),
+			Some(Duration::from_mins(2))
+		);
+	}
+
+	#[test]
+	fn a_stage_that_only_moves_in_bursts_keeps_the_pace_of_the_whole_stage() {
+		const GIB: u64 = 1 << 30;
+
+		let bursty = after(300, GIB);
+		let steady = after(150, GIB);
+
+		assert_eq!(
+			bursty.left(Some(3 * GIB), GIB),
+			Some(Duration::from_mins(10))
+		);
+		assert_eq!(
+			steady.left(Some(3 * GIB), GIB),
+			Some(Duration::from_mins(5))
+		);
+	}
+
+	#[test]
 	fn a_stage_of_unknown_length_cannot_say_when_it_ends() {
 		assert_eq!(after(60, 4).left(None, 4), None);
 	}

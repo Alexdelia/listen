@@ -9,15 +9,12 @@ use indicatif::ProgressBar;
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge, ioe};
 
-use super::{
-	super::{board::Board, keep, progress},
-	board::{DOWNLOAD, VERIFY},
-};
+use super::super::{keep, progress};
 
 const PROGRAM: &str = "rsync";
 pub(super) const HOST: &str = "rsync://data.metabrainz.org/musicbrainz";
 
-pub(super) const CHECKSUM_EXT: &str = ".sha256";
+const CHECKSUM_EXT: &str = ".sha256";
 
 const SHA256SUM: &str = "sha256sum";
 const DIGEST_LEN: usize = 64;
@@ -29,7 +26,25 @@ pub(super) struct Entry {
 }
 
 pub(super) fn list(url: &str) -> hmerr::Result<Vec<Entry>> {
-	let out = ran(&["--list-only", url], "list", url)?;
+	listed(&["--list-only", url], url)
+}
+
+pub(super) fn beneath(url: &str, pattern: &str) -> hmerr::Result<Vec<Entry>> {
+	listed(
+		&[
+			"--list-only",
+			"--recursive",
+			"--include=*/",
+			&format!("--include={pattern}"),
+			"--exclude=*",
+			url,
+		],
+		url,
+	)
+}
+
+fn listed(argument: &[&str], url: &str) -> hmerr::Result<Vec<Entry>> {
+	let out = ran(argument, "list", url)?;
 
 	Ok(String::from_utf8_lossy(&out)
 		.lines()
@@ -79,24 +94,18 @@ fn small(url: &str, into: &Path) -> hmerr::Result<()> {
 	Ok(())
 }
 
-pub(super) fn secured(
-	board: &Board,
-	url: &str,
-	root: &Path,
-	name: &str,
-	checksum: &str,
-) -> hmerr::Result<()> {
-	board.run(DOWNLOAD, |bar| {
-		pull(&format!("{url}{name}"), &root.join(name), bar)
-	})?;
+pub(super) fn checksum(name: &str) -> String {
+	format!("{name}{CHECKSUM_EXT}")
+}
 
+pub(super) fn checked(url: &str, root: &Path, checksum: &str) -> hmerr::Result<()> {
 	small(&format!("{url}{checksum}"), &root.join(checksum))?;
-	board.run(VERIFY, |_| verify(root, checksum))?;
+	verify(root, checksum)?;
 
 	forget(root, &[checksum])
 }
 
-fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
+pub(super) fn pull(url: &str, into: &Path, bar: &ProgressBar) -> hmerr::Result<()> {
 	prepare(into)?;
 
 	progress::rsync(
