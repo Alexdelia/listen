@@ -1,7 +1,10 @@
+use std::path::PathBuf;
+
 use ansi::{
 	DIM,
 	abbrev::{B, CYA, D, G, M, R},
 };
+use hmerr::ge;
 
 use crate::format;
 
@@ -106,28 +109,28 @@ pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 
 	println!("{DIM}+{more} more{D}");
 
-	match cache::undeclared::write(username, &listed(undeclared)) {
+	match written(undeclared, username) {
 		Ok(path) => println!("{B}{CYA}{path}{D}", path = path.display()),
 		Err(e) => eprintln!("{e}"),
 	}
 }
 
-fn listed(undeclared: &[Undeclared]) -> String {
-	use std::fmt::Write;
+fn written(undeclared: &[Undeclared], username: &str) -> hmerr::Result<PathBuf> {
+	cache::undeclared::write(username, &listed(undeclared)?)
+}
 
-	undeclared
-		.iter()
-		.fold(String::new(), |mut listed, undeclared| {
-			let _ = writeln!(
-				listed,
-				"{listen:>6} {mbid} {label}",
-				listen = undeclared.listen,
-				mbid = undeclared.mbid,
-				label = meta::plain(&undeclared.track, &undeclared.artist)
-			);
+fn listed(undeclared: &[Undeclared]) -> hmerr::Result<String> {
+	let mut writer = csv::Writer::from_writer(Vec::new());
 
-			listed
-		})
+	for undeclared in undeclared {
+		writer.serialize(undeclared)?;
+	}
+
+	let listed = writer
+		.into_inner()
+		.map_err(|e| ge!(format!("{R}failed to write the undeclared listen\n{e}")))?;
+
+	Ok(String::from_utf8(listed)?)
 }
 
 fn undeclared_line(undeclared: &Undeclared) {
@@ -157,19 +160,22 @@ mod tests {
 	}
 
 	#[test]
-	fn the_whole_list_is_written_out_however_little_of_it_is_printed() {
-		let listed = listed(&undeclared(CAP + 7));
+	fn the_whole_list_is_written_out_under_a_header_however_little_of_it_is_printed() {
+		let listed = listed(&undeclared(CAP + 7)).unwrap_or_default();
+		let mut line = listed.lines();
 
-		assert_eq!(listed.lines().count(), CAP + 7);
+		assert_eq!(line.next(), Some("mbid,listen,track,artist"));
+		assert_eq!(line.count(), CAP + 7);
 	}
 
 	#[test]
-	fn what_is_written_out_holds_no_escape_sequence() {
-		let listed = listed(&undeclared(3));
+	fn every_listen_is_one_row_of_its_own_columns() {
+		let listed = listed(&undeclared(1)).unwrap_or_default();
 
 		assert!(!listed.contains('\x1b'), "{listed}");
 		assert!(
-			listed.contains("Fairy Dance - UNDEAD CORPORATION"),
+			listed
+				.contains("00000000-0000-0000-0000-000000000000,9,Fairy Dance,UNDEAD CORPORATION"),
 			"{listed}"
 		);
 	}

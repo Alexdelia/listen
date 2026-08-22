@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use hmerr::ioe;
 
 const SUBDIR: &str = "undeclared";
-const EXT: &str = "txt";
+const EXT: &str = "csv";
 
 pub(in crate::outlier) fn write(username: &str, content: &str) -> hmerr::Result<PathBuf> {
 	let path = path(username)?;

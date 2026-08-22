@@ -3,6 +3,8 @@ use std::{
 	collections::{BTreeMap, HashMap, HashSet},
 };
 
+use serde::Serialize;
+
 use crate::declaration::{Entry, Q, Source};
 
 use super::{age::Age, fetch::ListenCount, meta::Meta, song::Song};
@@ -27,6 +29,7 @@ pub(super) struct Record {
 	pub rate: f64,
 }
 
+#[derive(Serialize)]
 pub(super) struct Undeclared {
 	pub mbid: Source,
 	pub listen: u32,
