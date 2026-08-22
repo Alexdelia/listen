@@ -54,10 +54,10 @@ pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
 	listen::discard(listen)
 }
 
-pub(super) fn repairable(covered: &str) -> hmerr::Result<Option<String>> {
+pub(super) fn repairable(baseline: &str) -> hmerr::Result<Option<String>> {
 	let root = root()?;
 
-	let Some(dump) = listen::newer_than(covered)? else {
+	let Some(dump) = listen::newer_than(baseline)? else {
 		return Ok(None);
 	};
 

@@ -116,10 +116,14 @@ pub(super) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 	}))
 }
 
-pub(super) fn newer_than(reached: &str) -> hmerr::Result<Option<String>> {
-	let covered = stamp::reach(reached)?;
+pub(super) fn newer_than(baseline: &str) -> hmerr::Result<Option<String>> {
+	let built = stamp::reach(baseline)?;
 
-	Ok(newest()?.filter(|name| reaches(name).is_some_and(|reach| reach > covered)))
+	Ok(newest()?.filter(|name| reaches_past(name, built)))
+}
+
+fn reaches_past(name: &str, built: u64) -> bool {
+	reaches(name).is_some_and(|reach| reach > built)
 }
 
 pub(super) fn declined(root: &Path) -> Option<String> {
@@ -219,6 +223,9 @@ pub(super) fn refused() -> GenericError {
 mod tests {
 	use super::*;
 
+	const BUILT: &str = "2026-07-12 00:00:04.001868+00:00";
+	const BASELINE: &str = "listenbrainz-dump-2593-20260712-000004-full";
+
 	fn scratch(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_dump_{name}"));
 		let _ = fs::remove_dir_all(&dir);
@@ -232,6 +239,10 @@ mod tests {
 			name: "test".to_string(),
 			dir,
 		}
+	}
+
+	fn repairs(name: &str, baseline: &str) -> bool {
+		reaches_past(name, stamp::reach(baseline).unwrap_or_default())
 	}
 
 	fn published(name: &[&str]) -> Option<String> {
@@ -271,6 +282,27 @@ mod tests {
 			]),
 			Some("listenbrainz-dump-1000-20340101-000001-full".to_string())
 		);
+	}
+
+	#[test]
+	fn a_full_dump_published_past_the_baseline_is_the_one_that_repairs_a_gap() {
+		assert!(
+			repairs("listenbrainz-dump-2600-20260901-000003-full", BUILT),
+			"what the index absorbed its way to is no reason to leave a hole unrepaired"
+		);
+	}
+
+	#[test]
+	fn the_dump_the_index_was_already_built_from_repairs_nothing() {
+		assert!(!repairs(BASELINE, BUILT));
+	}
+
+	#[test]
+	fn a_full_dump_older_than_the_baseline_repairs_nothing() {
+		assert!(!repairs(
+			"listenbrainz-dump-2592-20260705-000003-full",
+			BUILT
+		));
 	}
 
 	#[test]

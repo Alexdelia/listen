@@ -92,7 +92,7 @@ fn repaired(dir: &Path) -> hmerr::Result<Option<Listen>> {
 		return Ok(None);
 	}
 
-	let Some(dump) = listed(dump::repairable(meta.covered())).flatten() else {
+	let Some(dump) = listed(dump::repairable(&meta.dump)).flatten() else {
 		return Ok(None);
 	};
 
