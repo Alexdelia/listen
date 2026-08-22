@@ -19,8 +19,6 @@ const END: &str = "END_TIMESTAMP";
 const SEQUENCE: &str = "SCHEMA_SEQUENCE";
 const SEQUENCE_UNDERSTOOD: &str = "1";
 
-const AT_ONCE: u64 = 3;
-
 pub(crate) struct Pending {
 	pub name: String,
 	pub archive: String,
@@ -61,14 +59,14 @@ fn pending_of(entry: &rsync::Entry) -> Option<Pending> {
 	})
 }
 
-pub(super) fn room(root: &Path, pending: &[&Pending]) -> hmerr::Result<()> {
+pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> hmerr::Result<()> {
 	let biggest = pending
 		.iter()
 		.map(|pending| pending.size)
 		.max()
 		.unwrap_or_default();
 
-	space::require(root, biggest.saturating_mul(AT_ONCE))
+	space::require(root, biggest.saturating_mul(at_once))
 }
 
 pub(super) fn pull(

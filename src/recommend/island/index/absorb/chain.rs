@@ -14,6 +14,10 @@ use super::{
 };
 
 const AHEAD: usize = 1;
+const IN_HAND: usize = AHEAD + 1;
+const UNPACKING: usize = 2;
+
+pub(super) const AT_ONCE: u64 = (IN_HAND + UNPACKING) as u64;
 
 pub(super) fn each(
 	board: &Board,
@@ -162,6 +166,10 @@ mod tests {
 		assert!(done.is_ok());
 		let peak = peak.load(Ordering::SeqCst);
 		assert!(peak <= AHEAD + 2, "{peak}");
+		assert!(
+			u64::try_from(peak + 1).unwrap_or(u64::MAX) <= AT_ONCE,
+			"{peak} archive at once, and the one unpacking beside them, outgrows what is reserved"
+		);
 	}
 
 	#[test]

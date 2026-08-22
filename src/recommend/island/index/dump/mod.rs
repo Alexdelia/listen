@@ -91,8 +91,8 @@ pub(super) fn weight(pending: &[Pending]) -> u64 {
 	incremental::weight(pending)
 }
 
-pub(super) fn room(root: &Path, pending: &[&Pending]) -> hmerr::Result<()> {
-	incremental::room(root, pending)
+pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> hmerr::Result<()> {
+	incremental::room(root, pending, at_once)
 }
 
 pub(super) fn pull(

@@ -29,7 +29,7 @@ pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result
 
 	let left = left(pending, &reach.covered)?;
 	resuming(pending, &left);
-	dump::room(&root, &left)?;
+	dump::room(&root, &left, chain::AT_ONCE)?;
 
 	let board = board::of(&board::Chain {
 		dump: u64::try_from(left.len()).unwrap_or_default(),
