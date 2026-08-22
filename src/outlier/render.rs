@@ -96,21 +96,29 @@ pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 
 	if undeclared.is_empty() {
 		println!("none");
-		return;
 	}
 
 	for undeclared in undeclared.iter().take(CAP) {
 		undeclared_line(undeclared);
 	}
 
-	let Some(more) = undeclared.len().checked_sub(CAP).filter(|more| *more > 0) else {
-		return;
-	};
+	let more = more(undeclared);
 
-	println!("{DIM}+{more} more{D}");
+	if more > 0 {
+		println!("{DIM}+{more} more{D}");
+	}
 
+	kept(undeclared, username, more > 0);
+}
+
+fn more(undeclared: &[Undeclared]) -> usize {
+	undeclared.len().saturating_sub(CAP)
+}
+
+fn kept(undeclared: &[Undeclared], username: &str, tell: bool) {
 	match written(undeclared, username) {
-		Ok(path) => println!("{B}{CYA}{path}{D}", path = path.display()),
+		Ok(path) if tell => println!("{B}{CYA}{path}{D}", path = path.display()),
+		Ok(_) => {}
 		Err(e) => eprintln!("{e}"),
 	}
 }
@@ -166,6 +174,16 @@ mod tests {
 
 		assert_eq!(line.next(), Some("mbid,listen,track,artist"));
 		assert_eq!(line.count(), CAP + 7);
+	}
+
+	#[test]
+	fn the_cap_holds_back_what_is_printed_not_what_is_written() {
+		assert_eq!(more(&undeclared(CAP)), 0);
+		assert_eq!(more(&undeclared(CAP + 3)), 3);
+		assert_eq!(
+			listed(&undeclared(CAP)).unwrap_or_default().lines().count(),
+			CAP + 1
+		);
 	}
 
 	#[test]
