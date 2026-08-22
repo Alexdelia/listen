@@ -134,10 +134,7 @@ pub(super) fn started(bar: &ProgressBar, title: &str, measure: Measure) -> hmerr
 		"cyan",
 	)?;
 
-	bar.set_style(match measure {
-		Measure::Step(_) => style.with_key(eta::KEY, Eta::new()),
-		Measure::Byte(_) => style,
-	});
+	bar.set_style(style.with_key(eta::KEY, Eta::new()));
 	bar.reset_elapsed();
 	bar.enable_steady_tick(SPIN);
 
