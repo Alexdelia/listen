@@ -1,7 +1,8 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use hmerr::ge;
+use listen_cache::text;
 use serde::Deserialize;
 
 use crate::{cache, meta_brainz, music_brainz};
@@ -114,25 +115,11 @@ struct ErrorPayload {
 }
 
 pub(super) fn stored() -> hmerr::Result<Option<String>> {
-	let path = path()?;
-
-	if !path.exists() {
-		return Ok(None);
-	}
-
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	let token = content.trim();
-
-	Ok((!token.is_empty()).then(|| token.to_string()))
+	text::read(&path()?)
 }
 
 pub(super) fn store(refresh_token: &str) -> hmerr::Result<()> {
-	let path = path()?;
-	cache::prepare(&path)?;
-
-	fs::write(&path, refresh_token).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	text::write(&path()?, refresh_token)
 }
 
 fn path() -> hmerr::Result<PathBuf> {

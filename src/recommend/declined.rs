@@ -1,26 +1,15 @@
-use std::{
-	collections::HashSet,
-	fs::{self, OpenOptions},
-	io::Write,
-};
+use std::collections::HashSet;
 
-use hmerr::ioe;
+use listen_cache::text;
 
-use crate::{
-	cache::{prepare, root},
-	declaration::Source,
-};
+use crate::{cache::root, declaration::Source};
 
 const FILE: &str = "declined";
 
 pub(super) fn load() -> hmerr::Result<HashSet<Source>> {
-	let path = root()?.join(FILE);
-
-	if !path.exists() {
+	let Some(content) = text::read(&root()?.join(FILE))? else {
 		return Ok(HashSet::new());
-	}
-
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	};
 
 	Ok(content
 		.lines()
@@ -29,16 +18,5 @@ pub(super) fn load() -> hmerr::Result<HashSet<Source>> {
 }
 
 pub(super) fn add(mbid: Source) -> hmerr::Result<()> {
-	let path = root()?.join(FILE);
-	prepare(&path)?;
-
-	let mut file = OpenOptions::new()
-		.create(true)
-		.append(true)
-		.open(&path)
-		.map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	writeln!(file, "{mbid}").map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	text::append(&root()?.join(FILE), &mbid.to_string())
 }

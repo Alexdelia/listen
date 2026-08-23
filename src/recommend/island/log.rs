@@ -1,11 +1,7 @@
-use std::{
-	fs::OpenOptions,
-	io::Write,
-	path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
-use hmerr::ioe;
+use listen_cache::text;
 use serde::{Deserialize, Serialize};
 
 use crate::{cache, declaration::Source};
@@ -32,19 +28,7 @@ pub(super) struct Entry {
 }
 
 pub(super) fn append(path: &Path, entry: &Entry) -> hmerr::Result<()> {
-	cache::prepare(path)?;
-
-	let line = serde_json::to_string(entry)?;
-
-	let mut file = OpenOptions::new()
-		.create(true)
-		.append(true)
-		.open(path)
-		.map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	writeln!(file, "{line}").map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	text::append(path, &serde_json::to_string(entry)?)
 }
 
 #[cfg(test)]

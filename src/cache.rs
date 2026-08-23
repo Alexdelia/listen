@@ -1,1 +1,1 @@
-pub(crate) use listen_cache::{prepare, root, username};
+pub(crate) use listen_cache::{root, username};

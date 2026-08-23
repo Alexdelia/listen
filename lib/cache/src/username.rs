@@ -1,5 +1,4 @@
 use std::{
-	fs,
 	io::{self, Write},
 	path::PathBuf,
 };
@@ -7,7 +6,7 @@ use std::{
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{ge, ioe};
 
-use crate::{prepare, root};
+use crate::{root, text};
 
 const FILE: &str = "username";
 
@@ -32,16 +31,7 @@ fn path() -> hmerr::Result<PathBuf> {
 }
 
 pub fn read() -> hmerr::Result<Option<String>> {
-	let path = path()?;
-
-	if !path.exists() {
-		return Ok(None);
-	}
-
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	let username = content.trim();
-
-	Ok((!username.is_empty()).then(|| username.to_string()))
+	text::read(&path()?)
 }
 
 fn remember(username: &str) -> hmerr::Result<()> {
@@ -68,12 +58,7 @@ fn instead(remembered: &str, username: &str) -> hmerr::Result<bool> {
 }
 
 fn store(username: &str) -> hmerr::Result<()> {
-	let path = path()?;
-	prepare(&path)?;
-
-	fs::write(&path, username).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	text::write(&path()?, username)
 }
 
 fn prompt() -> hmerr::Result<String> {
