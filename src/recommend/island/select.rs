@@ -1,7 +1,8 @@
 use std::{collections::VecDeque, path::PathBuf};
 
 use chrono::Utc;
-use hmerr::ioe;
+
+use crate::prompt;
 
 use super::super::{
 	feed,
@@ -144,7 +145,7 @@ impl Stream {
 			.map(|island| island.name.as_str())
 			.unwrap_or_default();
 
-		ux::ask_yn(&format!("stay on {name}"), true).map_err(|e| ioe!("stdin", e).into())
+		prompt::confirm(&format!("stay on {name}"), true)
 	}
 
 	fn next_living(&self, from: usize) -> usize {

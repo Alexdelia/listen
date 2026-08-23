@@ -12,9 +12,8 @@ mod tag;
 use std::{path::Path, thread};
 
 use async_std::{channel::Sender, task::block_on};
-use hmerr::ioe;
 
-use crate::{declaration::parse, env};
+use crate::{declaration::parse, env, prompt};
 
 use channel::{Action, Status};
 use filter::{GroupedEntry, SyncEntry};
@@ -37,7 +36,7 @@ pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	let remove = report::report(&sync);
 
 	if remove {
-		let yes = ux::ask_yn("proceed with update", true).map_err(|e| ioe!("stdin", e))?;
+		let yes = prompt::confirm("proceed with update", true)?;
 
 		if !yes {
 			return Ok(());

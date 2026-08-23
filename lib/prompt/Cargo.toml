@@ -1,16 +1,14 @@
 [package]
-name = "listen_cache"
+name = "listen_prompt"
 version = "0.1.0"
 edition = "2024"
 authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
-description = "where declarative_listen keeps what it caches"
+description = "what declarative_listen puts to the terminal and reads back"
 
 [dependencies]
 hmerr.workspace = true
 ansi.workspace = true
-listen_prompt.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+ux.workspace = true
 
 [lints]
 workspace = true

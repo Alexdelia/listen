@@ -2,9 +2,7 @@ mod render;
 
 use std::{ops::ControlFlow, path::Path};
 
-use hmerr::ioe;
-
-use crate::r#match;
+use crate::{r#match, prompt};
 
 use super::{declined, recommendation::Recommendation};
 
@@ -31,7 +29,7 @@ pub(super) async fn consider(
 	}
 
 	println!();
-	if ux::ask_yn("continue", true).map_err(|e| ioe!("stdin", e))? {
+	if prompt::confirm("continue", true)? {
 		Ok(ControlFlow::Continue(()))
 	} else {
 		Ok(ControlFlow::Break(()))

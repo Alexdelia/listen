@@ -1,7 +1,8 @@
 use std::path::Path;
 
-use hmerr::ioe;
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
+
+use crate::prompt;
 
 use super::{declare, find, open, output};
 
@@ -20,7 +21,7 @@ pub(super) async fn run(
 	output::url(&found.url);
 	open::open(&found.url)?;
 
-	if !ux::ask_yn("song match", true).map_err(|e| ioe!("stdin", e))? {
+	if !prompt::confirm("song match", true)? {
 		return Ok(false);
 	}
 	output::musicbrainz(mbid, &found.url)?;

@@ -1,10 +1,7 @@
-use std::{
-	io::{self, Write},
-	path::PathBuf,
-};
+use std::path::PathBuf;
 
-use ansi::abbrev::{B, D, F, R};
-use hmerr::{ge, ioe};
+use ansi::abbrev::{B, D, F};
+use listen_prompt::{confirm, line};
 
 use crate::{root, text};
 
@@ -20,7 +17,7 @@ pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
 		return Ok(cached);
 	}
 
-	let username = prompt()?;
+	let username = line("listenbrainz username")?;
 	store(&username)?;
 
 	Ok(username)
@@ -53,27 +50,9 @@ fn instead(remembered: &str, username: &str) -> hmerr::Result<bool> {
 		and leaves out of what it recommends{D}"
 	);
 
-	ux::ask_yn(&format!("remember {B}{username}{D} instead"), false)
-		.map_err(|e| ioe!("stdin", e).into())
+	confirm(&format!("remember {B}{username}{D} instead"), false)
 }
 
 fn store(username: &str) -> hmerr::Result<()> {
 	text::write(&path()?, username)
-}
-
-fn prompt() -> hmerr::Result<String> {
-	print!("{B}listenbrainz username{D}: ");
-	io::stdout().flush().map_err(|e| ioe!("stdout", e))?;
-
-	let mut line = String::new();
-	io::stdin()
-		.read_line(&mut line)
-		.map_err(|e| ioe!("stdin", e))?;
-
-	let username = line.trim().to_string();
-	if username.is_empty() {
-		return Err(ge!(format!("{R}no {B}username{D} provided")).into());
-	}
-
-	Ok(username)
 }

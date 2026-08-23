@@ -13,6 +13,7 @@ mod meta_brainz;
 mod music_brainz;
 mod open;
 mod outlier;
+mod prompt;
 mod recommend;
 mod streaming_source;
 mod sync;

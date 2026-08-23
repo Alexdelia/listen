@@ -1,5 +1,5 @@
 [workspace]
-members = ["lib/cache", "lib/index"]
+members = ["lib/cache", "lib/index", "lib/prompt"]
 
 [workspace.dependencies]
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
@@ -20,6 +20,7 @@ zstd = "0.13"
 rustix = { version = "1", features = ["fs"] }
 listen_cache = { path = "lib/cache" }
 listen_index = { path = "lib/index" }
+listen_prompt = { path = "lib/prompt" }
 
 [workspace.lints.rust]
 unreachable_pub = "deny"
@@ -79,6 +80,7 @@ wana_kana = { version = "5", default-features = false }
 duckdb.workspace = true
 listen_cache.workspace = true
 listen_index.workspace = true
+listen_prompt.workspace = true
 
 [lints]
 workspace = true
