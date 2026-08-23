@@ -45,8 +45,7 @@ mod tests {
 	const BRUSHED: u32 = 9;
 
 	fn holding(name: &str, listen: &[(u32, u32, u32)]) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_listener_{name}"));
-		let _ = fs::remove_dir_all(&dir);
+		let dir = crate::scratch::of("listener", name);
 		let into = dir.join(USER_LISTEN);
 		let _ = fs::create_dir_all(&into);
 

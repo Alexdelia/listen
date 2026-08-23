@@ -93,14 +93,6 @@ fn held(work: &Path) -> Option<Reach> {
 mod tests {
 	use super::{super::super::index::layout::RECORDING, *};
 
-	fn dir(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_absorb_work_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	fn meta(covered: Option<&str>) -> Meta {
 		Meta {
 			built: "2026-08-15".to_string(),
@@ -117,7 +109,7 @@ mod tests {
 
 	#[test]
 	fn a_fresh_run_starts_where_the_index_left_off() {
-		let dir = dir("fresh");
+		let dir = crate::scratch::of("absorb_work", "fresh");
 		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
 
 		assert_eq!(
@@ -129,7 +121,7 @@ mod tests {
 
 	#[test]
 	fn the_index_coverage_wins_over_the_dump_it_was_built_from() {
-		let dir = dir("reached");
+		let dir = crate::scratch::of("absorb_work", "reached");
 		let work = open(&dir, "2026-08-01 00:00:03.000000+00:00").unwrap_or_default();
 
 		assert_eq!(
@@ -141,7 +133,7 @@ mod tests {
 
 	#[test]
 	fn a_run_that_died_resumes_where_its_last_fold_reached() {
-		let dir = dir("resume");
+		let dir = crate::scratch::of("absorb_work", "resume");
 		let from = "2026-07-12 00:00:04.001868+00:00";
 		let work = open(&dir, from).unwrap_or_default();
 
@@ -168,7 +160,7 @@ mod tests {
 
 	#[test]
 	fn a_republished_index_throws_away_what_was_folded_against_the_old_one() {
-		let dir = dir("stale");
+		let dir = crate::scratch::of("absorb_work", "stale");
 		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
 		let _ = fs::create_dir_all(delta(&work, LIBRARY));
 		let _ = fs::write(delta(&work, LIBRARY).join("0.parquet"), b"folded");
@@ -181,7 +173,7 @@ mod tests {
 
 	#[test]
 	fn a_dump_folded_after_a_merge_staged_a_part_throws_that_part_away() {
-		let dir = dir("folded_after");
+		let dir = crate::scratch::of("absorb_work", "folded_after");
 		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
 		let merge = merging(&dir, &work, "2026-08-10 00:00:02.000000+00:00")
 			.unwrap_or_else(|_| unreachable!());
@@ -198,7 +190,7 @@ mod tests {
 
 	#[test]
 	fn a_merge_retried_over_the_same_fold_keeps_what_it_staged() {
-		let dir = dir("retried");
+		let dir = crate::scratch::of("absorb_work", "retried");
 		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
 		let covered = "2026-08-10 00:00:02.000000+00:00";
 		let merge = merging(&dir, &work, covered).unwrap_or_else(|_| unreachable!());
@@ -213,7 +205,7 @@ mod tests {
 
 	#[test]
 	fn nothing_folded_is_nothing_to_merge() {
-		let dir = dir("empty");
+		let dir = crate::scratch::of("absorb_work", "empty");
 		let work = open(&dir, "2026-07-12 00:00:04.001868+00:00").unwrap_or_default();
 
 		assert!(!folded(&work, LIBRARY));

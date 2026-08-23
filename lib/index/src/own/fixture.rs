@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 pub(super) const OWN: u32 = 7;
 pub(super) const OTHER: u32 = 8;
@@ -25,9 +25,7 @@ pub(super) fn listen(user: u32, mbid: &'static str, at: &'static str) -> Listen 
 }
 
 pub(super) fn dump(name: &str, listen: &[Listen]) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("declarative_listen_own_{name}"));
-	let _ = fs::remove_dir_all(&dir);
-	let _ = fs::create_dir_all(&dir);
+	let dir = crate::scratch::of("own", name);
 
 	let row = listen
 		.iter()

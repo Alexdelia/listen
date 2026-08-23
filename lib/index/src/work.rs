@@ -98,14 +98,6 @@ pub(super) fn opened(
 mod tests {
 	use super::*;
 
-	fn dir(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_index_work_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	fn staged(work: &Path) {
 		for part in [RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_STAT] {
 			let _ = fs::write(work.join(part), b"fresh");
@@ -139,7 +131,7 @@ mod tests {
 
 	#[test]
 	fn publishing_puts_every_staged_part_in_place() {
-		let dir = dir("publish");
+		let dir = crate::scratch::of("index_work", "publish");
 		let held = dir.join(USER_STAT);
 		let _ = fs::write(&held, b"held");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
@@ -158,7 +150,7 @@ mod tests {
 
 	#[test]
 	fn a_publish_that_cannot_finish_leaves_no_meta_vouching_for_a_half_swapped_index() {
-		let dir = dir("torn");
+		let dir = crate::scratch::of("index_work", "torn");
 		let _ = fs::write(dir.join(index::layout::META), b"{}");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
 
@@ -170,7 +162,7 @@ mod tests {
 
 	#[test]
 	fn the_same_stamp_keeps_what_a_previous_run_left() {
-		let dir = dir("resume");
+		let dir = crate::scratch::of("index_work", "resume");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
 		let left = work.join("left");
 		let _ = fs::write(&left, b"partial");
@@ -184,7 +176,7 @@ mod tests {
 
 	#[test]
 	fn another_stamp_throws_away_what_a_previous_run_left() {
-		let dir = dir("stale");
+		let dir = crate::scratch::of("index_work", "stale");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
 		let left = work.join("left");
 		let _ = fs::write(&left, b"partial");
@@ -197,7 +189,7 @@ mod tests {
 
 	#[test]
 	fn releasing_leaves_nothing_behind() {
-		let dir = dir("release");
+		let dir = crate::scratch::of("index_work", "release");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
 
 		release(&work);

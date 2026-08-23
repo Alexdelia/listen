@@ -250,9 +250,7 @@ mod tests {
 
 	#[test]
 	fn a_dump_written_to_another_schema_is_refused() {
-		let dir = std::env::temp_dir().join("declarative_listen_incremental_schema");
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
+		let dir = crate::scratch::of("incremental", "schema");
 		let _ = fs::write(dir.join(SEQUENCE), b"2");
 
 		let said = read(&dir, "listenbrainz-dump-2636-20260822-000002-incremental")
@@ -266,9 +264,7 @@ mod tests {
 
 	#[test]
 	fn a_dump_of_the_schema_this_reads_yields_the_window_it_covers() {
-		let dir = std::env::temp_dir().join("declarative_listen_incremental_window");
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
+		let dir = crate::scratch::of("incremental", "window");
 		let _ = fs::write(dir.join(SEQUENCE), b"1\n");
 		let _ = fs::write(dir.join(START), b"2026-08-21 00:00:03.155180+00:00\n");
 		let _ = fs::write(dir.join(END), b"2026-08-22 00:00:02.641933+00:00\n");

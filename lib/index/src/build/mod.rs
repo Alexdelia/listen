@@ -111,14 +111,6 @@ mod tests {
 		format!("11111111-0000-0000-0000-{recording:012x}")
 	}
 
-	fn scratch(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_build_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	fn declaration() -> Vec<Seed> {
 		(0..DECLARED)
 			.map(|recording| seed(recording, recording % 5))
@@ -196,7 +188,7 @@ mod tests {
 	}
 
 	fn built(name: &str) -> (PathBuf, index::Meta) {
-		let dir = scratch(name);
+		let dir = crate::scratch::of("build", name);
 		let index = dir.join("index");
 		let _ = fs::create_dir_all(&index);
 

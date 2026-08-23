@@ -53,14 +53,6 @@ pub(super) fn quoted(shard: &[String]) -> String {
 mod tests {
 	use super::*;
 
-	fn dir(name: &str) -> std::path::PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_shard_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	#[test]
 	fn a_shard_list_becomes_a_duckdb_array() {
 		let shard = vec!["/dump/0.parquet".to_string(), "/dump/1.parquet".to_string()];
@@ -81,7 +73,7 @@ mod tests {
 
 	#[test]
 	fn a_directory_with_no_parquet_is_refused() {
-		let dir = dir("empty");
+		let dir = crate::scratch::of("shard", "empty");
 
 		assert!(of(&dir).is_err());
 		let _ = fs::remove_dir_all(&dir);
@@ -89,7 +81,7 @@ mod tests {
 
 	#[test]
 	fn only_parquet_counts_as_a_shard_and_the_order_is_stable() {
-		let dir = dir("mixed");
+		let dir = crate::scratch::of("shard", "mixed");
 		for name in ["1.parquet", "0.parquet", "TIMESTAMP", "COPYING"] {
 			let _ = fs::write(dir.join(name), b"");
 		}
@@ -104,7 +96,7 @@ mod tests {
 
 	#[test]
 	fn how_the_dump_is_sliced_is_read_off_what_the_shards_weigh() {
-		let dir = dir("weight");
+		let dir = crate::scratch::of("shard", "weight");
 		let _ = fs::write(dir.join("0.parquet"), b"payload");
 		let _ = fs::write(dir.join("1.parquet"), b"load");
 

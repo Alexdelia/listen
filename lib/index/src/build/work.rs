@@ -39,14 +39,6 @@ mod tests {
 
 	use super::*;
 
-	fn dir(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	fn shard(under: &Path, name: &str) -> PathBuf {
 		let shard = under.join(name).join("0.parquet");
 		if let Some(parent) = shard.parent() {
@@ -70,7 +62,7 @@ mod tests {
 
 	#[test]
 	fn the_same_dump_keeps_what_a_previous_run_already_scanned() {
-		let dir = dir("resume");
+		let dir = crate::scratch::of("work", "resume");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
@@ -83,7 +75,7 @@ mod tests {
 
 	#[test]
 	fn another_dump_throws_the_previous_scan_away() {
-		let dir = dir("stale");
+		let dir = crate::scratch::of("work", "stale");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 
@@ -95,7 +87,7 @@ mod tests {
 
 	#[test]
 	fn a_work_directory_left_by_an_older_version_is_thrown_away() {
-		let dir = dir("unstamped");
+		let dir = crate::scratch::of("work", "unstamped");
 		let work = dir.join(DIR);
 		let partial = partial(&work);
 
@@ -107,7 +99,7 @@ mod tests {
 
 	#[test]
 	fn the_declaration_never_reaches_the_scan_so_editing_it_throws_nothing_away() {
-		let dir = dir("declaration");
+		let dir = crate::scratch::of("work", "declaration");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 		let artist = shard(&work, ARTIST);
@@ -125,7 +117,7 @@ mod tests {
 
 	#[test]
 	fn resuming_under_the_same_own_listener_keeps_what_was_pooled_for_it() {
-		let dir = dir("same_own");
+		let dir = crate::scratch::of("work", "same_own");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let _ = exclude(&work, 1);
 		let stat = shard(&work, STAT);
@@ -140,7 +132,7 @@ mod tests {
 
 	#[test]
 	fn another_own_listener_throws_away_what_the_previous_one_pooled() {
-		let dir = dir("other_own");
+		let dir = crate::scratch::of("work", "other_own");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 		let _ = exclude(&work, 1);
@@ -157,7 +149,7 @@ mod tests {
 
 	#[test]
 	fn another_dump_leaves_the_published_index_alone() {
-		let dir = dir("published");
+		let dir = crate::scratch::of("work", "published");
 		let _ = open(&dir, "20260712-000004");
 		let listen = shard(&dir, USER_LISTEN);
 		let stat = stat(&dir);

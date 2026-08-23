@@ -24,23 +24,13 @@ pub(super) fn write(
 
 #[cfg(test)]
 mod tests {
-	use std::path::PathBuf;
-
 	use hmerr::ge;
 
 	use super::*;
 
-	fn dir(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_partial_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	#[test]
 	fn what_was_produced_lands_under_the_final_name() {
-		let dir = dir("landed");
+		let dir = crate::scratch::of("partial", "landed");
 		let into = dir.join("out.parquet");
 
 		let done = write(&into, |partial| {
@@ -57,7 +47,7 @@ mod tests {
 
 	#[test]
 	fn a_half_written_file_never_reaches_the_final_name() {
-		let dir = dir("failed");
+		let dir = crate::scratch::of("partial", "failed");
 		let into = dir.join("out.parquet");
 
 		let done = write(&into, |partial| {

@@ -13,6 +13,8 @@ mod play;
 mod progress;
 mod query;
 mod recording_listener;
+#[cfg(test)]
+mod scratch;
 mod shard;
 pub mod user_stat;
 mod work;
@@ -186,8 +188,7 @@ mod tests {
 	}
 
 	fn whole(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_ensure_{name}"));
-		let _ = fs::remove_dir_all(&dir);
+		let dir = crate::scratch::of("ensure", name);
 		let into = dir.join(index::layout::USER_LISTEN);
 		let _ = fs::create_dir_all(&into);
 

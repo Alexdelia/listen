@@ -34,17 +34,9 @@ pub(crate) fn built(dir: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, path::PathBuf};
+	use std::fs;
 
 	use super::{super::meta::forget, *};
-
-	fn scratch(name: &str) -> PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_index_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
 
 	fn lay_out(dir: &Path, bucket: u32) {
 		let into = dir.join(USER_LISTEN);
@@ -66,7 +58,7 @@ mod tests {
 
 	#[test]
 	fn every_bucket_alongside_the_written_meta_is_an_index() {
-		let dir = scratch("whole");
+		let dir = crate::scratch::of("index", "whole");
 		lay_out(&dir, BUCKET);
 
 		assert!(indexed(&dir));
@@ -77,7 +69,7 @@ mod tests {
 
 	#[test]
 	fn an_index_written_before_the_listener_stat_is_one_to_recover() {
-		let dir = scratch("predate");
+		let dir = crate::scratch::of("index", "predate");
 		lay_out(&dir, BUCKET);
 		let _ = fs::remove_file(dir.join(USER_STAT));
 
@@ -88,7 +80,7 @@ mod tests {
 
 	#[test]
 	fn an_index_written_before_the_listener_count_still_counts_as_one() {
-		let dir = scratch("uncounted");
+		let dir = crate::scratch::of("index", "uncounted");
 		lay_out(&dir, BUCKET);
 		let _ = fs::remove_file(dir.join(RECORDING_LISTENER));
 
@@ -99,7 +91,7 @@ mod tests {
 
 	#[test]
 	fn a_stat_cannot_be_recovered_from_listens_that_are_not_all_there() {
-		let dir = scratch("half");
+		let dir = crate::scratch::of("index", "half");
 		lay_out(&dir, BUCKET / 2);
 		let _ = fs::remove_file(dir.join(USER_STAT));
 
@@ -109,7 +101,7 @@ mod tests {
 
 	#[test]
 	fn a_build_interrupted_partway_through_the_buckets_is_not_an_index() {
-		let dir = scratch("interrupted");
+		let dir = crate::scratch::of("index", "interrupted");
 		lay_out(&dir, BUCKET / 2);
 
 		assert!(!indexed(&dir));
@@ -118,7 +110,7 @@ mod tests {
 
 	#[test]
 	fn an_index_whose_meta_is_forgotten_is_built_again() {
-		let dir = scratch("forgotten");
+		let dir = crate::scratch::of("index", "forgotten");
 		lay_out(&dir, BUCKET);
 
 		assert!(forget(&dir).is_ok());
@@ -130,7 +122,7 @@ mod tests {
 
 	#[test]
 	fn forgetting_a_meta_that_was_never_written_is_not_an_error() {
-		let dir = scratch("never");
+		let dir = crate::scratch::of("index", "never");
 
 		assert!(forget(&dir).is_ok());
 		let _ = fs::remove_dir_all(&dir);
@@ -138,7 +130,7 @@ mod tests {
 
 	#[test]
 	fn an_index_without_its_artist_link_is_not_built_yet() {
-		let dir = scratch("link");
+		let dir = crate::scratch::of("index", "link");
 		lay_out(&dir, BUCKET);
 
 		assert!(!built(&dir));

@@ -39,10 +39,7 @@ mod tests {
 	use super::*;
 
 	fn scratch(name: &str) -> (duckdb::Connection, PathBuf) {
-		let work = std::env::temp_dir().join(format!("declarative_listen_query_{name}"));
-		let _ = fs::remove_dir_all(&work);
-		let _ = fs::create_dir_all(&work);
-
+		let work = crate::scratch::of("query", name);
 		let db = duckdb::Connection::open_in_memory().unwrap_or_else(|_| unreachable!());
 
 		(db, work)

@@ -98,14 +98,6 @@ mod tests {
 	const PAYLOAD: &[u8] = b"payload";
 	const PAYLOAD_DIGEST: &str = "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5";
 
-	fn scratch(name: &str) -> std::path::PathBuf {
-		let dir = std::env::temp_dir().join(format!("declarative_listen_rsync_{name}"));
-		let _ = fs::remove_dir_all(&dir);
-		let _ = fs::create_dir_all(&dir);
-
-		dir
-	}
-
 	fn archive(dir: &Path, sums: &str, published: &str) {
 		let _ = fs::write(dir.join("dump.tar"), PAYLOAD);
 		let _ = fs::write(dir.join(sums), published);
@@ -130,7 +122,7 @@ mod tests {
 
 	#[test]
 	fn an_archive_matching_its_lone_digest_verifies() {
-		let dir = scratch("lone");
+		let dir = crate::scratch::of("rsync", "lone");
 		archive(&dir, "dump.tar.sha256", &format!("{PAYLOAD_DIGEST}\n"));
 
 		assert!(verify(&dir, "dump.tar.sha256").is_ok());
@@ -139,7 +131,7 @@ mod tests {
 
 	#[test]
 	fn an_archive_against_another_lone_digest_is_corrupt() {
-		let dir = scratch("lone_corrupt");
+		let dir = crate::scratch::of("rsync", "lone_corrupt");
 		archive(&dir, "dump.tar.sha256", &"0".repeat(DIGEST_LEN));
 
 		assert!(verify(&dir, "dump.tar.sha256").is_err());
@@ -148,7 +140,7 @@ mod tests {
 
 	#[test]
 	fn an_archive_listed_in_a_checksum_list_verifies() {
-		let dir = scratch("list");
+		let dir = crate::scratch::of("rsync", "list");
 		archive(&dir, "SHA256SUMS", &format!("{PAYLOAD_DIGEST} *dump.tar\n"));
 
 		assert!(verify(&dir, "SHA256SUMS").is_ok());
@@ -157,7 +149,7 @@ mod tests {
 
 	#[test]
 	fn a_missing_checksum_skips_verification() {
-		let dir = scratch("absent");
+		let dir = crate::scratch::of("rsync", "absent");
 
 		assert!(verify(&dir, "SHA256SUMS").is_ok());
 		let _ = fs::remove_dir_all(&dir);

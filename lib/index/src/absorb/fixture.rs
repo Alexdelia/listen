@@ -46,11 +46,7 @@ pub(super) fn artist(recording: usize) -> String {
 }
 
 pub(super) fn scratch(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("declarative_listen_absorb_{name}"));
-	let _ = fs::remove_dir_all(&dir);
-	let _ = fs::create_dir_all(&dir);
-
-	dir
+	crate::scratch::of("absorb", name)
 }
 
 pub(super) fn declaration() -> Vec<Seed> {

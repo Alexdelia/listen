@@ -1,13 +1,9 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use super::Listen;
 
 pub(super) fn scratch(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("declarative_listen_dump_{name}"));
-	let _ = fs::remove_dir_all(&dir);
-	let _ = fs::create_dir_all(&dir);
-
-	dir
+	crate::scratch::of("dump", name)
 }
 
 pub(super) fn listen(dir: PathBuf) -> Listen {
