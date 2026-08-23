@@ -1,4 +1,7 @@
-use super::super::{board::Planned, progress::Measure};
+use super::super::{
+	board::{ONCE, Planned},
+	progress::Measure,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -16,8 +19,6 @@ pub(super) const MUSIC_BRAINZ: [Stage; 4] = [
 	Stage::Unpack,
 	Stage::Relation,
 ];
-
-const ONCE: u64 = 1;
 
 impl Planned for Stage {
 	type Cost = u64;
@@ -43,6 +44,8 @@ impl Planned for Stage {
 mod tests {
 	use super::{super::super::board::Board, *};
 
+	use crate::progress::WIDTH;
+
 	#[test]
 	fn what_a_dump_costs_is_laid_out_before_the_first_byte_is_fetched() {
 		let board = Board::of(&LISTEN, &(1 << 30)).unwrap_or_else(|_| unreachable!());
@@ -64,7 +67,7 @@ mod tests {
 	#[test]
 	fn a_title_never_outgrows_the_column_it_is_printed_in() {
 		for stage in MUSIC_BRAINZ {
-			assert!(stage.title().len() <= 9, "{}", stage.title());
+			assert!(stage.title().len() <= WIDTH, "{}", stage.title());
 		}
 	}
 }

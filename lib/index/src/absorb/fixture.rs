@@ -7,7 +7,7 @@ use crate::Seed;
 
 use super::{
 	super::{
-		board::Board,
+		board::{Board, Chain},
 		build,
 		dump::{self, Incremental, Pending},
 		index::{
@@ -195,7 +195,7 @@ pub(super) fn absorb(index: &Path, meta: &Meta, incremental: &Incremental) -> hm
 	let work = work::open(index, meta.covered())?;
 	let db = index::session::of(&work)?;
 	let mut reach = work::reach(&work, meta);
-	let board = Board::of(&stage::PLAN, &stage::Chain { dump: 1, byte: 0 })?;
+	let board = Board::of(&stage::PLAN, &Chain { dump: 1, byte: 0 })?;
 
 	reach::taken(&db, &work, &mut reach, incremental)?;
 

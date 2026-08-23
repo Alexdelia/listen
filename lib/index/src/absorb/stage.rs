@@ -1,4 +1,8 @@
-use super::super::{board::Planned, index::layout::BUCKET, progress::Measure};
+use super::super::{
+	board::{Chain, ONCE, Planned},
+	index::layout::BUCKET,
+	progress::Measure,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -26,13 +30,6 @@ pub(super) const PLAN: [Stage; 10] = [
 	Stage::Stat,
 	Stage::UserStat,
 ];
-
-const ONCE: u64 = 1;
-
-pub(super) struct Chain {
-	pub dump: u64,
-	pub byte: u64,
-}
 
 impl Planned for Stage {
 	type Cost = Chain;
@@ -65,6 +62,8 @@ impl Planned for Stage {
 #[cfg(test)]
 mod tests {
 	use super::{super::super::board::Board, *};
+
+	use crate::progress::WIDTH;
 
 	fn chain() -> Chain {
 		Chain {
@@ -113,7 +112,7 @@ mod tests {
 	#[test]
 	fn a_title_never_outgrows_the_column_it_is_printed_in() {
 		for stage in PLAN {
-			assert!(stage.title().len() <= 9, "{}", stage.title());
+			assert!(stage.title().len() <= WIDTH, "{}", stage.title());
 		}
 	}
 }

@@ -17,7 +17,7 @@ mod work;
 use std::path::Path;
 
 use super::{
-	board::Board,
+	board::{Board, Chain},
 	decide::Decide,
 	dump::{self, Pending},
 	index::{self, Meta},
@@ -51,7 +51,7 @@ pub(super) fn run(
 	let db = index::session::of(&work)?;
 	let board = Board::of(
 		&stage::PLAN,
-		&stage::Chain {
+		&Chain {
 			dump: u64::try_from(left.len()).unwrap_or_default(),
 			byte: dump::weight(&left),
 		},

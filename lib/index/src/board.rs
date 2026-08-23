@@ -6,12 +6,19 @@ use indicatif::ProgressBar;
 
 use super::progress::{self, Measure};
 
+pub(super) const ONCE: u64 = 1;
+
 pub(super) trait Planned: Copy + Eq {
 	type Cost;
 
 	fn title(self) -> &'static str;
 
 	fn measure(self, cost: &Self::Cost) -> Measure;
+}
+
+pub(super) struct Chain {
+	pub dump: u64,
+	pub byte: u64,
 }
 
 pub(super) struct Board<S> {

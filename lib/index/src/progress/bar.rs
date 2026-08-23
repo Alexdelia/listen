@@ -10,7 +10,7 @@ use super::{
 
 const SPIN: Duration = Duration::from_millis(120);
 
-const WIDTH: usize = 9;
+pub(crate) const WIDTH: usize = 9;
 const STEP: &str = "{pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 const WAITING_STEP: &str = "{pos:>4.dim}/{len:4.dim} {percent:>3.dim}%";
 const BYTE: &str = "{bytes:>11.bold.green}/{total_bytes:11.bold} {bytes_per_sec:>12.bold.yellow}";

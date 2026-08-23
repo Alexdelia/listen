@@ -7,6 +7,8 @@ use indicatif::HumanBytes;
 
 use super::decide::Decide;
 
+#[cfg(test)]
+pub(super) use bar::WIDTH;
 pub(super) use bar::{Measure, started, waiting_bar};
 pub(super) use child::{complaint, rsync};
 pub(super) use screen::{ended, say};

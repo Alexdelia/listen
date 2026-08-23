@@ -1,4 +1,8 @@
-use super::super::{board::Planned, index::layout::BUCKET, progress::Measure};
+use super::super::{
+	board::{ONCE, Planned},
+	index::layout::BUCKET,
+	progress::Measure,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -28,8 +32,6 @@ pub(super) const PLAN: [Stage; 11] = [
 	Stage::Listen,
 	Stage::Listener,
 ];
-
-const ONCE: u64 = 1;
 
 impl Planned for Stage {
 	type Cost = usize;
@@ -74,6 +76,8 @@ impl Stage {
 mod tests {
 	use super::{super::super::board::Board, *};
 
+	use crate::progress::WIDTH;
+
 	#[test]
 	fn every_stage_of_a_build_is_on_the_board_before_the_first_one_runs() {
 		let board = Board::of(&PLAN, &48usize).unwrap_or_else(|_| unreachable!());
@@ -94,7 +98,7 @@ mod tests {
 	#[test]
 	fn a_title_never_outgrows_the_column_it_is_printed_in() {
 		for stage in PLAN {
-			assert!(stage.title().len() <= 9, "{}", stage.title());
+			assert!(stage.title().len() <= WIDTH, "{}", stage.title());
 		}
 	}
 }

@@ -65,7 +65,7 @@ mod tests {
 
 	use super::{
 		super::{
-			super::index,
+			super::{board::Chain, index},
 			fixture::{
 				BUILT, DECLARED, FRESH, LATER, OTHER_RECORDING, POOLED, built, day, following,
 				incremental, morrow, one, plays,
@@ -82,8 +82,8 @@ mod tests {
 		let work = work::open(&index, meta.covered()).unwrap_or_default();
 		let db = index::session::of(&work).unwrap_or_else(|_| unreachable!());
 		let mut reach = work::reach(&work, &meta);
-		let board = Board::of(&stage::PLAN, &stage::Chain { dump: 2, byte: 0 })
-			.unwrap_or_else(|_| unreachable!());
+		let board =
+			Board::of(&stage::PLAN, &Chain { dump: 2, byte: 0 }).unwrap_or_else(|_| unreachable!());
 
 		taken(&db, &work, &mut reach, &incremental(&dir, BUILT, &day()))
 			.unwrap_or_else(|e| unreachable!("{e}"));
