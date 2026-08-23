@@ -31,6 +31,8 @@ use dump::Listen;
 pub use decide::Decide;
 pub use index::{Gap, Index, Meta};
 
+const STANDING: &str = "the index as it stands";
+
 pub struct Seed {
 	pub mbid: Uuid,
 	pub q: u8,
@@ -119,7 +121,7 @@ fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 		return Ok(None);
 	}
 
-	let Some(dump) = listed(dump::repairable(&meta.dump)).flatten() else {
+	let Some(dump) = dump::listed(dump::repairable(&meta.dump), STANDING).flatten() else {
 		return Ok(None);
 	};
 
@@ -129,7 +131,7 @@ fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	let meta = index::meta::read(dir)?;
 
-	let Some(pending) = listed(dump::pending(meta.covered())) else {
+	let Some(pending) = dump::listed(dump::pending(meta.covered()), STANDING) else {
 		return Ok(());
 	};
 
@@ -138,19 +140,6 @@ fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	}
 
 	absorb::run(dir, &meta, &pending, decide)
-}
-
-fn listed<T>(published: hmerr::Result<T>) -> Option<T> {
-	match published {
-		Ok(published) => Some(published),
-		Err(e) => {
-			progress::say(format!(
-				"{F}cannot read what is published, keeping the index as it stands{D}\n{e}"
-			));
-
-			None
-		}
-	}
 }
 
 #[cfg(test)]

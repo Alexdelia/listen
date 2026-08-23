@@ -9,12 +9,13 @@ mod stamp;
 
 use std::path::{Path, PathBuf};
 
+use ansi::abbrev::{D, F};
 use hmerr::ioe;
 use indicatif::ProgressBar;
 
 use listen_cache as cache;
 
-use crate::decide::Decide;
+use crate::{decide::Decide, progress};
 
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
@@ -91,6 +92,19 @@ pub(super) fn pending(covered: &str) -> hmerr::Result<Vec<Pending>> {
 	incremental::pending(covered)
 }
 
+pub(super) fn listed<T>(read: hmerr::Result<T>, keeping: &str) -> Option<T> {
+	match read {
+		Ok(read) => Some(read),
+		Err(e) => {
+			progress::say(format!(
+				"{F}cannot read what is published, keeping {keeping}{D}\n{e}"
+			));
+
+			None
+		}
+	}
+}
+
 pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
 	stamp::reach(timestamp)
 }
@@ -130,4 +144,27 @@ pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()>
 	}
 
 	music_brainz::build(&root()?, link, decide)
+}
+
+#[cfg(test)]
+mod tests {
+	use hmerr::ge;
+
+	use super::*;
+
+	const KEEPING: &str = "what stands as it stands";
+
+	fn read(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
+		listed(pending, KEEPING)
+	}
+
+	#[test]
+	fn nothing_published_can_be_read_leaves_what_stands_where_it_is() {
+		assert!(read(Err(ge!("rsync is not here".to_string()).into())).is_none());
+	}
+
+	#[test]
+	fn what_is_published_is_read_as_it_comes() {
+		assert!(read(Ok(Vec::new())).is_some_and(|pending| pending.is_empty()));
+	}
 }

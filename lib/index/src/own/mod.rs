@@ -20,6 +20,8 @@ pub use scan::Play;
 
 const AT_ONCE: u64 = 2;
 
+const STANDING: &str = "the counts as they stand";
+
 pub struct Own {
 	pub dump: String,
 	pub covered: i64,
@@ -77,7 +79,7 @@ pub fn fresh(
 		return Ok(());
 	}
 
-	let Some(pending) = published(dump::pending(reached)) else {
+	let Some(pending) = dump::listed(dump::pending(reached), STANDING) else {
 		return Ok(());
 	};
 	let pending: Vec<&Pending> = pending.iter().collect();
@@ -139,19 +141,6 @@ fn unstamped(name: &str) {
 	));
 }
 
-fn published(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
-	match pending {
-		Ok(pending) => Some(pending),
-		Err(e) => {
-			progress::say(format!(
-				"{F}cannot read what is published, keeping the counts as they stand{D}\n{e}"
-			));
-
-			None
-		}
-	}
-}
-
 fn offered(pending: &[&Pending], decide: &dyn Decide) -> hmerr::Result<bool> {
 	progress::say(format!(
 		"\n{F}{B}{count}{D}{F} incremental dump published since those counts were read, \
@@ -165,8 +154,6 @@ fn offered(pending: &[&Pending], decide: &dyn Decide) -> hmerr::Result<bool> {
 
 #[cfg(test)]
 mod tests {
-	use hmerr::ge;
-
 	use super::*;
 
 	#[test]
@@ -176,15 +163,5 @@ mod tests {
 		assert!(!stamped("listen"));
 		assert!(!stamped("LATEST"));
 		assert!(!stamped(""));
-	}
-
-	#[test]
-	fn nothing_published_can_be_read_leaves_the_counts_where_they_are() {
-		assert!(published(Err(ge!("rsync is not here".to_string()).into())).is_none());
-	}
-
-	#[test]
-	fn what_is_published_is_read_as_it_comes() {
-		assert!(published(Ok(Vec::new())).is_some_and(|pending| pending.is_empty()));
 	}
 }
