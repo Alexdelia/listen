@@ -31,7 +31,7 @@ fn path() -> hmerr::Result<PathBuf> {
 	Ok(root()?.join(FILE))
 }
 
-fn read() -> hmerr::Result<Option<String>> {
+pub fn read() -> hmerr::Result<Option<String>> {
 	let path = path()?;
 
 	if !path.exists() {

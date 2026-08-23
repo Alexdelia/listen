@@ -15,15 +15,18 @@ use std::path::Path;
 use ansi::abbrev::{B, D, F, G};
 use chrono::Utc;
 
-use crate::declaration::parse;
+use crate::{cache, declaration::parse};
 
-use super::{dump::Listen, open, parallel, progress};
+use super::{dump::Listen, listener, open, parallel, progress};
 
 use scan::Scan;
 
 pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Result<()> {
 	let declared = parse::parse(declaration)?;
-	let known = open::own(dir);
+	let listener = pool::Listener {
+		named: named()?,
+		known: open::own(dir),
+	};
 	let work = work::open(dir, &dump.name)?;
 
 	announce(declared.len());
@@ -35,7 +38,7 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 
 	let (recording, pool) = parallel::both(
 		|| recording::of(&scan, &work, &library),
-		|| pool::of(&scan, &library, declared.len(), known),
+		|| pool::of(&scan, &library, declared.len(), listener),
 	)?;
 
 	work::exclude(&work, pool.own)?;
@@ -67,6 +70,14 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 	progress::say(format!("{G}index built{D}"));
 
 	Ok(())
+}
+
+fn named() -> hmerr::Result<Option<u32>> {
+	let Some(username) = cache::username::read()? else {
+		return Ok(None);
+	};
+
+	listener::of(&username)
 }
 
 fn announce(declared: usize) {

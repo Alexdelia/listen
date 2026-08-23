@@ -5,11 +5,13 @@ mod fold;
 mod reach;
 mod scan;
 
+use std::path::Path;
+
 use ansi::abbrev::{B, D, F, Y};
 
 use super::{
 	dump::{self, Listen, Pending},
-	open, progress,
+	listener, open, progress,
 };
 
 pub(crate) use open::Gap;
@@ -34,10 +36,10 @@ pub(crate) fn unpacked() -> hmerr::Result<Option<String>> {
 	Ok(dumped()?.map(|listen| listen.name))
 }
 
-pub(crate) fn played() -> hmerr::Result<Option<Own>> {
+pub(crate) fn played(username: &str) -> hmerr::Result<Option<Own>> {
 	let dir = open::dir()?;
 
-	let Some(own) = open::own(&dir) else {
+	let Some(own) = listened_as(&dir, username)? else {
 		return Ok(None);
 	};
 	let Some(listen) = dumped()? else {
@@ -58,12 +60,13 @@ pub(crate) fn played() -> hmerr::Result<Option<Own>> {
 }
 
 pub(crate) fn fresh(
+	username: &str,
 	reached: &str,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
 	let dir = open::dir()?;
 
-	let Some(own) = open::own(&dir) else {
+	let Some(own) = listened_as(&dir, username)? else {
 		return Ok(());
 	};
 
@@ -85,6 +88,14 @@ pub(crate) fn fresh(
 	dump::room(&root, &pending, AT_ONCE)?;
 
 	fold::run(&open::session(&dir)?, &root, &pending, own, reached, keep)
+}
+
+fn listened_as(dir: &Path, username: &str) -> hmerr::Result<Option<u32>> {
+	if let Some(named) = listener::of(username)? {
+		return Ok(Some(named));
+	}
+
+	Ok(open::own(dir))
 }
 
 fn dumped() -> hmerr::Result<Option<Listen>> {

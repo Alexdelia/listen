@@ -1,6 +1,7 @@
 mod board;
 mod incremental;
 mod listen;
+mod listener;
 mod music_brainz;
 mod rsync;
 mod space;
@@ -44,6 +45,10 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 		Some(listen) => Ok(listen),
 		None => listen::fetch(&root, &NO_INDEX)?.ok_or_else(|| listen::refused().into()),
 	}
+}
+
+pub(super) fn named(username: &str) -> hmerr::Result<Option<u32>> {
+	listener::named(username)
 }
 
 pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {

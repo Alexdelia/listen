@@ -17,6 +17,12 @@ pub(super) struct Pool {
 	pub own: u32,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct Listener {
+	pub named: Option<u32>,
+	pub known: Option<u32>,
+}
+
 impl Pool {
 	pub(super) fn read(&self) -> String {
 		format!("read_parquet('{path}')", path = self.path.display())
@@ -27,9 +33,9 @@ pub(super) fn of(
 	scan: &Scan,
 	library: &Path,
 	declared: usize,
-	known: Option<u32>,
+	listener: Listener,
 ) -> hmerr::Result<Pool> {
-	let own = own(scan, library, declared, known)?;
+	let own = own(scan, library, declared, listener)?;
 	let path = scan.work.join(POOL);
 
 	scan.step(
@@ -50,7 +56,15 @@ having count(*) >= {MIN_REPEATED_RECORDING}
 	Ok(Pool { path, own })
 }
 
-fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmerr::Result<u32> {
+fn own(scan: &Scan, library: &Path, declared: usize, listener: Listener) -> hmerr::Result<u32> {
+	if let Some(named) = listener.named {
+		progress::say(format!(
+			"{F}own listenbrainz user {B}{named}{D}{F}: what the listens dump names{D}"
+		));
+
+		return Ok(named);
+	}
+
 	let top = seeded(scan, library)?;
 
 	let Some((own, seed)) = top.first().copied() else {
@@ -68,7 +82,7 @@ fn own(scan: &Scan, library: &Path, declared: usize, known: Option<u32>) -> hmer
 		return Ok(own);
 	}
 
-	let Some(known) = known else {
+	let Some(known) = listener.known else {
 		return Err(ambiguous(own, seed, runner_up).into());
 	};
 

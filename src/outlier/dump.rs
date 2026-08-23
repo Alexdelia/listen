@@ -129,7 +129,7 @@ fn merged_in() {
 fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 	let reached = held.reach().to_string();
 
-	own::fresh(&reached, &mut |fold| {
+	own::fresh(username, &reached, &mut |fold| {
 		absorbed(held, fold);
 
 		cache::dump::write(username, held)
@@ -178,7 +178,7 @@ fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Kept {
 fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Held>> {
 	println!("{F}reading own listen off the unpacked dump, once per dump{D}");
 
-	let Some(own) = own::played()? else {
+	let Some(own) = own::played(username)? else {
 		return Ok(None);
 	};
 
