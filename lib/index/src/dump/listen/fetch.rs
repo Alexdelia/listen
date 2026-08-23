@@ -9,7 +9,7 @@ use indicatif::ProgressBar;
 
 use super::{
 	super::{
-		super::{board::Board, keep, progress},
+		super::{board::Board, decide::Decide, keep, progress},
 		rsync, space,
 		stage::{self, Stage},
 	},
@@ -20,14 +20,23 @@ use super::{
 
 const EXT: &str = ".tar";
 
-pub(crate) fn fetch(root: &Path, offer: &Offer) -> hmerr::Result<Option<Listen>> {
+pub(crate) fn fetch(
+	root: &Path,
+	offer: &Offer,
+	decide: &dyn Decide,
+) -> hmerr::Result<Option<Listen>> {
 	let dump =
 		newest()?.ok_or_else(|| ge!(format!("{R}nothing published under {B}{MODULE}{D}")))?;
 
-	fetch_named(root, &dump, offer)
+	fetch_named(root, &dump, offer, decide)
 }
 
-pub(crate) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Result<Option<Listen>> {
+pub(crate) fn fetch_named(
+	root: &Path,
+	dump: &str,
+	offer: &Offer,
+	decide: &dyn Decide,
+) -> hmerr::Result<Option<Listen>> {
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::biggest(&url, EXT)?;
 	let tar = root.join(&archive.name);
@@ -40,7 +49,7 @@ pub(crate) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 
 	progress::say(format!("{F}{reason}{D}", reason = offer.reason));
 
-	if !progress::ask("download", offer.enter_is)? {
+	if !progress::confirm(decide, "download", offer.default)? {
 		return Ok(None);
 	}
 

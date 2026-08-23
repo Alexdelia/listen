@@ -9,7 +9,7 @@ use hmerr::{GenericError, ge, ioe};
 use indicatif::ProgressBar;
 
 use super::{
-	super::{board::Board, keep, partial, progress},
+	super::{board::Board, decide::Decide, keep, partial, progress},
 	rsync, space,
 	stage::{self, Stage},
 };
@@ -25,7 +25,7 @@ const ARTIST_COLUMN: &str = "['id','gid']";
 const LINK_COLUMN: &str = "['id','link','entity0','entity1']";
 const READ: &str = r"delim='\t', header=false, quote='', escape='', nullstr='\N', all_varchar=true";
 
-pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
+pub(super) fn build(root: &Path, link: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	let dump = rsync::latest_marker(MODULE, root)?;
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::list(&url)?
@@ -41,7 +41,7 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		size = progress::bytes(archive.size)
 	));
 
-	if !progress::ask("download", true)? {
+	if !progress::confirm(decide, "download", true)? {
 		return Err(refused().into());
 	}
 

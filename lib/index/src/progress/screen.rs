@@ -3,7 +3,6 @@ use std::sync::{
 	atomic::{AtomicUsize, Ordering},
 };
 
-use hmerr::ioe;
 use indicatif::{MultiProgress, ProgressBar};
 
 static BOARD: Mutex<Option<MultiProgress>> = Mutex::new(None);
@@ -31,22 +30,15 @@ pub(crate) fn ended(bar: &ProgressBar) {
 pub(crate) fn say(line: impl AsRef<str>) {
 	let line = line.as_ref();
 
-	if !showing() {
-		println!("{line}");
-		return;
-	}
-
-	board().suspend(|| println!("{line}"));
+	suspended(|| println!("{line}"));
 }
 
-pub(crate) fn ask(question: &str, enter_is: bool) -> hmerr::Result<bool> {
-	let answer = if showing() {
-		board().suspend(|| ux::ask_yn(question, enter_is))
-	} else {
-		ux::ask_yn(question, enter_is)
-	};
+pub(super) fn suspended<T>(work: impl FnOnce() -> T) -> T {
+	if !showing() {
+		return work();
+	}
 
-	answer.map_err(|e| ioe!("stdin", e).into())
+	board().suspend(work)
 }
 
 fn held() -> MutexGuard<'static, Option<MultiProgress>> {

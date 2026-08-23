@@ -26,7 +26,7 @@ pub(crate) struct Listen {
 
 pub(super) struct Offer {
 	pub reason: &'static str,
-	pub enter_is: bool,
+	pub default: bool,
 }
 
 pub(super) fn refused() -> GenericError {

@@ -17,6 +17,7 @@ pub(crate) use listen_index as index;
 
 use crate::{
 	args::IslandArg,
+	ask,
 	declaration::parse,
 	format::{self, genre_list, human_readable_number},
 };
@@ -30,7 +31,7 @@ pub(super) fn absent() {
 }
 
 pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
-	let index = index::ensure(&declared(path)?)?;
+	let index = index::ensure(&declared(path)?, &ask::Terminal)?;
 	attraction::declare(&index.db)?;
 	let library = seed::load(path, &index)?;
 

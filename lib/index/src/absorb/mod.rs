@@ -18,6 +18,7 @@ use std::path::Path;
 
 use super::{
 	board::Board,
+	decide::Decide,
 	dump::{self, Pending},
 	open::{self, Meta},
 };
@@ -28,7 +29,12 @@ use reach::taken;
 use skipped::skipped;
 use work::LIBRARY;
 
-pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result<()> {
+pub(super) fn run(
+	dir: &Path,
+	meta: &Meta,
+	pending: &[Pending],
+	decide: &dyn Decide,
+) -> hmerr::Result<()> {
 	let root = dump::root()?;
 	let work = work::open(dir, meta.covered())?;
 	let mut reach = work::reach(&work, meta);
@@ -36,7 +42,7 @@ pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result
 	let left = left(pending, &reach.covered)?;
 	resuming(pending, &left);
 
-	if !offered(&left)? {
+	if !offered(&left, decide)? {
 		return Ok(());
 	}
 

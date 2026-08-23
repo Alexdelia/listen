@@ -8,7 +8,6 @@ description = "a local index of the listenbrainz listen dump"
 [dependencies]
 hmerr.workspace = true
 ansi.workspace = true
-ux.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true

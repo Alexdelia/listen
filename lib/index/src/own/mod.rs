@@ -10,6 +10,7 @@ use std::path::Path;
 use ansi::abbrev::{B, D, F, Y};
 
 use super::{
+	decide::Decide,
 	dump::{self, Listen, Pending},
 	listener, open, progress,
 };
@@ -62,6 +63,7 @@ pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
 pub fn fresh(
 	username: &str,
 	reached: &str,
+	decide: &dyn Decide,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
 	let dir = open::dir()?;
@@ -80,7 +82,7 @@ pub fn fresh(
 	};
 	let pending: Vec<&Pending> = pending.iter().collect();
 
-	if pending.is_empty() || !offered(&pending)? {
+	if pending.is_empty() || !offered(&pending, decide)? {
 		return Ok(());
 	}
 
@@ -143,7 +145,7 @@ fn published(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
 	}
 }
 
-fn offered(pending: &[&Pending]) -> hmerr::Result<bool> {
+fn offered(pending: &[&Pending], decide: &dyn Decide) -> hmerr::Result<bool> {
 	progress::say(format!(
 		"\n{F}{B}{count}{D}{F} incremental dump published since those counts were read, \
 		{B}{Y}{size}{D}{F}, each read once then deleted{D}",
@@ -151,7 +153,7 @@ fn offered(pending: &[&Pending]) -> hmerr::Result<bool> {
 		size = progress::bytes(dump::weight(pending))
 	));
 
-	progress::ask("download", true)
+	progress::confirm(decide, "download", true)
 }
 
 #[cfg(test)]

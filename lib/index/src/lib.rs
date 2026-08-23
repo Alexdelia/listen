@@ -1,6 +1,7 @@
 mod absorb;
 mod board;
 mod build;
+pub mod decide;
 mod dump;
 mod keep;
 mod listener;
@@ -23,6 +24,7 @@ use ansi::abbrev::{B, D, F};
 
 use dump::Listen;
 
+pub use decide::Decide;
 pub use open::{Gap, Index, Meta};
 
 pub struct Seed {
@@ -35,30 +37,30 @@ pub fn ready() -> bool {
 	open::dir().is_ok_and(|dir| open::built(&dir))
 }
 
-pub fn ensure(declared: &[Seed]) -> hmerr::Result<Index> {
+pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
 	let dir = open::dir()?;
 
-	if let Some(listen) = to_build_from(&dir)? {
+	if let Some(listen) = to_build_from(&dir, decide)? {
 		rebuilt(&dir, &listen, declared)?;
 	} else {
 		user_stat::derive(&dir)?;
 
-		if let Some(listen) = repaired(&dir)? {
+		if let Some(listen) = repaired(&dir, decide)? {
 			rebuilt(&dir, &listen, declared)?;
 		}
 	}
 
-	absorbed(&dir)?;
+	absorbed(&dir, decide)?;
 	recording_listener::derive(&dir)?;
 
-	dump::artist_link(&dir.join(open::ARTIST_LINK))?;
+	dump::artist_link(&dir.join(open::ARTIST_LINK), decide)?;
 
 	open::open(&dir)
 }
 
-fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
+fn to_build_from(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 	if !open::scanned(dir) {
-		return dump::listen().map(Some);
+		return dump::listen(decide).map(Some);
 	}
 
 	let Some(listen) = dump::unpacked()? else {
@@ -71,7 +73,7 @@ fn to_build_from(dir: &Path) -> hmerr::Result<Option<Listen>> {
 		return Ok(None);
 	};
 
-	Ok(asked(&listen, &reason)?.then_some(listen))
+	Ok(asked(&listen, &reason, decide)?.then_some(listen))
 }
 
 fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> {
@@ -90,14 +92,14 @@ fn newer(listen: &Listen, built: &str) -> bool {
 		.is_none_or(|(unpacked, built)| unpacked > built)
 }
 
-fn asked(listen: &Listen, reason: &str) -> hmerr::Result<bool> {
+fn asked(listen: &Listen, reason: &str, decide: &dyn Decide) -> hmerr::Result<bool> {
 	progress::say(format!(
 		"\n{F}listen dump {B}{name}{D}{F} unpacked, {reason}, \
 		rebuilding replaces the index, resets what it absorbed and may be long{D}",
 		name = listen.name
 	));
 
-	progress::ask("rebuild index", true)
+	progress::confirm(decide, "rebuild index", true)
 }
 
 fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
@@ -106,7 +108,7 @@ fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> hmerr::Result<()> 
 	dump::discard(listen)
 }
 
-fn repaired(dir: &Path) -> hmerr::Result<Option<Listen>> {
+fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 	let meta = open::meta(dir)?;
 
 	if meta.gap.is_empty() {
@@ -117,10 +119,10 @@ fn repaired(dir: &Path) -> hmerr::Result<Option<Listen>> {
 		return Ok(None);
 	};
 
-	dump::repair(&dump)
+	dump::repair(&dump, decide)
 }
 
-fn absorbed(dir: &Path) -> hmerr::Result<()> {
+fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	let meta = open::meta(dir)?;
 
 	let Some(pending) = listed(dump::pending(meta.covered())) else {
@@ -131,7 +133,7 @@ fn absorbed(dir: &Path) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
-	absorb::run(dir, &meta, &pending)
+	absorb::run(dir, &meta, &pending, decide)
 }
 
 fn listed<T>(published: hmerr::Result<T>) -> Option<T> {

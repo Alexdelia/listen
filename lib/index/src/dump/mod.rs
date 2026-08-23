@@ -14,6 +14,8 @@ use indicatif::ProgressBar;
 
 use listen_cache as cache;
 
+use crate::decide::Decide;
+
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
 pub(super) use listener::Search;
@@ -24,12 +26,12 @@ const DIR: &str = "dump";
 
 const NO_INDEX: Offer = Offer {
 	reason: "no index yet, the whole dump is read once to build one",
-	enter_is: true,
+	default: true,
 };
 
 const HOLED: Offer = Offer {
 	reason: "the index has a hole no incremental can fill, only a full dump repairs it",
-	enter_is: false,
+	default: false,
 };
 
 pub(super) fn root() -> hmerr::Result<PathBuf> {
@@ -39,12 +41,12 @@ pub(super) fn root() -> hmerr::Result<PathBuf> {
 	Ok(root)
 }
 
-pub(super) fn listen() -> hmerr::Result<Listen> {
+pub(super) fn listen(decide: &dyn Decide) -> hmerr::Result<Listen> {
 	let root = root()?;
 
 	match listen::find(&root)? {
 		Some(listen) => Ok(listen),
-		None => listen::fetch(&root, &NO_INDEX)?.ok_or_else(|| listen::refused().into()),
+		None => listen::fetch(&root, &NO_INDEX, decide)?.ok_or_else(|| listen::refused().into()),
 	}
 }
 
@@ -74,9 +76,9 @@ pub(super) fn repairable(baseline: &str) -> hmerr::Result<Option<String>> {
 	Ok(Some(dump))
 }
 
-pub(super) fn repair(dump: &str) -> hmerr::Result<Option<Listen>> {
+pub(super) fn repair(dump: &str, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 	let root = root()?;
-	let taken = listen::fetch_named(&root, dump, &HOLED)?;
+	let taken = listen::fetch_named(&root, dump, &HOLED, decide)?;
 
 	if taken.is_none() {
 		listen::decline(&root, dump)?;
@@ -122,10 +124,10 @@ pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
 	incremental::release(incremental)
 }
 
-pub(super) fn artist_link(link: &Path) -> hmerr::Result<()> {
+pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	if link.exists() {
 		return Ok(());
 	}
 
-	music_brainz::build(&root()?, link)
+	music_brainz::build(&root()?, link, decide)
 }

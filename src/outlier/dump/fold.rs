@@ -1,4 +1,4 @@
-use crate::recommend::island::index::own;
+use crate::{ask, recommend::island::index::own};
 
 use super::{
 	super::{
@@ -11,7 +11,7 @@ use super::{
 pub(super) fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 	let reached = held.reach().to_string();
 
-	own::fresh(username, &reached, &mut |fold| {
+	own::fresh(username, &reached, &ask::Terminal, &mut |fold| {
 		absorbed(held, fold);
 
 		cache::dump::write(username, held)
