@@ -37,6 +37,8 @@ group by 1
 	let mut covered = 0;
 
 	while let Some(row) = row.next()? {
+		covered = covered.max(row.get::<_, i64>(4)?);
+
 		let Ok(mbid) = row.get::<_, String>(0)?.parse() else {
 			continue;
 		};
@@ -47,7 +49,6 @@ group by 1
 			track: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
 			artist: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
 		});
-		covered = covered.max(row.get::<_, i64>(4)?);
 	}
 
 	Ok(Scanned { play, covered })
@@ -156,6 +157,23 @@ mod tests {
 			scanned.play.first().map(|play| play.mbid.to_string()),
 			Some(AAAA.to_string())
 		);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_listen_mapped_to_nothing_readable_is_still_a_listen_the_dump_holds() {
+		let dir = dump(
+			"unreadable_last",
+			&[
+				listen(OWN, AAAA, "2026-07-01 10:00:00"),
+				listen(OWN, "not-an-mbid", "2026-07-11 20:39:04"),
+			],
+		);
+
+		let last = chrono::DateTime::from_timestamp(scan(&dir, OWN).covered, 0)
+			.map(|last| last.format("%Y-%m-%d %H:%M:%S").to_string());
+
+		assert_eq!(last, Some("2026-07-11 20:39:04".to_string()));
 		let _ = fs::remove_dir_all(&dir);
 	}
 }

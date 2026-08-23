@@ -13,6 +13,7 @@ use crate::{
 use super::{
 	age, cache,
 	fetch::{Listen, ListenCount},
+	gap,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -47,6 +48,14 @@ impl Held {
 		}
 
 		&self.reached
+	}
+
+	fn reached_at(&self) -> i64 {
+		gap::seconds(self.reach()).unwrap_or(self.covered)
+	}
+
+	pub(super) fn ago(&self) -> hmerr::Result<u64> {
+		age::days_since(self.reached_at())
 	}
 
 	pub(super) fn counted(&self) -> ListenCount {
@@ -214,17 +223,19 @@ fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Hel
 fn announce(username: &str, held: &Held) -> hmerr::Result<()> {
 	println!(
 		"{B}{G}{count}{D} recording off the dump for {B}{username}{D}, covering up to \
-		{B}{covered}{D} {DIM}({day} day ago, {B}--refresh{D}{DIM} to read the dump again){D}\n",
+		{B}{reached}{D} {DIM}({day} day ago, last listen {last}, \
+		{B}--refresh{D}{DIM} to read the dump again){D}\n",
 		count = held.counted().len(),
-		covered = covered(held.covered),
-		day = age::days_since(held.covered)?
+		reached = at(held.reached_at()),
+		day = held.ago()?,
+		last = at(held.covered)
 	);
 
 	Ok(())
 }
 
-fn covered(covered: i64) -> String {
-	DateTime::from_timestamp(covered, 0)
+fn at(second: i64) -> String {
+	DateTime::from_timestamp(second, 0)
 		.map(|at| {
 			at.format(&format!("{DATE_FORMAT} {TIME_FORMAT}"))
 				.to_string()
@@ -481,7 +492,27 @@ mod tests {
 	}
 
 	#[test]
-	fn how_far_the_dump_covers_is_told_as_a_date_and_a_time() {
-		assert_eq!(covered(1_783_802_344), "2026-07-11 20:39".to_string());
+	fn a_timestamp_is_told_as_a_date_and_a_time() {
+		assert_eq!(at(1_783_802_344), "2026-07-11 20:39".to_string());
+	}
+
+	#[test]
+	fn how_far_the_counts_reach_is_the_dump_they_stop_at_not_the_last_listen_they_hold() {
+		let quiet = Held {
+			reached: LATEST.to_string(),
+			..held()
+		};
+
+		assert_eq!(quiet.reached_at(), 1_787_356_802);
+	}
+
+	#[test]
+	fn counts_stopping_at_a_stamp_that_cannot_be_read_fall_back_to_the_last_listen_they_hold() {
+		let unreadable = Held {
+			reached: "listen".to_string(),
+			..held()
+		};
+
+		assert_eq!(unreadable.reached_at(), 1_783_814_404);
 	}
 }

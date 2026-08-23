@@ -95,7 +95,7 @@ fn read(gap: &Gap) -> hmerr::Result<Option<Window>> {
 	}))
 }
 
-fn seconds(stamp: &str) -> Option<i64> {
+pub(super) fn seconds(stamp: &str) -> Option<i64> {
 	DateTime::parse_from_str(stamp, OFFSET)
 		.map(|at| at.timestamp())
 		.ok()
