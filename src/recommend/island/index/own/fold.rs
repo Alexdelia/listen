@@ -7,7 +7,7 @@ use super::{
 		dump::{self, Incremental, Pending},
 		progress,
 	},
-	Fold, Gap, board, reach, scan,
+	Fold, Gap, board, reach, scan, stamped,
 };
 
 pub(super) fn run(
@@ -50,6 +50,11 @@ fn taken(
 	own: u32,
 	reached: &str,
 ) -> hmerr::Result<Option<Fold>> {
+	if !stamped(&incremental.start) || !stamped(&incremental.end) {
+		unstamped(&incremental.name);
+		return Ok(None);
+	}
+
 	if reach::behind(reached, &incremental.start) {
 		return Ok(skipped(incremental, reached));
 	}
@@ -93,6 +98,13 @@ fn missed(reached: &str, to: &str) -> Gap {
 		from: reached.to_string(),
 		to: to.to_string(),
 	}
+}
+
+fn unstamped(name: &str) {
+	progress::say(format!(
+		"{Y}{B}{name}{D}{Y} carries no timestamp the counts can be held against, \
+		nothing of it is folded in and the window it covers is left for the next one to miss{D}"
+	));
 }
 
 fn out_of_reach(reached: &str, start: &str) {
@@ -209,6 +221,36 @@ mod tests {
 				"2026-07-13 00:00:02.000000+00:00".to_string()
 			)]
 		);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_dump_whose_window_carries_no_timestamp_is_left_out_rather_than_stopping_the_count_dead() {
+		let dir = dump("unstamped", &[listen(OWN, AAAA, "2026-08-21 10:00:00")]);
+
+		let taken = take(
+			"2026-08-21 00:00:03.155180+00:00",
+			&incremental(
+				"listenbrainz-dump-2026-08-22",
+				"2026-08-21 00:00:03.155180+00:00",
+				"END_TIMESTAMP",
+				dir.clone(),
+			),
+		);
+
+		assert!(taken.is_none());
+
+		let taken = take(
+			"2026-08-21 00:00:03.155180+00:00",
+			&incremental(
+				"listenbrainz-dump-2026-08-22",
+				"START_TIMESTAMP",
+				"2026-08-22 00:00:02.641933+00:00",
+				dir.clone(),
+			),
+		);
+
+		assert!(taken.is_none());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

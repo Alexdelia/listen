@@ -111,14 +111,14 @@ fn dumped() -> hmerr::Result<Option<Listen>> {
 	Ok(Some(listen))
 }
 
-fn stamped(name: &str) -> bool {
+pub(crate) fn stamped(name: &str) -> bool {
 	dump::reach(name).is_ok()
 }
 
 fn unreadable(reached: &str) {
 	progress::say(format!(
 		"{Y}the counts stop at {B}{reached}{D}{Y}, which is no timestamp to hold a dump against, \
-		nothing is folded onto them until they are read off a stamped dump again{D}"
+		nothing is folded onto them, {B}--refresh{D}{Y} reads the dump up again to clear it{D}"
 	));
 }
 

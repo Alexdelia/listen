@@ -58,6 +58,10 @@ impl Held {
 		age::days_since(self.reached_at())
 	}
 
+	fn foldable(&self) -> bool {
+		own::stamped(self.reach())
+	}
+
 	pub(super) fn counted(&self) -> ListenCount {
 		let mut count = self.count.clone();
 
@@ -114,13 +118,23 @@ fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 	let unpacked = own::unpacked()?;
 	let cached = cache::dump::read(username)?;
 	let merged = cached.as_ref().is_some_and(|held| !held.apart());
+	let stuck = cached
+		.as_ref()
+		.filter(|held| !held.foldable())
+		.map(|held| held.reach().to_string());
 
 	match kept(cached, unpacked.as_deref(), refresh) {
 		Kept::Cached(held) => Ok(Some(held)),
 		Kept::Rescan(_) if unpacked.is_none() => Ok(None),
 		Kept::Rescan(carried) => {
-			if merged && carried.is_none() {
-				merged_in();
+			if carried.is_none() {
+				if merged {
+					merged_in();
+				}
+
+				if let Some(stuck) = stuck {
+					stuck_at(&stuck);
+				}
 			}
 
 			scanned(username, carried)
@@ -131,6 +145,13 @@ fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 fn merged_in() {
 	println!(
 		"{Y}the cached count cannot tell the dump from what was folded onto it, \
+		reading the dump up again and asking for every incremental since{D}"
+	);
+}
+
+fn stuck_at(reached: &str) {
+	println!(
+		"{Y}the counts stopped at {B}{reached}{D}{Y}, which no dump can be held against, \
 		reading the dump up again and asking for every incremental since{D}"
 	);
 }
@@ -178,7 +199,7 @@ fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Kept {
 	}
 
 	if refresh {
-		return Kept::Rescan(held.apart().then(|| held.carried()));
+		return Kept::Rescan((held.apart() && held.foldable()).then(|| held.carried()));
 	}
 
 	Kept::Cached(held)
@@ -358,6 +379,16 @@ mod tests {
 		});
 
 		assert_eq!(carried.reached, LATEST);
+	}
+
+	#[test]
+	fn a_refresh_clears_counts_stopped_at_a_stamp_no_dump_can_be_held_against() {
+		let mut wedged = held();
+		absorbed(&mut wedged, fold(LATEST, 7, Vec::new()));
+		wedged.reached = "END_TIMESTAMP".to_string();
+
+		assert!(!wedged.foldable());
+		assert!(carried(kept(Some(wedged), Some(DUMP), true)).is_none());
 	}
 
 	#[test]
