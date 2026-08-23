@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-	super::{board::Board, index::layout::RECORDING_ARTIST, query},
+	super::{board::Board, index::layout::RECORDING_ARTIST, part},
 	stage::Stage,
 	work::{self, ARTIST, Merge},
 };
@@ -12,15 +12,13 @@ pub(super) fn of(
 	merge: &Merge,
 	recording: &Path,
 ) -> hmerr::Result<()> {
-	let into = merge.into.join(RECORDING_ARTIST);
-	let bar = board.start(Stage::Credit)?;
-
-	if !query::done(db, &into) {
-		query::copy(
-			db,
-			&into,
-			&format!(
-				r"
+	part::step(
+		db,
+		board,
+		Stage::Credit,
+		&merge.into.join(RECORDING_ARTIST),
+		&format!(
+			r"
 select distinct recording_id, artist_mbid
 from (
 	select recording_id, artist_mbid from read_parquet('{held}')
@@ -30,14 +28,9 @@ from (
 	join read_parquet('{recording}') r on r.mbid = a.mbid
 )
 ",
-				held = merge.index.join(RECORDING_ARTIST).display(),
-				artist = work::read(&merge.work, ARTIST),
-				recording = recording.display()
-			),
-		)?;
-	}
-
-	bar.inc(1);
-
-	Ok(())
+			held = merge.index.join(RECORDING_ARTIST).display(),
+			artist = work::read(&merge.work, ARTIST),
+			recording = recording.display()
+		),
+	)
 }

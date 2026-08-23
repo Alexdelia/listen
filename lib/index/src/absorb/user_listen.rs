@@ -1,6 +1,4 @@
-use std::{fs, path::Path};
-
-use hmerr::ioe;
+use std::path::Path;
 
 use super::{
 	super::{
@@ -9,7 +7,7 @@ use super::{
 			self,
 			layout::{BUCKET, USER_LISTEN, USER_STAT},
 		},
-		play, query,
+		part, play, query,
 	},
 	stage::Stage,
 	work::{self, LIBRARY, Merge},
@@ -22,19 +20,10 @@ pub(super) fn of(
 	recording: &Path,
 ) -> hmerr::Result<u64> {
 	let into = merge.into.join(USER_LISTEN);
-	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 
-	let bar = board.start(Stage::Listen)?;
-
-	for bucket in 0..BUCKET {
-		let shard = into.join(index::layout::shard(bucket));
-
-		if !query::done(db, &shard) {
-			query::copy(db, &shard, &merged(merge, recording, bucket))?;
-		}
-
-		bar.inc(1);
-	}
+	part::bucketed(db, board, Stage::Listen, &into, &|bucket| {
+		merged(merge, recording, bucket)
+	})?;
 
 	query::count(db, &into.join("*.parquet"))
 }

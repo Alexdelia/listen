@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::{
-	super::{board::Board, index::layout::RECORDING, query},
+	super::{board::Board, index::layout::RECORDING, part},
 	stage::Stage,
 	work::{self, LIBRARY, Merge},
 };
@@ -12,14 +12,14 @@ pub(super) fn of(
 	merge: &Merge,
 ) -> hmerr::Result<PathBuf> {
 	let into = merge.into.join(RECORDING);
-	let bar = board.start(Stage::Recording)?;
 
-	if !query::done(db, &into) {
-		query::copy(
-			db,
-			&into,
-			&format!(
-				r"
+	part::step(
+		db,
+		board,
+		Stage::Recording,
+		&into,
+		&format!(
+			r"
 with held as (
 	select * from read_parquet('{held}')
 ),
@@ -40,13 +40,10 @@ select
 	f.mbid
 from fresh f
 ",
-				held = merge.index.join(RECORDING).display(),
-				library = work::read(&merge.work, LIBRARY)
-			),
-		)?;
-	}
-
-	bar.inc(1);
+			held = merge.index.join(RECORDING).display(),
+			library = work::read(&merge.work, LIBRARY)
+		),
+	)?;
 
 	Ok(into)
 }

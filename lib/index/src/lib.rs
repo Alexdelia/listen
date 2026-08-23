@@ -8,6 +8,7 @@ mod keep;
 mod listener;
 pub mod own;
 mod parallel;
+mod part;
 mod partial;
 mod play;
 mod progress;

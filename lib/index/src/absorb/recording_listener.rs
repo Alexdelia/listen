@@ -1,5 +1,5 @@
 use super::{
-	super::{board::Board, index::layout::RECORDING_LISTENER, query, recording_listener},
+	super::{board::Board, index::layout::RECORDING_LISTENER, part, recording_listener},
 	stage::Stage,
 	work::Merge,
 };
@@ -9,14 +9,11 @@ pub(super) fn of(
 	board: &Board<Stage>,
 	merge: &Merge,
 ) -> hmerr::Result<()> {
-	let into = merge.into.join(RECORDING_LISTENER);
-	let bar = board.start(Stage::Listener)?;
-
-	if !query::done(db, &into) {
-		query::copy(db, &into, &recording_listener::counted(&merge.into))?;
-	}
-
-	bar.inc(1);
-
-	Ok(())
+	part::step(
+		db,
+		board,
+		Stage::Listener,
+		&merge.into.join(RECORDING_LISTENER),
+		&recording_listener::counted(&merge.into),
+	)
 }

@@ -12,7 +12,7 @@ use super::{
 	super::{
 		board::{Board, Running},
 		index::{self, layout::BUCKET},
-		query, shard,
+		part, query, shard,
 	},
 	stage::{self, Stage},
 };
@@ -77,11 +77,7 @@ set preserve_insertion_order=false;
 	}
 
 	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> hmerr::Result<()> {
-		let bar = self.stage(stage)?;
-		query::copy(&self.take(), into, select)?;
-		bar.inc(1);
-
-		Ok(())
+		part::step(&self.take(), &self.board, stage, into, select)
 	}
 
 	pub(super) fn batched(
