@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
-use crate::declaration::{Q, Source, parse, value};
+use crate::declaration::{Entry, Q, Source, value};
 
 use super::{attraction, index::Index, real};
 
@@ -41,9 +41,8 @@ impl Library {
 	}
 }
 
-pub(super) fn load(path: &Path, index: &Index) -> hmerr::Result<Library> {
-	let entry = parse::parse(path)?;
-	declare(index, &entry)?;
+pub(super) fn load(entry: &[Entry], index: &Index) -> hmerr::Result<Library> {
+	declare(index, entry)?;
 
 	let mut listen: HashMap<Source, Vec<Listener>> = HashMap::new();
 	let mut dense: HashMap<i64, u32> = HashMap::new();
@@ -105,7 +104,7 @@ semi join declared d on d.mbid::uuid = r.mbid
 	})
 }
 
-fn declare(index: &Index, entry: &[crate::declaration::Entry]) -> hmerr::Result<()> {
+fn declare(index: &Index, entry: &[Entry]) -> hmerr::Result<()> {
 	index
 		.db
 		.execute_batch("create or replace temp table declared (mbid varchar, q utinyint);")?;
@@ -121,8 +120,6 @@ fn declare(index: &Index, entry: &[crate::declaration::Entry]) -> hmerr::Result<
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
-
 	use super::{super::index::Meta, *};
 
 	const DECLARED: &str = "00000000-0000-0000-0000-000000000001";
@@ -176,32 +173,29 @@ insert into user_stat select range, {center}, 0, {high}, 100 from range({member}
 		}
 	}
 
-	fn declaration(name: &str) -> std::path::PathBuf {
-		let path = std::env::temp_dir().join(format!("declarative_listen_seed_{name}.ron"));
-		fs::write(&path, format!("[(s: \"{DECLARED}\", q: 4, playlist: [])]")).unwrap();
-
-		path
+	fn declaration() -> Vec<Entry> {
+		vec![Entry {
+			s: DECLARED.parse().unwrap(),
+			q: 4,
+			playlist: Vec::new(),
+		}]
 	}
 
 	#[test]
 	fn every_listener_of_a_declared_recording_carries_its_own_attraction() {
-		let path = declaration("weight");
-		let library = load(&path, &index(&[(0, 100), (1, 1)])).unwrap();
+		let library = load(&declaration(), &index(&[(0, 100), (1, 1)])).unwrap();
 		let seed = library.seed.first().unwrap();
 
 		assert_eq!(seed.listener.len(), 2);
 		assert!(seed.listener[0].weight > 0.0);
 		assert!(seed.listener[1].weight < 0.0);
-		let _ = fs::remove_file(&path);
 	}
 
 	#[test]
 	fn a_declared_recording_nobody_listened_to_is_unsupported() {
-		let path = declaration("unsupported");
-		let library = load(&path, &index(&[])).unwrap();
+		let library = load(&declaration(), &index(&[])).unwrap();
 
 		assert!(library.seed.is_empty());
 		assert_eq!(library.unsupported(), 1);
-		let _ = fs::remove_file(&path);
 	}
 }
