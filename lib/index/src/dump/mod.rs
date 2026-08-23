@@ -15,7 +15,7 @@ use indicatif::ProgressBar;
 
 use listen_cache as cache;
 
-use crate::{decide::Decide, progress};
+use crate::{board::Chain, decide::Decide, progress};
 
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
@@ -102,6 +102,13 @@ pub(super) fn listed<T>(read: hmerr::Result<T>, keeping: &str) -> Option<T> {
 
 			None
 		}
+	}
+}
+
+pub(super) fn chain(pending: &[&Pending]) -> Chain {
+	Chain {
+		dump: u64::try_from(pending.len()).unwrap_or_default(),
+		byte: weight(pending),
 	}
 }
 

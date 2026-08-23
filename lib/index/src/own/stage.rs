@@ -1,6 +1,5 @@
 use super::super::{
 	board::{Chain, Planned},
-	dump::{self, Pending},
 	progress::Measure,
 };
 
@@ -31,13 +30,6 @@ impl Planned for Stage {
 			Self::Download | Self::Unpack => Measure::Byte(chain.byte),
 			Self::Verify | Self::Listen => Measure::Step(chain.dump),
 		}
-	}
-}
-
-pub(super) fn chain(pending: &[&Pending]) -> Chain {
-	Chain {
-		dump: u64::try_from(pending.len()).unwrap_or_default(),
-		byte: dump::weight(pending),
 	}
 }
 

@@ -21,7 +21,7 @@ pub(super) fn run(
 	reached: &str,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
-	let planned = Board::of(&stage::PLAN, &stage::chain(pending))?;
+	let planned = Board::of(&stage::PLAN, &dump::chain(pending))?;
 
 	let downloading = planned.start(Stage::Download)?;
 	let verifying = planned.start(Stage::Verify)?;
