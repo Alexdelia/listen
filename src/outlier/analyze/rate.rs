@@ -1,8 +1,8 @@
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use crate::declaration::Q;
 
-#[allow(
+#[expect(
 	clippy::cast_precision_loss,
 	reason = "listen count and day span stay far below 2^53, so the conversion is exact"
 )]
@@ -26,16 +26,12 @@ pub(super) fn median_per_q(observation: impl Iterator<Item = (Q, f64)>) -> BTree
 pub(super) fn nearest_q(median: &BTreeMap<Q, f64>, rate: f64) -> Option<Q> {
 	median
 		.iter()
-		.min_by(|(_, a), (_, b)| cmp_rate((rate - **a).abs(), (rate - **b).abs()))
+		.min_by(|(_, a), (_, b)| (rate - **a).abs().total_cmp(&(rate - **b).abs()))
 		.map(|(q, _)| *q)
 }
 
-pub(super) fn cmp_rate(a: f64, b: f64) -> Ordering {
-	a.partial_cmp(&b).unwrap_or(Ordering::Equal)
-}
-
 fn median(rate: &mut [f64]) -> f64 {
-	rate.sort_by(|a, b| cmp_rate(*a, *b));
+	rate.sort_by(f64::total_cmp);
 
 	match rate.len() {
 		0 => 0.0,

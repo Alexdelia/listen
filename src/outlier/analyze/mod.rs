@@ -11,7 +11,7 @@ use super::{age::Age, fetch::ListenCount, gap::Covered, meta::Meta};
 pub(super) use undeclared::Undeclared;
 
 use assign::assign;
-use rate::{cmp_rate, median_per_q, nearest_q, rate};
+use rate::{median_per_q, nearest_q, rate};
 use undeclared::undeclared;
 
 const MIN_DAY: u64 = 21;
@@ -91,7 +91,7 @@ pub(super) fn analyze(
 		b.declared
 			.abs_diff(b.observed)
 			.cmp(&a.declared.abs_diff(a.observed))
-			.then(cmp_rate(b.rate, a.rate))
+			.then(b.rate.total_cmp(&a.rate))
 	});
 
 	let undeclared = undeclared(listen, &consumed);
