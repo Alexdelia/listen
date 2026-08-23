@@ -4,7 +4,7 @@ use std::{
 	path::PathBuf,
 };
 
-use ansi::abbrev::{B, D, R};
+use ansi::abbrev::{B, D, F, R};
 use hmerr::{ge, ioe};
 
 use super::{prepare, root};
@@ -13,7 +13,7 @@ const FILE: &str = "username";
 
 pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
 	if let Some(username) = username {
-		store(username)?;
+		remember(username)?;
 		return Ok(username.to_string());
 	}
 
@@ -42,6 +42,29 @@ pub fn read() -> hmerr::Result<Option<String>> {
 	let username = content.trim();
 
 	Ok((!username.is_empty()).then(|| username.to_string()))
+}
+
+fn remember(username: &str) -> hmerr::Result<()> {
+	let Some(remembered) = read()? else {
+		return store(username);
+	};
+
+	if remembered == username || !instead(&remembered, username)? {
+		return Ok(());
+	}
+
+	store(username)
+}
+
+fn instead(remembered: &str, username: &str) -> hmerr::Result<bool> {
+	println!(
+		"\n{B}{remembered}{D}{F} is the name remembered, \
+		which is the listener an index build calls its own \
+		and leaves out of what it recommends{D}"
+	);
+
+	ux::ask_yn(&format!("remember {B}{username}{D} instead"), false)
+		.map_err(|e| ioe!("stdin", e).into())
 }
 
 fn store(username: &str) -> hmerr::Result<()> {
