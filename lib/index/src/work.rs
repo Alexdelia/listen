@@ -35,7 +35,7 @@ pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()>
 		let built = work.join(part);
 		let into = dir.join(part);
 
-		discard_unusable(&into)?;
+		keep::removed(&into)?;
 		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 	}
 
@@ -66,16 +66,6 @@ pub(super) fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
 	Ok(())
 }
 
-pub(super) fn discard_unusable(path: &Path) -> hmerr::Result<()> {
-	if path.is_dir() {
-		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	} else if path.is_file() {
-		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	}
-
-	Ok(())
-}
-
 pub(super) fn opened(
 	dir: &Path,
 	name: &str,
@@ -85,7 +75,7 @@ pub(super) fn opened(
 	let work = dir.join(name);
 
 	if stamped(&work, stamp_of).as_deref() != Some(value) {
-		discard_unusable(&work)?;
+		keep::removed(&work)?;
 	}
 
 	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;

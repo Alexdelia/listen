@@ -63,9 +63,13 @@ pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
+	removed(path)
+}
+
+pub(super) fn removed(path: &Path) -> hmerr::Result<()> {
 	if path.is_dir() {
 		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-	} else {
+	} else if path.is_file() {
 		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 	}
 

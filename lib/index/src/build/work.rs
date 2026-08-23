@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::super::{
 	index::layout::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
-	work,
+	keep, work,
 };
 
 pub(super) use work::{ARTIST, LIBRARY, STAT, publish, release};
@@ -22,7 +22,7 @@ pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 
 	if work::stamped(work, EXCLUDED).as_deref() != Some(own.as_str()) {
 		for part in pooled() {
-			work::discard_unusable(&work.join(part))?;
+			keep::removed(&work.join(part))?;
 		}
 	}
 
