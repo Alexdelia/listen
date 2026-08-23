@@ -28,13 +28,9 @@ impl Song {
 	}
 
 	pub(super) fn matches(&self, other: &Self) -> Option<Match> {
-		if self.title.is_empty() {
-			return None;
-		}
-
-		let title = if self.title == other.title {
+		let title = if self.same_title(other) {
 			Match::Exact
-		} else if !self.stripped.is_empty() && self.stripped == other.stripped {
+		} else if self.same_stripped_title(other) {
 			Match::Stripped
 		} else {
 			return None;
