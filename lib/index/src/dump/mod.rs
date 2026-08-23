@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use hmerr::ioe;
 use indicatif::ProgressBar;
 
-use crate::cache;
+use listen_cache as cache;
 
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;

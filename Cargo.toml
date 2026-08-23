@@ -1,3 +1,41 @@
+[workspace]
+members = ["lib/cache", "lib/index"]
+
+[workspace.dependencies]
+hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
+ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+chrono = { version = "0.4", default-features = false, features = [
+	"serde",
+	"clock",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["serde"] }
+ureq = "3"
+indicatif = "0.18"
+duckdb = "1"
+tar = "0.4"
+zstd = "0.13"
+rustix = { version = "1", features = ["fs"] }
+listen_cache = { path = "lib/cache" }
+listen_index = { path = "lib/index" }
+
+[workspace.lints.rust]
+unreachable_pub = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+style = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
 [package]
 name = "declarative_listen"
 version = "0.1.0"
@@ -14,25 +52,22 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
-ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
-ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+hmerr.workspace = true
+ansi.workspace = true
+ux.workspace = true
 const_format = "0.2"
 async-std = { version = "1", features = ["tokio1"] }
-chrono = { version = "0.4", default-features = false, features = [
-	"serde",
-	"clock",
-] }
+chrono.workspace = true
 dotenvy = "0.15"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
 csv = "1"
-uuid = { version = "1", features = ["serde"] }
+uuid.workspace = true
 ron = "0.12"
-ureq = "3"
+ureq.workspace = true
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4.6"
-indicatif = "0.18"
+indicatif.workspace = true
 musicbrainz_rs = { version = "0.13", default-features = false, features = [
 	"async",
 	"rate_limit",
@@ -41,20 +76,9 @@ musicbrainz_rs = { version = "0.13", default-features = false, features = [
 api_bindium = { version = "0.4", features = ["rate_limit"] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
-duckdb = "1"
-tar = "0.4"
-zstd = "0.13"
-rustix = { version = "1", features = ["fs"] }
+duckdb.workspace = true
+listen_cache.workspace = true
+listen_index.workspace = true
 
-[lints.rust]
-unreachable_pub = "deny"
-
-[lints.clippy]
-unwrap_used = "deny"
-expect_used = "deny"
-panic = "deny"
-suspicious = { level = "deny", priority = -1 }
-complexity = { level = "deny", priority = -1 }
-style = { level = "deny", priority = -1 }
-perf = { level = "deny", priority = -1 }
-pedantic = { level = "deny", priority = -1 }
+[lints]
+workspace = true

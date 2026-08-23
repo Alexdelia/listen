@@ -3,6 +3,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use crate::Seed;
+
 use super::{
 	super::{
 		build,
@@ -47,20 +49,13 @@ pub(super) fn scratch(name: &str) -> PathBuf {
 	dir
 }
 
-pub(super) fn declaration(dir: &Path) -> PathBuf {
-	let path = dir.join("listen.ron");
-	let entry: Vec<String> = (0..DECLARED)
-		.map(|recording| {
-			format!(
-				"(s: \"{mbid}\", q: {q}, playlist: [])",
-				mbid = mbid(recording),
-				q = recording % 5
-			)
+pub(super) fn declaration() -> Vec<Seed> {
+	(0..DECLARED)
+		.map(|recording| Seed {
+			mbid: mbid(recording).parse().unwrap_or_else(|_| unreachable!()),
+			q: u8::try_from(recording % 5).unwrap_or_default(),
 		})
-		.collect();
-	let _ = fs::write(&path, format!("[{}]", entry.join(",")));
-
-	path
+		.collect()
 }
 
 pub(super) fn listen(user: u32, recording: usize, plays: usize) -> String {
@@ -187,7 +182,7 @@ pub(super) fn built(name: &str) -> (PathBuf, PathBuf, Meta) {
 	let index = dir.join("index");
 	let _ = fs::create_dir_all(&index);
 
-	build::run(&index, &dump(&dir), &declaration(&dir)).unwrap_or_else(|e| unreachable!("{e}"));
+	build::run(&index, &dump(&dir), &declaration()).unwrap_or_else(|e| unreachable!("{e}"));
 
 	(
 		dir.clone(),

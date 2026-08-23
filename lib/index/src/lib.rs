@@ -5,38 +5,46 @@ mod dump;
 mod keep;
 mod listener;
 mod open;
-pub(crate) mod own;
+pub mod own;
 mod parallel;
 mod partial;
 mod progress;
 mod query;
 mod recording_listener;
 mod shard;
-mod user_stat;
+pub mod user_stat;
 mod work;
 
 use std::path::Path;
+
+use uuid::Uuid;
 
 use ansi::abbrev::{B, D, F};
 
 use dump::Listen;
 
-pub(super) use open::{Index, Meta};
+pub use open::{Gap, Index, Meta};
 
-pub(super) fn ready() -> bool {
+pub struct Seed {
+	pub mbid: Uuid,
+	pub q: u8,
+}
+
+#[must_use]
+pub fn ready() -> bool {
 	open::dir().is_ok_and(|dir| open::built(&dir))
 }
 
-pub(super) fn ensure(declaration: &Path) -> hmerr::Result<Index> {
+pub fn ensure(declared: &[Seed]) -> hmerr::Result<Index> {
 	let dir = open::dir()?;
 
 	if let Some(listen) = to_build_from(&dir)? {
-		rebuilt(&dir, &listen, declaration)?;
+		rebuilt(&dir, &listen, declared)?;
 	} else {
 		user_stat::derive(&dir)?;
 
 		if let Some(listen) = repaired(&dir)? {
-			rebuilt(&dir, &listen, declaration)?;
+			rebuilt(&dir, &listen, declared)?;
 		}
 	}
 
@@ -92,8 +100,8 @@ fn asked(listen: &Listen, reason: &str) -> hmerr::Result<bool> {
 	progress::ask("rebuild index", true)
 }
 
-fn rebuilt(dir: &Path, listen: &Listen, declaration: &Path) -> hmerr::Result<()> {
-	build::run(dir, listen, declaration)?;
+fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
+	build::run(dir, listen, declared)?;
 
 	dump::discard(listen)
 }

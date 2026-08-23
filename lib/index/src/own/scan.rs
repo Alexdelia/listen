@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use crate::declaration::Source;
+use uuid::Uuid;
 
 use super::super::open::PLAY_CEILING;
 
-pub(crate) struct Play {
-	pub mbid: Source,
+pub struct Play {
+	pub mbid: Uuid,
 	pub plays: u32,
 	pub track: String,
 	pub artist: String,

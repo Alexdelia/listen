@@ -7,9 +7,7 @@ use ansi::abbrev::{B, D, R};
 use hmerr::{ge, ioe};
 use serde::{Deserialize, Serialize};
 
-use crate::cache;
-
-use super::super::attraction;
+use listen_cache as cache;
 
 pub(super) const DIR: &str = "index";
 pub(super) const META: &str = "meta.json";
@@ -26,13 +24,13 @@ const MEMORY_LIMIT: &str = "4GB";
 const SPILL: &str = "spill";
 
 #[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct Gap {
+pub struct Gap {
 	pub from: String,
 	pub to: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct Meta {
+pub struct Meta {
 	pub built: String,
 	pub dump: String,
 	#[serde(default)]
@@ -49,12 +47,13 @@ pub(crate) struct Meta {
 }
 
 impl Meta {
-	pub(crate) fn covered(&self) -> &str {
+	#[must_use]
+	pub fn covered(&self) -> &str {
 		self.reached.as_deref().unwrap_or(&self.dump)
 	}
 }
 
-pub(crate) struct Index {
+pub struct Index {
 	pub db: duckdb::Connection,
 	pub meta: Meta,
 }
@@ -127,8 +126,6 @@ create view artist_link as select * from read_parquet('{dir}/{ARTIST_LINK}');
 ",
 		dir = dir.display()
 	))?;
-
-	attraction::declare(&db)?;
 
 	Ok(Index { db, meta })
 }

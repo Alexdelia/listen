@@ -15,14 +15,15 @@ use std::path::Path;
 use ansi::abbrev::{B, D, F, G};
 use chrono::Utc;
 
-use crate::{cache, declaration::parse};
+use listen_cache as cache;
+
+use crate::Seed;
 
 use super::{dump::Listen, listener, open, parallel, progress};
 
 use scan::Scan;
 
-pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Result<()> {
-	let declared = parse::parse(declaration)?;
+pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
 	let listener = pool::Listener {
 		named: named()?,
 		known: open::own(dir),
@@ -33,7 +34,7 @@ pub(super) fn run(dir: &Path, dump: &Listen, declaration: &Path) -> hmerr::Resul
 
 	let scan = Scan::of(&work, &dump.dir)?;
 
-	seed::declare(&scan, &declared)?;
+	seed::declare(&scan, declared)?;
 	let library = library::of(&scan)?;
 
 	let (recording, pool) = parallel::both(
@@ -118,20 +119,17 @@ mod tests {
 		dir
 	}
 
-	fn declaration(dir: &Path) -> PathBuf {
-		let path = dir.join("listen.ron");
-		let entry: Vec<String> = (0..DECLARED)
-			.map(|recording| {
-				format!(
-					"(s: \"{mbid}\", q: {q}, playlist: [])",
-					mbid = mbid(recording),
-					q = recording % 5
-				)
-			})
-			.collect();
-		let _ = fs::write(&path, format!("[{}]", entry.join(",")));
+	fn declaration() -> Vec<Seed> {
+		(0..DECLARED)
+			.map(|recording| seed(recording, recording % 5))
+			.collect()
+	}
 
-		path
+	fn seed(recording: usize, q: usize) -> Seed {
+		Seed {
+			mbid: mbid(recording).parse().unwrap(),
+			q: u8::try_from(q).unwrap(),
+		}
 	}
 
 	fn listen(user: u32, recording: usize, plays: usize) -> String {
@@ -199,11 +197,10 @@ mod tests {
 
 	fn built(name: &str) -> (PathBuf, open::Meta) {
 		let dir = scratch(name);
-		let declaration = declaration(&dir);
 		let index = dir.join("index");
 		let _ = fs::create_dir_all(&index);
 
-		run(&index, &dump(&dir), &declaration).unwrap();
+		run(&index, &dump(&dir), &declaration()).unwrap();
 		let meta: open::Meta =
 			serde_json::from_str(&fs::read_to_string(index.join(open::META)).unwrap()).unwrap();
 
@@ -268,7 +265,7 @@ mod tests {
 			name: "20260809-000003".to_string(),
 		};
 
-		assert!(run(&index, &dead, &declaration(&dir)).is_err());
+		assert!(run(&index, &dead, &declaration()).is_err());
 
 		assert_eq!(count(&index, &format!("{USER_LISTEN}/*.parquet")), listen);
 		assert_eq!(count(&index, USER_STAT), i64::from(POOL_USER));
@@ -285,12 +282,7 @@ mod tests {
 		let index = dir.join("index");
 		let listen = count(&index, &format!("{USER_LISTEN}/*.parquet"));
 
-		let shrunk = dir.join("shrunk.ron");
-		let _ = fs::write(
-			&shrunk,
-			format!("[(s: \"{mbid}\", q: 4, playlist: [])]", mbid = mbid(0)),
-		);
-		run(&index, &dump(&dir), &shrunk).unwrap();
+		run(&index, &dump(&dir), &[seed(0, 4)]).unwrap();
 
 		assert_eq!(count(&index, &format!("{USER_LISTEN}/*.parquet")), listen);
 		assert_eq!(

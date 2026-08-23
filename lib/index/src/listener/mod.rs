@@ -1,6 +1,8 @@
+mod cache;
+
 use ansi::abbrev::{B, D, F, G, Y};
 
-use crate::cache::listener::{self, Named};
+use cache::Named;
 
 use super::{
 	dump::{self, Search},
@@ -12,7 +14,7 @@ pub(super) fn of(username: &str) -> hmerr::Result<Option<u32>> {
 		return Ok(None);
 	}
 
-	let read = listener::read(username)?;
+	let read = cache::read(username)?;
 
 	if let Some(Named { id: Some(id), .. }) = read {
 		return Ok(Some(id));
@@ -30,7 +32,7 @@ pub(super) fn of(username: &str) -> hmerr::Result<Option<u32>> {
 		}
 	};
 
-	listener::write(
+	cache::write(
 		username,
 		&Named {
 			id: search.id,

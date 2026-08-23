@@ -3,16 +3,21 @@ use std::{fs, path::Path};
 use ansi::abbrev::{B, D, F, Y};
 use hmerr::ioe;
 
-use crate::env;
-
 use super::progress;
+
+const KEEP: &str = "DECLARATIVE_LISTEN_KEEP";
+
+const FALSE: [&str; 4] = ["0", "false", "no", "off"];
 
 pub(super) fn requested() -> bool {
 	if cfg!(test) {
 		return by_test();
 	}
 
-	env::get_bool(env::Var::Keep)
+	std::env::var(KEEP)
+		.ok()
+		.filter(|value| !value.is_empty())
+		.is_some_and(|value| !FALSE.contains(&value.trim().to_lowercase().as_str()))
 }
 
 #[cfg(not(test))]
@@ -70,7 +75,7 @@ pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
 fn announce(path: &Path) {
 	progress::say(format!(
 		"{F}{key} is set, keeping {B}{Y}{path}{D}",
-		key = env::Var::Keep.key(),
+		key = KEEP,
 		path = path.display()
 	));
 }

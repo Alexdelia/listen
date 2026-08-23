@@ -14,29 +14,29 @@ use super::{
 	listener, open, progress,
 };
 
-pub(crate) use open::Gap;
-pub(crate) use scan::Play;
+pub use open::Gap;
+pub use scan::Play;
 
 const AT_ONCE: u64 = 2;
 
-pub(crate) struct Own {
+pub struct Own {
 	pub dump: String,
 	pub covered: i64,
 	pub play: Vec<Play>,
 }
 
-pub(crate) struct Fold {
+pub struct Fold {
 	pub reached: String,
 	pub covered: i64,
 	pub play: Vec<Play>,
 	pub gap: Vec<Gap>,
 }
 
-pub(crate) fn unpacked() -> hmerr::Result<Option<String>> {
+pub fn unpacked() -> hmerr::Result<Option<String>> {
 	Ok(dumped()?.map(|listen| listen.name))
 }
 
-pub(crate) fn played(username: &str) -> hmerr::Result<Option<Own>> {
+pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
 	let dir = open::dir()?;
 
 	let Some(own) = listened_as(&dir, username)? else {
@@ -59,7 +59,7 @@ pub(crate) fn played(username: &str) -> hmerr::Result<Option<Own>> {
 	}))
 }
 
-pub(crate) fn fresh(
+pub fn fresh(
 	username: &str,
 	reached: &str,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
@@ -111,7 +111,8 @@ fn dumped() -> hmerr::Result<Option<Listen>> {
 	Ok(Some(listen))
 }
 
-pub(crate) fn stamped(name: &str) -> bool {
+#[must_use]
+pub fn stamped(name: &str) -> bool {
 	dump::reach(name).is_ok()
 }
 

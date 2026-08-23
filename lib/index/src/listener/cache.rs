@@ -4,7 +4,7 @@ use ansi::abbrev::R;
 use hmerr::{ge, ioe};
 use serde::{Deserialize, Serialize};
 
-use super::{prepare, root};
+use listen_cache::{prepare, root};
 
 const SUBDIR: &str = "listener";
 const EXT: &str = "json";

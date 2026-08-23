@@ -32,7 +32,7 @@ struct Published {
 	reach: u64,
 }
 
-pub(in crate::recommend::island::index) struct Search {
+pub(crate) struct Search {
 	pub id: Option<u32>,
 	pub reach: Option<u64>,
 }

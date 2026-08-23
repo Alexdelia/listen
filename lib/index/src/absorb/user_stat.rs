@@ -4,7 +4,6 @@ use hmerr::ioe;
 
 use super::{
 	super::{
-		super::attraction,
 		board::Board,
 		open::{self, BUCKET, USER_LISTEN, USER_STAT},
 		query,
@@ -27,7 +26,7 @@ pub(super) fn of(db: &duckdb::Connection, board: &Board, merge: &Merge) -> hmerr
 			query::copy(
 				db,
 				&shard,
-				&attraction::stat(&format!(
+				&crate::user_stat::stat(&format!(
 					"read_parquet('{listen}')",
 					listen = listen.display()
 				)),
