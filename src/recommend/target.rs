@@ -16,10 +16,9 @@ pub(super) fn resolve(target: Option<&str>) -> hmerr::Result<Target> {
 }
 
 fn parse(target: &str) -> Target {
-	match target.parse() {
-		Ok(mbid) => Target::Artist(mbid),
-		Err(_) => Target::Username(target.to_string()),
-	}
+	target
+		.parse()
+		.map_or_else(|_| Target::Username(target.to_string()), Target::Artist)
 }
 
 #[cfg(test)]

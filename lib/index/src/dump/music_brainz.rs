@@ -89,10 +89,9 @@ fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 	let complaint = progress::complaint(&mut child);
 
 	let file = fs::File::open(&archive).map_err(|e| ioe!(archive.to_string_lossy(), e))?;
-	let fed = match child.stdin.take() {
-		Some(mut sink) => io::copy(&mut bar.wrap_read(file), &mut sink),
-		None => Ok(0),
-	};
+	let fed = child.stdin.take().map_or(Ok(0), |mut sink| {
+		io::copy(&mut bar.wrap_read(file), &mut sink)
+	});
 
 	let status = child
 		.wait()

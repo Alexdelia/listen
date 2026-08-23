@@ -10,7 +10,7 @@ impl Similarity {
 		self.value[a * self.seed + b]
 	}
 
-	pub(super) fn seed(&self) -> usize {
+	pub(super) const fn seed(&self) -> usize {
 		self.seed
 	}
 

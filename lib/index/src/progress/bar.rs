@@ -25,20 +25,20 @@ pub(crate) enum Measure {
 }
 
 impl Measure {
-	fn total(self) -> u64 {
+	const fn total(self) -> u64 {
 		match self {
 			Self::Step(total) | Self::Byte(total) => total,
 		}
 	}
 
-	fn field(self) -> &'static str {
+	const fn field(self) -> &'static str {
 		match self {
 			Self::Step(_) => STEP,
 			Self::Byte(_) => BYTE,
 		}
 	}
 
-	fn waiting_field(self) -> &'static str {
+	const fn waiting_field(self) -> &'static str {
 		match self {
 			Self::Step(_) => WAITING_STEP,
 			Self::Byte(_) => WAITING_BYTE,

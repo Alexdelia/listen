@@ -16,7 +16,7 @@ pub(super) struct Request {
 }
 
 impl Request {
-	fn asked(&self) -> bool {
+	const fn asked(&self) -> bool {
 		!self.recording.is_empty() || !self.genre.is_empty()
 	}
 }

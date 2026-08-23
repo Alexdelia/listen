@@ -18,7 +18,7 @@ pub(super) const LIBRARY: &str = "library";
 pub(super) const ARTIST: &str = "artist";
 pub(super) const STAT: &str = "stat";
 
-pub(super) fn published() -> [&'static str; 5] {
+pub(super) const fn published() -> [&'static str; 5] {
 	[
 		RECORDING,
 		RECORDING_ARTIST,

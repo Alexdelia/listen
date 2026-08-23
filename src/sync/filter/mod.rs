@@ -26,7 +26,7 @@ pub(super) struct SyncEntry {
 	pub remove: Vec<Source>,
 }
 
-fn touched<K>(_: &K, sync: &mut SyncEntry) -> bool {
+const fn touched<K>(_: &K, sync: &mut SyncEntry) -> bool {
 	!sync.add.is_empty() || !sync.remove.is_empty()
 }
 

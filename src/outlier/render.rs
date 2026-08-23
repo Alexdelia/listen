@@ -111,7 +111,7 @@ pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 	kept(undeclared, username, more > 0);
 }
 
-fn more(undeclared: &[Undeclared]) -> usize {
+const fn more(undeclared: &[Undeclared]) -> usize {
 	undeclared.len().saturating_sub(CAP)
 }
 

@@ -74,7 +74,7 @@ fn piped(
 		let consumed = consume_each(&receive, &mut consume);
 		drop(receive);
 
-		consumed.and(parallel::joined(producing.join()))
+		consumed.and_then(|()| parallel::joined(producing.join()))
 	})
 }
 

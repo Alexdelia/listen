@@ -41,7 +41,7 @@ const ALL: [StreamingSource; 4] = [
 ];
 
 impl StreamingSource {
-	pub(crate) fn host(&self) -> &'static str {
+	pub(crate) const fn host(&self) -> &'static str {
 		match self {
 			Self::SoundCloud => "soundcloud.com",
 			Self::YouTube => "www.youtube.com",
@@ -73,7 +73,7 @@ impl StreamingSource {
 		run(&mut command, url)
 	}
 
-	pub(crate) fn priority(&self) -> u8 {
+	pub(crate) const fn priority(&self) -> u8 {
 		match self {
 			Self::SoundCloud => 0,
 			Self::YouTubeMusic => 1,

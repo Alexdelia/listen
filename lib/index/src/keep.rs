@@ -21,7 +21,7 @@ pub(super) fn requested() -> bool {
 }
 
 #[cfg(not(test))]
-fn by_test() -> bool {
+const fn by_test() -> bool {
 	false
 }
 

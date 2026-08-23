@@ -40,7 +40,7 @@ impl Covered {
 }
 
 impl Window {
-	fn days(&self) -> u64 {
+	const fn days(&self) -> u64 {
 		self.from.saturating_sub(self.to)
 	}
 }

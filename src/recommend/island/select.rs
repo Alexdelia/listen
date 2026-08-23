@@ -150,9 +150,9 @@ impl Stream {
 	}
 
 	fn next_living(&self, from: usize) -> usize {
-		let count = self.candidate.len();
+		let count = self.candidate.len().max(1);
 
-		turn::living(from, count, |turn| self.alive(turn)).unwrap_or(from % count.max(1))
+		turn::living(from, count, |turn| self.alive(turn)).unwrap_or(from % count)
 	}
 
 	fn alive(&self, turn: usize) -> bool {

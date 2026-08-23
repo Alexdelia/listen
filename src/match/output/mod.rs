@@ -29,7 +29,7 @@ pub(super) fn recording(recording: &Recording, title: &str, length: i64) {
 fn aside(s: Option<&str>) -> String {
 	s.map(str::trim)
 		.filter(|s| !s.is_empty())
-		.map_or(String::default(), |s| format!(" {DIM}({s}){D}"))
+		.map_or_else(String::default, |s| format!(" {DIM}({s}){D}"))
 }
 
 fn credit_line(credit: Option<&[ArtistCredit]>) -> String {
@@ -50,7 +50,7 @@ fn credit_line(credit: Option<&[ArtistCredit]>) -> String {
 }
 
 pub(super) fn found(info: &Info, length: i64) {
-	let delta_str = info.duration.map_or(String::default(), |dur| {
+	let delta_str = info.duration.map_or_else(String::default, |dur| {
 		let delta = dur - length;
 		if delta == 0 {
 			return String::default();

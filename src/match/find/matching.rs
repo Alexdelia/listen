@@ -12,7 +12,7 @@ pub(super) enum Mismatch {
 }
 
 impl Mismatch {
-	pub(super) fn rank(&self) -> (u8, i64) {
+	pub(super) const fn rank(&self) -> (u8, i64) {
 		match self {
 			Self::Duration(delta) => (0, delta.abs()),
 			Self::NoDuration => (1, 0),

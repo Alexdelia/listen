@@ -57,7 +57,7 @@ impl Origin {
 		}
 	}
 
-	pub(super) fn position(&self) -> usize {
+	pub(super) const fn position(&self) -> usize {
 		match self {
 			Self::CollaborativeFiltering { position, .. }
 			| Self::WeeklyExploration { position, .. }
@@ -66,7 +66,7 @@ impl Origin {
 		}
 	}
 
-	pub(super) fn latest_listened_at(&self) -> Option<DateTime<Utc>> {
+	pub(super) const fn latest_listened_at(&self) -> Option<DateTime<Utc>> {
 		match self {
 			Self::CollaborativeFiltering {
 				latest_listened_at, ..

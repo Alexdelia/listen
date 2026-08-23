@@ -7,11 +7,11 @@ use crate::args::{GRANULARITY, IslandArg, POPULARITY_DAMP, RecommendSort, Recomm
 
 use super::target::Target;
 
-pub(super) fn island(source: RecommendSource) -> bool {
+pub(super) const fn island(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::All | RecommendSource::Island)
 }
 
-pub(super) fn island_only(source: RecommendSource) -> bool {
+pub(super) const fn island_only(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::Island)
 }
 
@@ -71,7 +71,7 @@ fn tuned_granularity(arg: &IslandArg) -> bool {
 	arg.granularity != GRANULARITY
 }
 
-fn built_by(arg: &IslandArg) -> Option<&'static str> {
+const fn built_by(arg: &IslandArg) -> Option<&'static str> {
 	if !arg.seed.is_empty() {
 		return Some("--seed");
 	}
@@ -127,7 +127,7 @@ fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Resu
 	.into())
 }
 
-pub(super) fn weekly(source: RecommendSource) -> bool {
+pub(super) const fn weekly(source: RecommendSource) -> bool {
 	matches!(
 		source,
 		RecommendSource::All
@@ -137,18 +137,18 @@ pub(super) fn weekly(source: RecommendSource) -> bool {
 	)
 }
 
-pub(super) fn collaborative_filtering(source: RecommendSource) -> bool {
+pub(super) const fn collaborative_filtering(source: RecommendSource) -> bool {
 	matches!(
 		source,
 		RecommendSource::All | RecommendSource::CollaborativeFiltering
 	)
 }
 
-pub(super) fn listen_count(source: RecommendSource) -> bool {
+pub(super) const fn listen_count(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::All | RecommendSource::ListenBrainz)
 }
 
-pub(super) fn tolerates_missing_weekly(source: RecommendSource) -> bool {
+pub(super) const fn tolerates_missing_weekly(source: RecommendSource) -> bool {
 	matches!(
 		source,
 		RecommendSource::All | RecommendSource::WeeklyExploration

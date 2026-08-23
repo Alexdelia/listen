@@ -28,7 +28,7 @@ pub(super) struct Library {
 }
 
 impl Library {
-	pub(super) fn unsupported(&self) -> usize {
+	pub(super) const fn unsupported(&self) -> usize {
 		self.declared.len() - self.seed.len()
 	}
 

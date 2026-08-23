@@ -24,7 +24,7 @@ pub(super) struct Info {
 }
 
 impl Info {
-	pub(super) fn is_song(&self) -> bool {
+	pub(super) const fn is_song(&self) -> bool {
 		self.track.is_some() && self.artist.is_some()
 	}
 }

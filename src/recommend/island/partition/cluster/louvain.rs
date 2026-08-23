@@ -17,11 +17,11 @@ impl Graph {
 		};
 
 		for (a, b, weight) in edge.iter().copied() {
-			graph.total += 2.0 * weight;
+			graph.total = 2.0f64.mul_add(weight, graph.total);
 
 			if a == b {
-				graph.self_loop[a] += 2.0 * weight;
-				graph.degree[a] += 2.0 * weight;
+				graph.self_loop[a] = 2.0f64.mul_add(weight, graph.self_loop[a]);
+				graph.degree[a] = 2.0f64.mul_add(weight, graph.degree[a]);
 				continue;
 			}
 
@@ -49,7 +49,7 @@ impl Graph {
 
 				if here == there {
 					if node < peer {
-						self_loop[here] += 2.0 * weight;
+						self_loop[here] = 2.0f64.mul_add(weight, self_loop[here]);
 					}
 				} else if here < there {
 					*between.entry((here, there)).or_default() += weight;

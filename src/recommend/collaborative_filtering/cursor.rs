@@ -15,7 +15,7 @@ impl<F> Cursor<F>
 where
 	F: FnMut(usize) -> hmerr::Result<Page>,
 {
-	pub(super) fn new(fetch: F) -> Self {
+	pub(super) const fn new(fetch: F) -> Self {
 		Self {
 			fetch,
 			offset: 0,

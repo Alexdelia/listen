@@ -69,11 +69,11 @@ pub(super) fn rank(
 		.collect()
 }
 
-fn most_listened(entry: &Listened) -> Reverse<u64> {
+const fn most_listened(entry: &Listened) -> Reverse<u64> {
 	Reverse(entry.listen)
 }
 
-fn newest_released(entry: &Listened) -> (Reverse<Option<NaiveDate>>, Reverse<u64>) {
+const fn newest_released(entry: &Listened) -> (Reverse<Option<NaiveDate>>, Reverse<u64>) {
 	(Reverse(entry.released), Reverse(entry.listen))
 }
 

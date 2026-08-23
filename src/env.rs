@@ -15,7 +15,7 @@ pub(crate) enum Var {
 }
 
 impl Var {
-	pub(crate) fn key(self) -> &'static str {
+	pub(crate) const fn key(self) -> &'static str {
 		match self {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
 			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",

@@ -29,7 +29,7 @@ pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 	work::stamp(work, EXCLUDED, own)
 }
 
-fn pooled() -> [&'static str; 4] {
+const fn pooled() -> [&'static str; 4] {
 	[STAT, USER_STAT, USER_LISTEN, RECORDING_LISTENER]
 }
 

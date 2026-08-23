@@ -37,6 +37,8 @@ pedantic = { level = "deny", priority = -1 }
 nursery = { level = "deny", priority = -1 }
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+redundant_pub_crate = "allow"
+future_not_send = "allow"
 
 [package]
 name = "declarative_listen"

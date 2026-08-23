@@ -28,7 +28,10 @@ pub(super) fn promise(island: &Island, cohort: usize, library: &Library) -> f32 
 	let support = real::of(cohort);
 	let full_cohort = real::of(cohort::SIZE);
 
-	(island.q(&library.seed) * support + library.q() * full_cohort) / (support + full_cohort)
+	library
+		.q()
+		.mul_add(full_cohort, island.q(&library.seed) * support)
+		/ (support + full_cohort)
 }
 
 #[cfg(test)]

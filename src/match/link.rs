@@ -9,7 +9,7 @@ pub(super) enum Streaming {
 }
 
 impl Streaming {
-	fn priority(&self) -> u8 {
+	const fn priority(&self) -> u8 {
 		match self {
 			Self::SoundCloud => StreamingSource::SoundCloud.priority(),
 			Self::Bandcamp => StreamingSource::Bandcamp.priority(),
@@ -17,7 +17,7 @@ impl Streaming {
 		}
 	}
 
-	pub(super) fn name(&self) -> &'static str {
+	pub(super) const fn name(&self) -> &'static str {
 		match self {
 			Self::SoundCloud => "soundcloud",
 			Self::Bandcamp => "bandcamp",

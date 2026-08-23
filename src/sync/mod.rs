@@ -66,7 +66,7 @@ enum Rating {
 }
 
 impl Rating {
-	fn count(&self) -> usize {
+	const fn count(&self) -> usize {
 		match self {
 			Self::Submit(_, pending) => pending.rating.len(),
 			Self::Failed(count) => *count,

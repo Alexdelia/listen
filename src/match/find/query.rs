@@ -11,7 +11,7 @@ pub(super) fn build(title_form: &[String], artist: &[Vec<String>]) -> Vec<String
 	if let Some(latin_title) = title_form
 		.iter()
 		.find(|f| is_latin(f))
-		.or(title_form.first())
+		.or_else(|| title_form.first())
 	{
 		push_unique(&mut out, query(&latin_artist, latin_title));
 	}

@@ -12,7 +12,7 @@ const VALUE: [Value; Q_MAX as usize + 1] = [
 
 pub(crate) const NEUTRAL: Value = 50;
 
-pub(crate) fn from_q(q: Q) -> Value {
+pub(crate) const fn from_q(q: Q) -> Value {
 	VALUE[q as usize]
 }
 

@@ -15,7 +15,7 @@ pub(super) struct Player {
 }
 
 impl Player {
-	pub(super) fn new() -> Self {
+	pub(super) const fn new() -> Self {
 		Self { root: None }
 	}
 

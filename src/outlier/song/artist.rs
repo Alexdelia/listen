@@ -23,7 +23,7 @@ impl Artist {
 		self.concat == other.concat
 	}
 
-	fn script_comparable(&self, other: &Self) -> bool {
+	const fn script_comparable(&self, other: &Self) -> bool {
 		(self.latin && other.latin) || (self.other && other.other)
 	}
 }
