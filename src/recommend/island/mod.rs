@@ -1,6 +1,6 @@
 mod attraction;
 mod cohort;
-mod index;
+pub(crate) mod index;
 mod log;
 mod partition;
 mod rank;

@@ -3,7 +3,7 @@ mod consider;
 mod declared;
 mod declined;
 mod feed;
-mod island;
+pub(crate) mod island;
 mod listen_count;
 mod queue;
 mod recommendation;

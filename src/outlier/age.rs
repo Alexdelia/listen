@@ -39,6 +39,12 @@ pub(super) fn days_since_added(path: &Path) -> hmerr::Result<Age> {
 	Ok(parse_log(&String::from_utf8_lossy(&output.stdout), now()?))
 }
 
+pub(super) fn days_since(timestamp: i64) -> hmerr::Result<u64> {
+	let timestamp = u64::try_from(timestamp).unwrap_or_default();
+
+	Ok(now()?.saturating_sub(timestamp) / SECOND_PER_DAY)
+}
+
 fn now() -> hmerr::Result<u64> {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)

@@ -1,6 +1,7 @@
 mod board;
 mod incremental;
 mod listen;
+mod listener;
 mod music_brainz;
 mod rsync;
 mod space;
@@ -15,6 +16,7 @@ use crate::cache;
 
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
+pub(super) use listener::Search;
 
 use listen::Offer;
 
@@ -44,6 +46,10 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 		Some(listen) => Ok(listen),
 		None => listen::fetch(&root, &NO_INDEX)?.ok_or_else(|| listen::refused().into()),
 	}
+}
+
+pub(super) fn named(username: &str, past: Option<u64>) -> hmerr::Result<Search> {
+	listener::named(username, past)
 }
 
 pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {

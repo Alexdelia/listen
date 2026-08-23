@@ -25,7 +25,7 @@ enum Answer {
 	Quit,
 }
 
-pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
+pub(super) fn run(analysis: &Analysis, path: &Path, username: &str) -> hmerr::Result<()> {
 	render::matched(analysis);
 	render::median(analysis);
 	render::outlier_header(analysis.outlier.len());
@@ -41,7 +41,7 @@ pub(super) fn run(analysis: &Analysis, path: &Path) -> hmerr::Result<()> {
 		}
 	}
 
-	render::undeclared(&analysis.undeclared);
+	render::undeclared(&analysis.undeclared, username);
 
 	Ok(())
 }
