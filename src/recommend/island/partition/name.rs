@@ -9,19 +9,7 @@ const MIN_TOKEN_OCCURRENCE: usize = 2;
 const MIN_TOKEN_SHARE: f32 = 0.05;
 
 pub(super) fn name(genre: &[Vec<String>], member: &[Vec<usize>]) -> Vec<String> {
-	let mut library: HashMap<&str, usize> = HashMap::new();
-	let mut tagged = 0;
-
-	for genre in genre {
-		if genre.is_empty() {
-			continue;
-		}
-
-		tagged += 1;
-		for token in genre {
-			*library.entry(token.as_str()).or_default() += 1;
-		}
-	}
+	let (library, tagged) = tally(genre.iter());
 
 	let name = member
 		.iter()
@@ -41,22 +29,7 @@ fn over_represented(
 	library: &HashMap<&str, usize>,
 	tagged: usize,
 ) -> Option<String> {
-	let mut count: HashMap<&str, usize> = HashMap::new();
-	let mut size: usize = 0;
-
-	for member in member {
-		let Some(genre) = genre.get(*member) else {
-			continue;
-		};
-		if genre.is_empty() {
-			continue;
-		}
-
-		size += 1;
-		for token in genre {
-			*count.entry(token.as_str()).or_default() += 1;
-		}
-	}
+	let (count, size) = tally(member.iter().filter_map(|member| genre.get(*member)));
 
 	if size == 0 || tagged == 0 {
 		return None;
@@ -94,6 +67,24 @@ fn over_represented(
 	)
 }
 
+fn tally<'a>(genre: impl Iterator<Item = &'a Vec<String>>) -> (HashMap<&'a str, usize>, usize) {
+	let mut count: HashMap<&str, usize> = HashMap::new();
+	let mut tagged = 0;
+
+	for genre in genre {
+		if genre.is_empty() {
+			continue;
+		}
+
+		tagged += 1;
+		for token in genre {
+			*count.entry(token.as_str()).or_default() += 1;
+		}
+	}
+
+	(count, tagged)
+}
+
 fn distinct(name: Vec<String>) -> Vec<String> {
 	let mut seen: HashMap<String, usize> = HashMap::new();
 
@@ -122,23 +113,6 @@ mod tests {
 			.collect()
 	}
 
-	fn library(genre: &[Vec<String>]) -> (HashMap<&str, usize>, usize) {
-		let mut library: HashMap<&str, usize> = HashMap::new();
-		let mut tagged = 0;
-
-		for genre in genre {
-			if genre.is_empty() {
-				continue;
-			}
-			tagged += 1;
-			for token in genre {
-				*library.entry(token.as_str()).or_default() += 1;
-			}
-		}
-
-		(library, tagged)
-	}
-
 	#[test]
 	fn the_name_is_the_token_the_island_has_more_of_than_the_library() {
 		let genre = genre(&[
@@ -149,7 +123,7 @@ mod tests {
 			&["electronic"],
 			&["electronic"],
 		]);
-		let (library, tagged) = library(&genre);
+		let (library, tagged) = tally(genre.iter());
 
 		let name = over_represented(&[0, 1], &genre, &library, tagged);
 
@@ -162,7 +136,7 @@ mod tests {
 	#[test]
 	fn a_token_seen_once_in_an_island_does_not_name_it() {
 		let genre = genre(&[&["touhou", "rare"], &["touhou"], &["pop"]]);
-		let (library, tagged) = library(&genre);
+		let (library, tagged) = tally(genre.iter());
 
 		let name = over_represented(&[0, 1], &genre, &library, tagged).unwrap_or_default();
 
@@ -174,7 +148,7 @@ mod tests {
 		let mut token: Vec<&[&str]> = vec![&["quirk"], &["quirk"]];
 		token.extend(std::iter::repeat_n::<&[&str]>(&["pop"], 58));
 		let genre = genre(&token);
-		let (library, tagged) = library(&genre);
+		let (library, tagged) = tally(genre.iter());
 
 		let name = over_represented(&(0..60).collect::<Vec<_>>(), &genre, &library, tagged)
 			.unwrap_or_default();
@@ -185,7 +159,7 @@ mod tests {
 	#[test]
 	fn an_island_with_no_tagged_file_has_no_name() {
 		let genre = genre(&[&[], &[], &["pop"]]);
-		let (library, tagged) = library(&genre);
+		let (library, tagged) = tally(genre.iter());
 
 		assert!(over_represented(&[0, 1], &genre, &library, tagged).is_none());
 	}
@@ -215,7 +189,7 @@ mod tests {
 			&["a", "b", "c", "d", "e"],
 			&["z"],
 		]);
-		let (library, tagged) = library(&genre);
+		let (library, tagged) = tally(genre.iter());
 
 		let name = over_represented(&[0, 1], &genre, &library, tagged).unwrap_or_default();
 
