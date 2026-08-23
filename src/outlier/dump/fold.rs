@@ -1,4 +1,6 @@
-use crate::recommend::island::index::own;
+use listen_index::own;
+
+use crate::ask;
 
 use super::{
 	super::{
@@ -11,7 +13,7 @@ use super::{
 pub(super) fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 	let reached = held.reach().to_string();
 
-	own::fresh(username, &reached, &mut |fold| {
+	own::fresh(username, &reached, &ask::Terminal, &mut |fold| {
 		absorbed(held, fold);
 
 		cache::dump::write(username, held)
@@ -39,7 +41,7 @@ fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
 
 #[cfg(test)]
 mod tests {
-	use crate::recommend::island::index::own::Gap;
+	use listen_index::own::Gap;
 
 	use super::{
 		super::fixture::{LATEST, MBID, NEWER, fold, held, play, plays},

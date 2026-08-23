@@ -1,6 +1,5 @@
 mod attraction;
 mod cohort;
-pub(crate) mod index;
 mod log;
 mod partition;
 mod rank;
@@ -14,8 +13,12 @@ use std::path::Path;
 use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
 use hmerr::{GenericError, ge};
 
+use listen_index as index;
+
 use crate::{
 	args::IslandArg,
+	ask,
+	declaration::{Entry, parse},
 	format::{self, genre_list, human_readable_number},
 };
 
@@ -28,8 +31,10 @@ pub(super) fn absent() {
 }
 
 pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
-	let index = index::ensure(path)?;
-	let library = seed::load(path, &index)?;
+	let entry = parse::parse(path)?;
+	let index = index::ensure(&declared(&entry), &ask::Terminal)?;
+	attraction::declare(&index.db)?;
+	let library = seed::load(&entry, &index)?;
 
 	report(&index.meta, &library);
 
@@ -61,6 +66,16 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 		arg.granularity,
 		log::path()?,
 	)))
+}
+
+fn declared(entry: &[Entry]) -> Vec<index::Seed> {
+	entry
+		.iter()
+		.map(|entry| index::Seed {
+			mbid: entry.s,
+			q: entry.q,
+		})
+		.collect()
 }
 
 fn request(arg: &IslandArg) -> partition::Request {

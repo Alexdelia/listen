@@ -1,0 +1,24 @@
+[package]
+name = "listen_index"
+version = "0.1.0"
+edition = "2024"
+authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
+description = "a local index of the listenbrainz listen dump"
+
+[dependencies]
+hmerr.workspace = true
+ansi.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+ureq.workspace = true
+indicatif.workspace = true
+duckdb.workspace = true
+tar.workspace = true
+zstd.workspace = true
+rustix.workspace = true
+listen_cache.workspace = true
+
+[lints]
+workspace = true
