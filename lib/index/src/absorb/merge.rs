@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, F, G};
 use chrono::Utc;
 
 use super::{
-	super::{board::Board, open::Meta, progress, query},
+	super::{board::Board, index::Meta, progress, query},
 	artist, recording, recording_listener,
 	stage::Stage,
 	user_listen, user_stat,
@@ -65,7 +65,7 @@ mod tests {
 
 	use super::{
 		super::{
-			super::open,
+			super::index,
 			fixture::{
 				BUILT, DECLARED, FRESH, LATER, OTHER_RECORDING, POOLED, built, day, following,
 				incremental, morrow, one, plays,
@@ -80,7 +80,7 @@ mod tests {
 	fn a_merge_left_half_done_is_redone_over_a_dump_folded_after_it() {
 		let (dir, index, meta) = built("resumed");
 		let work = work::open(&index, meta.covered()).unwrap_or_default();
-		let db = open::session(&work).unwrap_or_else(|_| unreachable!());
+		let db = index::session::of(&work).unwrap_or_else(|_| unreachable!());
 		let mut reach = work::reach(&work, &meta);
 		let board = Board::of(&stage::PLAN, &stage::Chain { dump: 2, byte: 0 })
 			.unwrap_or_else(|_| unreachable!());
@@ -103,7 +103,7 @@ mod tests {
 		assert_eq!(plays(&index, POOLED, FRESH + 1), 3);
 		assert_eq!(plays(&index, POOLED, FRESH), 3);
 		assert_eq!(
-			open::meta(&index)
+			index::meta::read(&index)
 				.unwrap_or_else(|_| unreachable!())
 				.covered(),
 			LATER

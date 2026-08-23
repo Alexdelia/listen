@@ -1,4 +1,4 @@
-use super::super::{board::Planned, progress::Measure};
+use super::super::{board::Planned, index::layout::BUCKET, progress::Measure};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -59,7 +59,7 @@ impl Stage {
 	fn total(self, batch: u64) -> u64 {
 		match self {
 			Self::Library | Self::Artist => batch,
-			Self::Compact | Self::Stat | Self::Listen => u64::from(super::super::open::BUCKET),
+			Self::Compact | Self::Stat | Self::Listen => u64::from(BUCKET),
 			Self::Recording
 			| Self::Own
 			| Self::Pool
@@ -87,10 +87,7 @@ mod tests {
 	fn what_a_stage_is_worth_is_read_off_how_the_dump_was_sliced() {
 		assert_eq!(Stage::Library.total(48), 48);
 		assert_eq!(Stage::Artist.total(48), 48);
-		assert_eq!(
-			Stage::Listen.total(48),
-			u64::from(super::super::super::open::BUCKET)
-		);
+		assert_eq!(Stage::Listen.total(48), u64::from(BUCKET));
 		assert_eq!(Stage::Pool.total(48), ONCE);
 	}
 

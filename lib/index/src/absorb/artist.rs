@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-	super::{board::Board, open::RECORDING_ARTIST, query},
+	super::{board::Board, index::layout::RECORDING_ARTIST, query},
 	stage::Stage,
 	work::{self, ARTIST, Merge},
 };

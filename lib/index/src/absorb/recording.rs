@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::{
-	super::{board::Board, open::RECORDING, query},
+	super::{board::Board, index::layout::RECORDING, query},
 	stage::Stage,
 	work::{self, LIBRARY, Merge},
 };

@@ -20,7 +20,7 @@ use super::{
 	board::Board,
 	decide::Decide,
 	dump::{self, Pending},
-	open::{self, Meta},
+	index::{self, Meta},
 };
 
 use merge::merge;
@@ -48,7 +48,7 @@ pub(super) fn run(
 
 	dump::room(&root, &left, chain::AT_ONCE)?;
 
-	let db = open::session(&work)?;
+	let db = index::session::of(&work)?;
 	let board = Board::of(
 		&stage::PLAN,
 		&stage::Chain {
@@ -228,7 +228,7 @@ mod tests {
 		let (dir, index, meta) = built("reached");
 
 		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day()));
-		let meta = open::meta(&index).unwrap_or_else(|_| unreachable!());
+		let meta = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
 
 		assert_eq!(meta.covered(), NEXT);
 		assert_eq!(meta.absorbed, 1);
@@ -245,7 +245,7 @@ mod tests {
 		let (dir, index, meta) = built("gap");
 
 		let _ = absorb(&index, &meta, &incremental(&dir, AFTER_A_HOLE, &day()));
-		let meta = open::meta(&index).unwrap_or_else(|_| unreachable!());
+		let meta = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
 
 		assert_eq!(meta.gap.len(), 1);
 		assert_eq!(meta.gap.first().map(|gap| gap.from.as_str()), Some(BUILT));
@@ -270,7 +270,7 @@ mod tests {
 			one::<i64>(&index, "select count(*)::bigint from recording"),
 			recording
 		);
-		let now = open::meta(&index).unwrap_or_else(|_| unreachable!());
+		let now = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
 		assert_eq!(now.covered(), meta.covered());
 		assert_eq!(now.absorbed, 0);
 		let _ = fs::remove_dir_all(&dir);

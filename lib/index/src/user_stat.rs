@@ -3,12 +3,15 @@ use std::path::Path;
 use ansi::abbrev::{D, F};
 
 use super::{
-	open::{self, USER_LISTEN, USER_STAT},
+	index::{
+		self,
+		layout::{USER_LISTEN, USER_STAT},
+	},
 	partial, progress,
 };
 
 pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
-	if !open::predates_stat(dir) {
+	if !index::predates_stat(dir) {
 		return Ok(());
 	}
 
@@ -19,7 +22,7 @@ pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 		rebuild from a dump to fix{D}"
 	));
 
-	let db = open::session(dir)?;
+	let db = index::session::of(dir)?;
 
 	partial::write(&into, |partial| {
 		db.execute_batch(&format!(

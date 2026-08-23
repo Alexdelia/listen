@@ -3,7 +3,10 @@ use std::path::Path;
 use ansi::abbrev::{D, F};
 
 use super::{
-	open::{self, RECORDING_LISTENER, USER_LISTEN},
+	index::{
+		self,
+		layout::{RECORDING_LISTENER, USER_LISTEN},
+	},
 	progress, query,
 };
 
@@ -19,7 +22,7 @@ group by 1
 }
 
 pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
-	if !open::predates_listener(dir) {
+	if !index::predates_listener(dir) {
 		return Ok(());
 	}
 
@@ -27,7 +30,7 @@ pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 		"{F}index predates the listener count, counted from the listen it holds{D}"
 	));
 
-	let db = open::session(dir)?;
+	let db = index::session::of(dir)?;
 
 	query::copy(&db, &dir.join(RECORDING_LISTENER), &counted(dir))
 }
@@ -56,7 +59,7 @@ mod tests {
 				.map(|(user, recording, plays)| format!("({user}, {recording}, {plays})"))
 				.collect::<Vec<_>>()
 				.join(","),
-			shard = into.join(open::shard(0)).display()
+			shard = into.join(index::layout::shard(0)).display()
 		))
 		.unwrap_or_else(|e| unreachable!("{e}"));
 

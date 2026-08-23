@@ -3,12 +3,13 @@ mod board;
 mod build;
 pub mod decide;
 mod dump;
+mod index;
 mod keep;
 mod listener;
-mod open;
 pub mod own;
 mod parallel;
 mod partial;
+mod play;
 mod progress;
 mod query;
 mod recording_listener;
@@ -25,7 +26,7 @@ use ansi::abbrev::{B, D, F};
 use dump::Listen;
 
 pub use decide::Decide;
-pub use open::{Gap, Index, Meta};
+pub use index::{Gap, Index, Meta};
 
 pub struct Seed {
 	pub mbid: Uuid,
@@ -34,11 +35,11 @@ pub struct Seed {
 
 #[must_use]
 pub fn ready() -> bool {
-	open::dir().is_ok_and(|dir| open::built(&dir))
+	index::dir().is_ok_and(|dir| index::built(&dir))
 }
 
 pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
-	let dir = open::dir()?;
+	let dir = index::dir()?;
 
 	if let Some(listen) = to_build_from(&dir, decide)? {
 		rebuilt(&dir, &listen, declared)?;
@@ -53,13 +54,13 @@ pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
 	absorbed(&dir, decide)?;
 	recording_listener::derive(&dir)?;
 
-	dump::artist_link(&dir.join(open::ARTIST_LINK), decide)?;
+	dump::artist_link(&dir.join(index::layout::ARTIST_LINK), decide)?;
 
-	open::open(&dir)
+	index::open(&dir)
 }
 
 fn to_build_from(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
-	if !open::scanned(dir) {
+	if !index::scanned(dir) {
 		return dump::listen(decide).map(Some);
 	}
 
@@ -67,7 +68,7 @@ fn to_build_from(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen
 		return Ok(None);
 	};
 
-	let built = open::meta(dir)?.dump;
+	let built = index::meta::read(dir)?.dump;
 
 	let Some(reason) = worth_rebuilding(dir, &listen, &built) else {
 		return Ok(None);
@@ -81,7 +82,7 @@ fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> 
 		return Some(format!("newer than the index built from {B}{built}{D}{F}"));
 	}
 
-	open::predates_stat(dir)
+	index::predates_stat(dir)
 		.then(|| "the index it was built for predates its listener stat".to_owned())
 }
 
@@ -109,7 +110,7 @@ fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> hmerr::Result<()> 
 }
 
 fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
-	let meta = open::meta(dir)?;
+	let meta = index::meta::read(dir)?;
 
 	if meta.gap.is_empty() {
 		return Ok(None);
@@ -123,7 +124,7 @@ fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 }
 
 fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
-	let meta = open::meta(dir)?;
+	let meta = index::meta::read(dir)?;
 
 	let Some(pending) = listed(dump::pending(meta.covered())) else {
 		return Ok(());
@@ -187,20 +188,20 @@ mod tests {
 	fn whole(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_ensure_{name}"));
 		let _ = fs::remove_dir_all(&dir);
-		let into = dir.join(open::USER_LISTEN);
+		let into = dir.join(index::layout::USER_LISTEN);
 		let _ = fs::create_dir_all(&into);
 
 		for part in [
-			open::RECORDING,
-			open::RECORDING_ARTIST,
-			open::RECORDING_LISTENER,
-			open::USER_STAT,
-			open::META,
+			index::layout::RECORDING,
+			index::layout::RECORDING_ARTIST,
+			index::layout::RECORDING_LISTENER,
+			index::layout::USER_STAT,
+			index::layout::META,
 		] {
 			let _ = fs::write(dir.join(part), b"built");
 		}
-		for bucket in 0..open::BUCKET {
-			let _ = fs::write(into.join(open::shard(bucket)), b"built");
+		for bucket in 0..index::layout::BUCKET {
+			let _ = fs::write(into.join(index::layout::shard(bucket)), b"built");
 		}
 
 		dir
@@ -217,7 +218,7 @@ mod tests {
 	#[test]
 	fn an_index_predating_the_listener_count_counts_it_where_it_stands_rather_than_rebuild() {
 		let dir = whole("uncounted");
-		let _ = fs::remove_file(dir.join(open::RECORDING_LISTENER));
+		let _ = fs::remove_file(dir.join(index::layout::RECORDING_LISTENER));
 
 		assert!(worth_rebuilding(&dir, &listen(BUILT), BUILT).is_none());
 		let _ = fs::remove_dir_all(&dir);
@@ -226,7 +227,7 @@ mod tests {
 	#[test]
 	fn an_index_predating_the_listener_stat_is_offered_the_dump_it_was_built_from() {
 		let dir = whole("unstated");
-		let _ = fs::remove_file(dir.join(open::USER_STAT));
+		let _ = fs::remove_file(dir.join(index::layout::USER_STAT));
 
 		let reason = worth_rebuilding(&dir, &listen(BUILT), BUILT).unwrap_or_default();
 

@@ -11,7 +11,7 @@ use hmerr::ioe;
 use super::{
 	super::{
 		board::{Board, Running},
-		open::{self, BUCKET},
+		index::{self, layout::BUCKET},
 		query, shard,
 	},
 	stage::{self, Stage},
@@ -119,7 +119,7 @@ set preserve_insertion_order=false;
 
 		let unit: Vec<Unit> = (0..BUCKET)
 			.map(|bucket| Unit {
-				into: into.join(open::shard(bucket)),
+				into: into.join(index::layout::shard(bucket)),
 				select: query(bucket),
 			})
 			.collect();

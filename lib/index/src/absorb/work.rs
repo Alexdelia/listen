@@ -7,7 +7,7 @@ use hmerr::ioe;
 use serde::{Deserialize, Serialize};
 
 use super::super::{
-	open::{Gap, Meta},
+	index::{Gap, Meta},
 	partial, work,
 };
 
@@ -91,7 +91,7 @@ fn held(work: &Path) -> Option<Reach> {
 
 #[cfg(test)]
 mod tests {
-	use super::{super::super::open::RECORDING, *};
+	use super::{super::super::index::layout::RECORDING, *};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_absorb_work_{name}"));

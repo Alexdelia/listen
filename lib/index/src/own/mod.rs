@@ -12,10 +12,10 @@ use ansi::abbrev::{B, D, F, Y};
 use super::{
 	decide::Decide,
 	dump::{self, Listen, Pending},
-	listener, open, progress,
+	index, listener, progress,
 };
 
-pub use open::Gap;
+pub use index::Gap;
 pub use scan::Play;
 
 const AT_ONCE: u64 = 2;
@@ -38,7 +38,7 @@ pub fn unpacked() -> hmerr::Result<Option<String>> {
 }
 
 pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
-	let dir = open::dir()?;
+	let dir = index::dir()?;
 
 	let Some(own) = listened_as(&dir, username)? else {
 		return Ok(None);
@@ -47,7 +47,7 @@ pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
 		return Ok(None);
 	};
 
-	let scanned = scan::of(&open::session(&dir)?, &listen.dir, own)?;
+	let scanned = scan::of(&index::session::of(&dir)?, &listen.dir, own)?;
 
 	if scanned.play.is_empty() {
 		return Ok(None);
@@ -66,7 +66,7 @@ pub fn fresh(
 	decide: &dyn Decide,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
-	let dir = open::dir()?;
+	let dir = index::dir()?;
 
 	let Some(own) = listened_as(&dir, username)? else {
 		return Ok(());
@@ -89,7 +89,14 @@ pub fn fresh(
 	let root = dump::root()?;
 	dump::room(&root, &pending, AT_ONCE)?;
 
-	fold::run(&open::session(&dir)?, &root, &pending, own, reached, keep)
+	fold::run(
+		&index::session::of(&dir)?,
+		&root,
+		&pending,
+		own,
+		reached,
+		keep,
+	)
 }
 
 fn listened_as(dir: &Path, username: &str) -> hmerr::Result<Option<u32>> {
@@ -97,7 +104,7 @@ fn listened_as(dir: &Path, username: &str) -> hmerr::Result<Option<u32>> {
 		return Ok(Some(named));
 	}
 
-	Ok(open::own(dir))
+	Ok(index::meta::own(dir))
 }
 
 fn dumped() -> hmerr::Result<Option<Listen>> {

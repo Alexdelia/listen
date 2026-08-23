@@ -1,5 +1,5 @@
 use super::{
-	super::{board::Board, open::RECORDING_LISTENER, query, recording_listener},
+	super::{board::Board, index::layout::RECORDING_LISTENER, query, recording_listener},
 	stage::Stage,
 	work::Merge,
 };

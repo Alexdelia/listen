@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::super::{
-	open::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
+	index::layout::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
 	work,
 };
 

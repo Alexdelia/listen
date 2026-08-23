@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{super::open::RECORDING_ARTIST, scan::Scan, stage::Stage, work::ARTIST};
+use super::{super::index::layout::RECORDING_ARTIST, scan::Scan, stage::Stage, work::ARTIST};
 
 pub(super) fn of(scan: &Scan, dir: &Path, recording: &Path) -> hmerr::Result<()> {
 	let recording = recording.display().to_string();

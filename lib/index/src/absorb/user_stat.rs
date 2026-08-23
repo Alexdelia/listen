@@ -5,7 +5,10 @@ use hmerr::ioe;
 use super::{
 	super::{
 		board::Board,
-		open::{self, BUCKET, USER_LISTEN, USER_STAT},
+		index::{
+			self,
+			layout::{BUCKET, USER_LISTEN, USER_STAT},
+		},
 		query,
 	},
 	stage::Stage,
@@ -23,10 +26,13 @@ pub(super) fn of(
 	let bar = board.start(Stage::Stat)?;
 
 	for bucket in 0..BUCKET {
-		let shard = partial.join(open::shard(bucket));
+		let shard = partial.join(index::layout::shard(bucket));
 
 		if !query::done(db, &shard) {
-			let listen = merge.into.join(USER_LISTEN).join(open::shard(bucket));
+			let listen = merge
+				.into
+				.join(USER_LISTEN)
+				.join(index::layout::shard(bucket));
 			query::copy(
 				db,
 				&shard,

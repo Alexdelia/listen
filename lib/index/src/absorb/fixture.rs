@@ -10,7 +10,10 @@ use super::{
 		board::Board,
 		build,
 		dump::{self, Incremental, Pending},
-		open::{self, Meta, RECORDING, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
+		index::{
+			self, Meta,
+			layout::{RECORDING, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
+		},
 	},
 	merge, reach, stage,
 	work::{self, LIBRARY, Reach},
@@ -188,13 +191,13 @@ pub(super) fn built(name: &str) -> (PathBuf, PathBuf, Meta) {
 	(
 		dir.clone(),
 		index.clone(),
-		open::meta(&index).unwrap_or_else(|_| unreachable!()),
+		index::meta::read(&index).unwrap_or_else(|_| unreachable!()),
 	)
 }
 
 pub(super) fn absorb(index: &Path, meta: &Meta, incremental: &Incremental) -> hmerr::Result<Reach> {
 	let work = work::open(index, meta.covered())?;
-	let db = open::session(&work)?;
+	let db = index::session::of(&work)?;
 	let mut reach = work::reach(&work, meta);
 	let board = Board::of(&stage::PLAN, &stage::Chain { dump: 1, byte: 0 })?;
 

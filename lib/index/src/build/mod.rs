@@ -19,14 +19,14 @@ use listen_cache as cache;
 
 use crate::Seed;
 
-use super::{dump::Listen, listener, open, parallel, progress};
+use super::{dump::Listen, index, listener, parallel, progress};
 
 use scan::Scan;
 
 pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
 	let listener = pool::Listener {
 		named: named()?,
-		known: open::own(dir),
+		known: index::meta::own(dir),
 	};
 	let work = work::open(dir, &dump.name)?;
 
@@ -52,7 +52,7 @@ pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result
 
 	recording_listener::of(&scan, &work)?;
 
-	let meta = open::Meta {
+	let meta = index::Meta {
 		built: Utc::now().date_naive().to_string(),
 		dump: dump.name.clone(),
 		own: Some(pool.own),
@@ -93,7 +93,7 @@ mod tests {
 	use std::{fs, path::PathBuf};
 
 	use super::{
-		super::open::{RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
+		super::index::layout::{RECORDING, RECORDING_ARTIST, USER_LISTEN, USER_STAT},
 		*,
 	};
 
@@ -195,14 +195,15 @@ mod tests {
 		.unwrap()
 	}
 
-	fn built(name: &str) -> (PathBuf, open::Meta) {
+	fn built(name: &str) -> (PathBuf, index::Meta) {
 		let dir = scratch(name);
 		let index = dir.join("index");
 		let _ = fs::create_dir_all(&index);
 
 		run(&index, &dump(&dir), &declaration()).unwrap();
-		let meta: open::Meta =
-			serde_json::from_str(&fs::read_to_string(index.join(open::META)).unwrap()).unwrap();
+		let meta: index::Meta =
+			serde_json::from_str(&fs::read_to_string(index.join(index::layout::META)).unwrap())
+				.unwrap();
 
 		(dir, meta)
 	}
@@ -270,8 +271,9 @@ mod tests {
 		assert_eq!(count(&index, &format!("{USER_LISTEN}/*.parquet")), listen);
 		assert_eq!(count(&index, USER_STAT), i64::from(POOL_USER));
 		assert!(count(&index, RECORDING) > 0);
-		let held: open::Meta =
-			serde_json::from_str(&fs::read_to_string(index.join(open::META)).unwrap()).unwrap();
+		let held: index::Meta =
+			serde_json::from_str(&fs::read_to_string(index.join(index::layout::META)).unwrap())
+				.unwrap();
 		assert_eq!(held.dump, meta.dump);
 		let _ = fs::remove_dir_all(&dir);
 	}

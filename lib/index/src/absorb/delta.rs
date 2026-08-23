@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use hmerr::ioe;
 
 use super::{
-	super::{dump::Incremental, open::PLAY_CEILING, query, shard},
+	super::{dump::Incremental, play, query, shard},
 	work::{self, ARTIST, LIBRARY},
 };
 
@@ -43,11 +43,12 @@ fn library(shard: &str) -> String {
 select
 	l.user_id::uinteger as user_id,
 	l.recording_mbid::uuid as mbid,
-	least(count(*), {PLAY_CEILING})::usmallint as plays
+	least(count(*), {ceiling})::usmallint as plays
 from read_parquet({shard}) l
 where l.recording_mbid is not null
 group by 1, 2
-"
+",
+		ceiling = play::CEILING
 	)
 }
 

@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-	super::{open::RECORDING_LISTENER, recording_listener},
+	super::{index::layout::RECORDING_LISTENER, recording_listener},
 	scan::Scan,
 	stage::Stage,
 };

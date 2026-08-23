@@ -7,9 +7,11 @@ use ansi::abbrev::{B, D, F};
 use hmerr::ioe;
 
 use super::{
-	keep,
-	open::{self, Meta, RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
-	progress,
+	index::{
+		self, Meta,
+		layout::{RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_LISTEN, USER_STAT},
+	},
+	keep, progress,
 };
 
 pub(super) const LIBRARY: &str = "library";
@@ -27,7 +29,7 @@ pub(super) fn published() -> [&'static str; 5] {
 }
 
 pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
-	open::forget_meta(dir)?;
+	index::meta::forget(dir)?;
 
 	for part in published() {
 		let built = work.join(part);
@@ -37,7 +39,7 @@ pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()>
 		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 	}
 
-	open::write_meta(dir, meta)
+	index::meta::write(dir, meta)
 }
 
 pub(super) fn release(work: &Path) {
@@ -150,19 +152,19 @@ mod tests {
 			assert!(dir.join(part).exists(), "{part}");
 			assert!(!work.join(part).exists(), "{part}");
 		}
-		assert!(dir.join(open::META).exists());
+		assert!(dir.join(index::layout::META).exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
 	#[test]
 	fn a_publish_that_cannot_finish_leaves_no_meta_vouching_for_a_half_swapped_index() {
 		let dir = dir("torn");
-		let _ = fs::write(dir.join(open::META), b"{}");
+		let _ = fs::write(dir.join(index::layout::META), b"{}");
 		let work = opened(&dir, "staging", "stamp", "one").unwrap_or_default();
 
 		assert!(publish(&work, &dir, &meta()).is_err());
 
-		assert!(!dir.join(open::META).exists());
+		assert!(!dir.join(index::layout::META).exists());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

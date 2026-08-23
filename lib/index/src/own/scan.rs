@@ -2,7 +2,7 @@ use std::path::Path;
 
 use uuid::Uuid;
 
-use super::super::open::PLAY_CEILING;
+use super::super::play;
 
 pub struct Play {
 	pub mbid: Uuid,
@@ -23,12 +23,13 @@ select
 	l.recording_mbid,
 	arg_max(l.recording_name, l.listened_at),
 	arg_max(l.artist_name, l.listened_at),
-	least(count(*), {PLAY_CEILING})::uinteger,
+	least(count(*), {ceiling})::uinteger,
 	max(epoch(l.listened_at))::bigint
 from read_parquet('{dump}/*.parquet') l
 where l.user_id = {own} and l.recording_mbid is not null
 group by 1
 ",
+		ceiling = play::CEILING,
 		dump = dump.display()
 	))?;
 

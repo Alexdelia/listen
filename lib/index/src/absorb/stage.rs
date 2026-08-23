@@ -1,4 +1,4 @@
-use super::super::{board::Planned, open::BUCKET, progress::Measure};
+use super::super::{board::Planned, index::layout::BUCKET, progress::Measure};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {

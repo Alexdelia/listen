@@ -5,8 +5,11 @@ use hmerr::ioe;
 use super::{
 	super::{
 		board::Board,
-		open::{self, BUCKET, PLAY_CEILING, USER_LISTEN, USER_STAT},
-		query,
+		index::{
+			self,
+			layout::{BUCKET, USER_LISTEN, USER_STAT},
+		},
+		play, query,
 	},
 	stage::Stage,
 	work::{self, LIBRARY, Merge},
@@ -24,7 +27,7 @@ pub(super) fn of(
 	let bar = board.start(Stage::Listen)?;
 
 	for bucket in 0..BUCKET {
-		let shard = into.join(open::shard(bucket));
+		let shard = into.join(index::layout::shard(bucket));
 
 		if !query::done(db, &shard) {
 			query::copy(db, &shard, &merged(merge, recording, bucket))?;
@@ -63,14 +66,17 @@ full outer join delta d on d.user_id = h.user_id and d.recording_id = h.recordin
 		shard = merge
 			.index
 			.join(USER_LISTEN)
-			.join(open::shard(bucket))
+			.join(index::layout::shard(bucket))
 			.display(),
 		plays = summed("coalesce(h.plays, 0)", "coalesce(d.plays, 0)")
 	)
 }
 
 fn summed(held: &str, delta: &str) -> String {
-	format!("least({held}::ubigint + {delta}::ubigint, {PLAY_CEILING})::usmallint")
+	format!(
+		"least({held}::ubigint + {delta}::ubigint, {ceiling})::usmallint",
+		ceiling = play::CEILING
+	)
 }
 
 #[cfg(test)]
@@ -100,7 +106,7 @@ mod tests {
 
 	#[test]
 	fn a_count_already_at_the_ceiling_stays_there_instead_of_overflowing() {
-		assert_eq!(sum(u32::from(PLAY_CEILING), 9), PLAY_CEILING);
-		assert_eq!(sum(u32::from(PLAY_CEILING) - 1, 5), PLAY_CEILING);
+		assert_eq!(sum(u32::from(play::CEILING), 9), play::CEILING);
+		assert_eq!(sum(u32::from(play::CEILING) - 1, 5), play::CEILING);
 	}
 }

@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use super::{super::open::USER_STAT, library, pool::Pool, scan::Scan, stage::Stage, work::STAT};
+use super::{
+	super::index::layout::USER_STAT, library, pool::Pool, scan::Scan, stage::Stage, work::STAT,
+};
 
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
 	let partial = scan.work.join(STAT);

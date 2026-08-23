@@ -4,7 +4,7 @@ use ansi::abbrev::{D, F, Y};
 
 use super::{
 	super::{
-		open::{self, Meta},
+		index::{self, Meta},
 		progress,
 	},
 	work::Reach,
@@ -17,7 +17,7 @@ pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<(
 		return Ok(());
 	}
 
-	open::write_meta(
+	index::meta::write(
 		dir,
 		&Meta {
 			reached: Some(reach.covered.clone()),
@@ -50,7 +50,7 @@ mod tests {
 	fn a_chain_that_folded_nothing_still_records_the_window_it_skipped() {
 		let (dir, index, meta) = built("skipped");
 		let work = work::open(&index, meta.covered()).unwrap_or_default();
-		let db = open::session(&work).unwrap_or_else(|_| unreachable!());
+		let db = index::session::of(&work).unwrap_or_else(|_| unreachable!());
 		let mut reach = work::reach(&work, &meta);
 
 		taken(
@@ -64,7 +64,7 @@ mod tests {
 		assert!(!work::folded(&work, LIBRARY));
 		skipped(&index, &meta, &reach).unwrap_or_else(|e| unreachable!("{e}"));
 
-		let now = open::meta(&index).unwrap_or_else(|_| unreachable!());
+		let now = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
 
 		assert_eq!(now.covered(), NEXT);
 		assert_eq!(now.gap.len(), 1);
@@ -85,7 +85,7 @@ mod tests {
 		skipped(&index, &meta, &reach).unwrap_or_else(|e| unreachable!("{e}"));
 
 		assert!(
-			open::meta(&index)
+			index::meta::read(&index)
 				.unwrap_or_else(|_| unreachable!())
 				.reached
 				.is_none()

@@ -5,7 +5,7 @@ use ansi::abbrev::{B, D, Y};
 use super::{
 	super::{
 		dump::{self, Incremental},
-		open::Gap,
+		index::Gap,
 		progress,
 	},
 	delta,
@@ -79,7 +79,7 @@ mod tests {
 
 	use super::{
 		super::{
-			super::open,
+			super::index,
 			fixture::{
 				BEFORE_THE_INDEX, BUILT, NEXT, POOLED, absorb, built, day, incremental, plays,
 			},
@@ -107,11 +107,11 @@ mod tests {
 		let (dir, index, meta) = built("idempotent");
 
 		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day()));
-		let meta = open::meta(&index).unwrap_or_else(|_| unreachable!());
+		let meta = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
 		let once = plays(&index, POOLED, 0);
 
 		let work = work::open(&index, meta.covered()).unwrap_or_default();
-		let db = open::session(&work).unwrap_or_else(|_| unreachable!());
+		let db = index::session::of(&work).unwrap_or_else(|_| unreachable!());
 		let mut reach = work::reach(&work, &meta);
 		let again = incremental(&dir, BUILT, &day());
 
