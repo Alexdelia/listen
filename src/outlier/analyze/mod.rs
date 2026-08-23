@@ -1,13 +1,18 @@
-use std::{
-	cmp::{Ordering, Reverse},
-	collections::{BTreeMap, HashMap, HashSet},
-};
+mod assign;
+mod rate;
+mod undeclared;
 
-use serde::Serialize;
+use std::collections::BTreeMap;
 
 use crate::declaration::{Entry, Q, Source};
 
-use super::{age::Age, fetch::ListenCount, gap::Covered, meta::Meta, song::Song};
+use super::{age::Age, fetch::ListenCount, gap::Covered, meta::Meta};
+
+pub(super) use undeclared::Undeclared;
+
+use assign::assign;
+use rate::{cmp_rate, median_per_q, nearest_q, rate};
+use undeclared::undeclared;
 
 const MIN_DAY: u64 = 21;
 
@@ -27,14 +32,6 @@ pub(super) struct Record {
 	pub listen: u32,
 	pub days: u64,
 	pub rate: f64,
-}
-
-#[derive(Serialize)]
-pub(super) struct Undeclared {
-	pub mbid: Source,
-	pub listen: u32,
-	pub track: String,
-	pub artist: String,
 }
 
 pub(super) fn analyze(
@@ -68,7 +65,11 @@ pub(super) fn analyze(
 		.filter(|(_, _, days, _)| *days >= MIN_DAY)
 		.collect::<Vec<_>>();
 
-	let median = median_per_q(&considered);
+	let median = median_per_q(
+		considered
+			.iter()
+			.map(|(entry, _, _, rate)| (entry.q, *rate)),
+	);
 
 	let mut outlier = considered
 		.into_iter()
@@ -114,141 +115,6 @@ fn declared_per_q(list: &[Entry]) -> BTreeMap<Q, usize> {
 
 	per_q
 }
-
-struct Assignment<'l> {
-	per_entry: Vec<u32>,
-	consumed: HashSet<&'l Source>,
-}
-
-fn assign<'l>(list: &[Entry], listen: &'l ListenCount, meta: &Meta) -> Assignment<'l> {
-	let song = list
-		.iter()
-		.map(|entry| {
-			meta.get(&entry.s)
-				.map(|(title, artist)| Song::new(title, artist))
-		})
-		.collect::<Vec<_>>();
-
-	let index = list
-		.iter()
-		.enumerate()
-		.map(|(i, entry)| (&entry.s, i))
-		.collect::<HashMap<_, _>>();
-
-	let mut per_entry = vec![0u32; list.len()];
-	let mut consumed = HashSet::new();
-
-	for (mbid, l) in listen {
-		if let Some(&i) = index.get(mbid) {
-			per_entry[i] += l.count;
-			consumed.insert(mbid);
-			continue;
-		}
-
-		let listened = Song::new(&l.track, &l.artist);
-
-		let matched = song
-			.iter()
-			.map(|s| s.as_ref().and_then(|s| s.matches(&listened)))
-			.collect::<Vec<_>>();
-
-		let Some(best) = matched.iter().flatten().copied().max() else {
-			if let Some(i) = unique_title(&song, &listened) {
-				per_entry[i] += l.count;
-				consumed.insert(mbid);
-			}
-			continue;
-		};
-
-		consumed.insert(mbid);
-		for (i, matched) in matched.iter().enumerate() {
-			if *matched == Some(best) {
-				per_entry[i] += l.count;
-			}
-		}
-	}
-
-	Assignment {
-		per_entry,
-		consumed,
-	}
-}
-
-fn unique_title(song: &[Option<Song>], listened: &Song) -> Option<usize> {
-	unique(song, |s| s.same_title(listened))
-		.or_else(|| unique(song, |s| s.same_stripped_title(listened)))
-}
-
-fn unique(song: &[Option<Song>], matches: impl Fn(&Song) -> bool) -> Option<usize> {
-	let mut candidate = song
-		.iter()
-		.enumerate()
-		.filter(|(_, s)| s.as_ref().is_some_and(&matches))
-		.map(|(i, _)| i);
-
-	let first = candidate.next()?;
-	candidate.next().is_none().then_some(first)
-}
-
-fn undeclared(listen: &ListenCount, consumed: &HashSet<&Source>) -> Vec<Undeclared> {
-	let mut undeclared = listen
-		.iter()
-		.filter(|(mbid, _)| !consumed.contains(mbid))
-		.map(|(mbid, l)| Undeclared {
-			mbid: *mbid,
-			listen: l.count,
-			track: l.track.clone(),
-			artist: l.artist.clone(),
-		})
-		.collect::<Vec<_>>();
-
-	undeclared.sort_by_key(|undeclared| Reverse(undeclared.listen));
-
-	undeclared
-}
-
-#[allow(
-	clippy::cast_precision_loss,
-	reason = "listen count and day span stay far below 2^53, so the conversion is exact"
-)]
-fn rate(listen: u32, days: u64) -> f64 {
-	f64::from(listen) / days.max(1) as f64
-}
-
-fn median_per_q(observation: &[(&Entry, u32, u64, f64)]) -> BTreeMap<Q, f64> {
-	let mut per_q: BTreeMap<Q, Vec<f64>> = BTreeMap::new();
-
-	for (entry, _, _, rate) in observation {
-		per_q.entry(entry.q).or_default().push(*rate);
-	}
-
-	per_q
-		.into_iter()
-		.map(|(q, mut rate)| (q, median(&mut rate)))
-		.collect()
-}
-
-fn median(rate: &mut [f64]) -> f64 {
-	rate.sort_by(|a, b| cmp_rate(*a, *b));
-
-	match rate.len() {
-		0 => 0.0,
-		n if n % 2 == 1 => rate[n / 2],
-		n => f64::midpoint(rate[n / 2 - 1], rate[n / 2]),
-	}
-}
-
-fn nearest_q(median: &BTreeMap<Q, f64>, rate: f64) -> Option<Q> {
-	median
-		.iter()
-		.min_by(|(_, a), (_, b)| cmp_rate((rate - **a).abs(), (rate - **b).abs()))
-		.map(|(q, _)| *q)
-}
-
-fn cmp_rate(a: f64, b: f64) -> Ordering {
-	a.partial_cmp(&b).unwrap_or(Ordering::Equal)
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
