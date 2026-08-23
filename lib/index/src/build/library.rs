@@ -13,20 +13,7 @@ use super::{
 pub(super) const BUCKETED: &str = "library_bucket";
 
 pub(super) fn of(scan: &Scan) -> hmerr::Result<PathBuf> {
-	let partial = scan.batched(Stage::Library, LIBRARY, &|shard| {
-		format!(
-			r"
-select
-	l.user_id::uinteger as user_id,
-	l.recording_mbid::uuid as mbid,
-	least(count(*), {ceiling})::usmallint as plays
-from read_parquet({shard}) l
-where l.recording_mbid is not null
-group by 1, 2
-",
-			ceiling = play::CEILING
-		)
-	})?;
+	let partial = scan.batched(Stage::Library, LIBRARY, &play::counted)?;
 
 	let into = scan.work.join(BUCKETED);
 

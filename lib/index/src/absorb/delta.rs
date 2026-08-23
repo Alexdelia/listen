@@ -14,7 +14,7 @@ pub(super) fn fold(
 ) -> hmerr::Result<()> {
 	let shard = shard::quoted(&shard::of(&incremental.dir)?.path);
 
-	kept(db, work, LIBRARY, &incremental.name, &library(&shard))?;
+	kept(db, work, LIBRARY, &incremental.name, &play::counted(&shard))?;
 	kept(db, work, ARTIST, &incremental.name, &artist(&shard))
 }
 
@@ -35,21 +35,6 @@ fn kept(
 	}
 
 	query::copy(db, &into, select)
-}
-
-fn library(shard: &str) -> String {
-	format!(
-		r"
-select
-	l.user_id::uinteger as user_id,
-	l.recording_mbid::uuid as mbid,
-	least(count(*), {ceiling})::usmallint as plays
-from read_parquet({shard}) l
-where l.recording_mbid is not null
-group by 1, 2
-",
-		ceiling = play::CEILING
-	)
 }
 
 fn artist(shard: &str) -> String {
