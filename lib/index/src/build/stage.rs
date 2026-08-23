@@ -1,7 +1,4 @@
-use super::super::{
-	board::{Board, Running},
-	progress::Measure,
-};
+use super::super::{board::Planned, progress::Measure};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
@@ -18,7 +15,7 @@ pub(super) enum Stage {
 	Listener,
 }
 
-const PLAN: [Stage; 11] = [
+pub(super) const PLAN: [Stage; 11] = [
 	Stage::Library,
 	Stage::Compact,
 	Stage::Recording,
@@ -34,8 +31,10 @@ const PLAN: [Stage; 11] = [
 
 const ONCE: u64 = 1;
 
-impl Stage {
-	pub(super) fn title(self) -> &'static str {
+impl Planned for Stage {
+	type Cost = usize;
+
+	fn title(self) -> &'static str {
 		match self {
 			Self::Library => "library",
 			Self::Compact => "compact",
@@ -51,6 +50,12 @@ impl Stage {
 		}
 	}
 
+	fn measure(self, batch: &usize) -> Measure {
+		Measure::Step(self.total(u64::try_from(*batch).unwrap_or(ONCE)))
+	}
+}
+
+impl Stage {
 	fn total(self, batch: u64) -> u64 {
 		match self {
 			Self::Library | Self::Artist => batch,
@@ -65,26 +70,16 @@ impl Stage {
 	}
 }
 
-pub(super) fn of(batch: usize) -> hmerr::Result<Board> {
-	let batch = u64::try_from(batch).unwrap_or(ONCE);
-
-	Board::of(&PLAN.map(|stage| (stage.title(), Measure::Step(stage.total(batch)))))
-}
-
-pub(super) fn start(board: &Board, stage: Stage) -> hmerr::Result<Running> {
-	board.start(stage.title())
-}
-
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{super::super::board::Board, *};
 
 	#[test]
 	fn every_stage_of_a_build_is_on_the_board_before_the_first_one_runs() {
-		let board = of(48).unwrap_or_else(|_| unreachable!());
+		let board = Board::of(&PLAN, &48usize).unwrap_or_else(|_| unreachable!());
 
 		for stage in PLAN {
-			assert!(start(&board, stage).is_ok(), "{}", stage.title());
+			assert!(board.start(stage).is_ok(), "{}", stage.title());
 		}
 	}
 

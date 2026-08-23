@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use ansi::abbrev::{B, D, F, R};
 use hmerr::{GenericError, ge};
 
-use super::{super::progress, board::Stage, library, scan::Scan, seed};
+use super::{super::progress, library, scan::Scan, seed, stage::Stage};
 
 const POOL: &str = "user.parquet";
 

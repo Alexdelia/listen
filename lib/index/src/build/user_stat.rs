@@ -1,6 +1,12 @@
 use std::path::Path;
 
-use super::{super::open::USER_STAT, board::Stage, library, pool::Pool, scan::Scan};
+use super::{
+	super::{board::Planned, open::USER_STAT},
+	library,
+	pool::Pool,
+	scan::Scan,
+	stage::Stage,
+};
 
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
 	let partial = scan.work.join(Stage::Stat.title());

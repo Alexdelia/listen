@@ -9,8 +9,9 @@ use hmerr::{GenericError, ge, ioe};
 use indicatif::ProgressBar;
 
 use super::{
-	super::{keep, partial, progress},
-	board, rsync, space,
+	super::{board::Board, keep, partial, progress},
+	rsync, space,
+	stage::{self, Stage},
 };
 
 const MODULE: &str = "data/fullexport";
@@ -44,15 +45,15 @@ pub(super) fn build(root: &Path, link: &Path) -> hmerr::Result<()> {
 		return Err(refused().into());
 	}
 
-	let board = board::music_brainz(archive.size)?;
+	let board = Board::of(&stage::MUSIC_BRAINZ, &archive.size)?;
 
-	board.run(board::DOWNLOAD, |bar| {
+	board.run(Stage::Download, |bar| {
 		rsync::pull(&format!("{url}{ARCHIVE}"), &root.join(ARCHIVE), bar)
 	})?;
-	board.run(board::VERIFY, |_| rsync::checked(&url, root, SUMS))?;
+	board.run(Stage::Verify, |_| rsync::checked(&url, root, SUMS))?;
 
-	let table = board.run(board::UNPACK, |bar| unpack(root, bar))?;
-	board.run(board::RELATION, |_| load(&table, link))?;
+	let table = board.run(Stage::Unpack, |bar| unpack(root, bar))?;
+	board.run(Stage::Relation, |_| load(&table, link))?;
 
 	keep::discard(&root.join(ARCHIVE))?;
 	keep::discard(&table)?;

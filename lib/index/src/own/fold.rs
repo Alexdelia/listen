@@ -4,10 +4,13 @@ use ansi::abbrev::{B, D, Y};
 
 use super::{
 	super::{
+		board::Board,
 		dump::{self, Incremental, Pending},
 		progress,
 	},
-	Fold, Gap, board, reach, scan, stamped,
+	Fold, Gap, reach, scan,
+	stage::{self, Stage},
+	stamped,
 };
 
 pub(super) fn run(
@@ -18,12 +21,12 @@ pub(super) fn run(
 	reached: &str,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
-	let planned = board::of(&board::chain(pending))?;
+	let planned = Board::of(&stage::PLAN, &stage::chain(pending))?;
 
-	let downloading = board::start(&planned, board::Stage::Download)?;
-	let verifying = board::start(&planned, board::Stage::Verify)?;
-	let unpacking = board::start(&planned, board::Stage::Unpack)?;
-	let reading = board::start(&planned, board::Stage::Listen)?;
+	let downloading = planned.start(Stage::Download)?;
+	let verifying = planned.start(Stage::Verify)?;
+	let unpacking = planned.start(Stage::Unpack)?;
+	let reading = planned.start(Stage::Listen)?;
 
 	let mut reached = reached.to_string();
 

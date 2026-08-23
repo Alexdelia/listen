@@ -8,20 +8,20 @@ use super::{
 		open::{self, BUCKET, PLAY_CEILING, USER_LISTEN, USER_STAT},
 		query,
 	},
-	board::{self, Stage},
+	stage::Stage,
 	work::{self, LIBRARY, Merge},
 };
 
 pub(super) fn of(
 	db: &duckdb::Connection,
-	board: &Board,
+	board: &Board<Stage>,
 	merge: &Merge,
 	recording: &Path,
 ) -> hmerr::Result<u64> {
 	let into = merge.into.join(USER_LISTEN);
 	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
 
-	let bar = board::start(board, Stage::Listen)?;
+	let bar = board.start(Stage::Listen)?;
 
 	for bucket in 0..BUCKET {
 		let shard = into.join(open::shard(bucket));

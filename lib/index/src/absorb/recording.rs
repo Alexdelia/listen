@@ -2,13 +2,17 @@ use std::path::PathBuf;
 
 use super::{
 	super::{board::Board, open::RECORDING, query},
-	board::{self, Stage},
+	stage::Stage,
 	work::{self, LIBRARY, Merge},
 };
 
-pub(super) fn of(db: &duckdb::Connection, board: &Board, merge: &Merge) -> hmerr::Result<PathBuf> {
+pub(super) fn of(
+	db: &duckdb::Connection,
+	board: &Board<Stage>,
+	merge: &Merge,
+) -> hmerr::Result<PathBuf> {
 	let into = merge.into.join(RECORDING);
-	let bar = board::start(board, Stage::Recording)?;
+	let bar = board.start(Stage::Recording)?;
 
 	if !query::done(db, &into) {
 		query::copy(

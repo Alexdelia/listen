@@ -4,8 +4,8 @@ use ansi::abbrev::{D, F};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use super::{
-	board::shown,
 	eta::{self, Eta},
+	screen::shown,
 };
 
 const SPIN: Duration = Duration::from_millis(120);

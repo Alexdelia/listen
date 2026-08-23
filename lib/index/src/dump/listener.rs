@@ -5,7 +5,10 @@ use hmerr::ge;
 use serde::Deserialize;
 
 use super::{
-	super::{board::Board, progress::Measure},
+	super::{
+		board::{Board, Planned},
+		progress::Measure,
+	},
 	listen, rsync, stamp,
 };
 
@@ -16,7 +19,23 @@ const EXT: &str = ".tar.zst";
 const OVER: &str = "https://data.metabrainz.org/pub/musicbrainz";
 const LISTENS: &str = ".listens";
 
-const TITLE: &str = "name";
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stage {
+	Name,
+}
+
+impl Planned for Stage {
+	type Cost = u64;
+
+	fn title(self) -> &'static str {
+		"name"
+	}
+
+	fn measure(self, size: &u64) -> Measure {
+		Measure::Byte(*size)
+	}
+}
+
 const READ: usize = 64 * 1024;
 const AT_MOST: usize = 1;
 
@@ -88,9 +107,9 @@ fn published_of(entry: &rsync::Entry) -> Option<Published> {
 }
 
 fn read(published: &Published, username: &str) -> hmerr::Result<Option<u32>> {
-	let board = Board::of(&[(TITLE, Measure::Byte(published.size))])?;
+	let board = Board::of(&[Stage::Name], &published.size)?;
 
-	board.run(TITLE, |bar| {
+	board.run(Stage::Name, |bar| {
 		let body = ureq::get(&published.url)
 			.call()
 			.map_err(|e| unreachable_dump(&published.url, &e.to_string()))?

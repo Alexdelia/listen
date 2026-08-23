@@ -2,18 +2,18 @@ use std::path::Path;
 
 use super::{
 	super::{board::Board, open::RECORDING_ARTIST, query},
-	board::{self, Stage},
+	stage::Stage,
 	work::{self, ARTIST, Merge},
 };
 
 pub(super) fn of(
 	db: &duckdb::Connection,
-	board: &Board,
+	board: &Board<Stage>,
 	merge: &Merge,
 	recording: &Path,
 ) -> hmerr::Result<()> {
 	let into = merge.into.join(RECORDING_ARTIST);
-	let bar = board::start(board, Stage::Credit)?;
+	let bar = board.start(Stage::Credit)?;
 
 	if !query::done(db, &into) {
 		query::copy(

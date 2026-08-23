@@ -2,10 +2,11 @@ use std::path::{Path, PathBuf};
 
 use super::{
 	super::{
+		board::Planned,
 		open::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
 		work,
 	},
-	board::Stage,
+	stage::Stage,
 };
 
 pub(super) use work::{publish, release};
@@ -44,7 +45,7 @@ fn pooled() -> [&'static str; 4] {
 mod tests {
 	use std::fs;
 
-	use super::{super::board::Stage, *};
+	use super::{super::stage::Stage, *};
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{super::open::USER_LISTEN, board::Stage, library, pool::Pool, scan::Scan};
+use super::{super::open::USER_LISTEN, library, pool::Pool, scan::Scan, stage::Stage};
 
 pub(super) fn of(
 	scan: &Scan,

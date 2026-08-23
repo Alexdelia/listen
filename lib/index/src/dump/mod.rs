@@ -1,10 +1,10 @@
-mod board;
 mod incremental;
 mod listen;
 mod listener;
 mod music_brainz;
 mod rsync;
 mod space;
+mod stage;
 mod stamp;
 
 use std::path::{Path, PathBuf};

@@ -10,7 +10,7 @@ use super::{
 		dump::{self, Incremental, Pending},
 		parallel,
 	},
-	board::{self, Stage},
+	stage::Stage,
 };
 
 const AHEAD: usize = 1;
@@ -20,15 +20,15 @@ const UNPACKING: usize = 2;
 pub(super) const AT_ONCE: u64 = (IN_HAND + UNPACKING) as u64;
 
 pub(super) fn each(
-	board: &Board,
+	board: &Board<Stage>,
 	root: &Path,
 	pending: &[&Pending],
 	mut fold: impl FnMut(&Incremental) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
-	let downloading = board::start(board, Stage::Download)?;
-	let verifying = board::start(board, Stage::Verify)?;
-	let unpacking = board::start(board, Stage::Unpack)?;
-	let folding = board::start(board, Stage::Fold)?;
+	let downloading = board.start(Stage::Download)?;
+	let verifying = board.start(Stage::Verify)?;
+	let unpacking = board.start(Stage::Unpack)?;
+	let folding = board.start(Stage::Fold)?;
 
 	piped(
 		pending.len(),

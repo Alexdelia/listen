@@ -10,11 +10,11 @@ use hmerr::ioe;
 
 use super::{
 	super::{
-		board::{Board, Running},
+		board::{Board, Planned, Running},
 		open::{self, BUCKET},
 		query, shard,
 	},
-	board::{self, Stage},
+	stage::{self, Stage},
 };
 
 use lane::Lane;
@@ -31,7 +31,7 @@ pub(super) struct Scan {
 	pub work: PathBuf,
 	pub shard: Vec<String>,
 	lane: Lane,
-	board: Board,
+	board: Board<Stage>,
 	batch: usize,
 }
 
@@ -57,7 +57,7 @@ set preserve_insertion_order=false;
 
 		Ok(Self {
 			lane: Lane::of(db, size.lane)?,
-			board: board::of(size.batch)?,
+			board: Board::of(&stage::PLAN, &size.batch)?,
 			work: work.to_path_buf(),
 			shard: shard.path,
 			batch: size.batch,
@@ -73,7 +73,7 @@ set preserve_insertion_order=false;
 	}
 
 	pub(super) fn stage(&self, stage: Stage) -> hmerr::Result<Running> {
-		board::start(&self.board, stage)
+		self.board.start(stage)
 	}
 
 	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> hmerr::Result<()> {

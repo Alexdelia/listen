@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use super::{
 	super::open::{self, BUCKET, PLAY_CEILING},
-	board::Stage,
 	scan::Scan,
+	stage::Stage,
 };
 
 pub(super) const BUCKETED: &str = "library_bucket";

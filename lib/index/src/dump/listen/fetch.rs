@@ -9,8 +9,9 @@ use indicatif::ProgressBar;
 
 use super::{
 	super::{
-		super::{keep, progress},
-		board, rsync, space,
+		super::{board::Board, keep, progress},
+		rsync, space,
+		stage::{self, Stage},
 	},
 	LISTEN, Listen, Offer,
 	find::{name_of, timestamp},
@@ -45,16 +46,16 @@ pub(crate) fn fetch_named(root: &Path, dump: &str, offer: &Offer) -> hmerr::Resu
 
 	space::require(root, space::unpacking(&tar, archive.size))?;
 
-	let board = board::listen(archive.size)?;
+	let board = Board::of(&stage::LISTEN, &archive.size)?;
 
-	board.run(board::DOWNLOAD, |bar| {
+	board.run(Stage::Download, |bar| {
 		rsync::pull(&format!("{url}{name}", name = archive.name), &tar, bar)
 	})?;
-	board.run(board::VERIFY, |_| {
+	board.run(Stage::Verify, |_| {
 		rsync::checked(&url, root, &rsync::checksum(&archive.name))
 	})?;
 
-	let dir = board.run(board::UNPACK, |bar| unpack(&tar, root, bar))?;
+	let dir = board.run(Stage::Unpack, |bar| unpack(&tar, root, bar))?;
 	keep::discard(&tar)?;
 
 	Ok(Some(Listen {

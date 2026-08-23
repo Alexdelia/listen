@@ -1,11 +1,11 @@
 mod artist;
-mod board;
 mod library;
 mod pool;
 mod recording;
 mod recording_listener;
 mod scan;
 mod seed;
+mod stage;
 mod user_listen;
 mod user_stat;
 mod work;

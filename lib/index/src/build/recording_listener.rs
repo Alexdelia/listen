@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{
 	super::{open::RECORDING_LISTENER, recording_listener},
-	board::Stage,
 	scan::Scan,
+	stage::Stage,
 };
 
 pub(super) fn of(scan: &Scan, dir: &Path) -> hmerr::Result<()> {

@@ -1,10 +1,10 @@
 use super::super::{
-	board::{Board, Running},
+	board::Planned,
 	dump::{self, Pending},
 	progress::Measure,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stage {
 	Download,
 	Verify,
@@ -12,15 +12,17 @@ pub(super) enum Stage {
 	Listen,
 }
 
-const PLAN: [Stage; 4] = [Stage::Download, Stage::Verify, Stage::Unpack, Stage::Listen];
+pub(super) const PLAN: [Stage; 4] = [Stage::Download, Stage::Verify, Stage::Unpack, Stage::Listen];
 
 pub(super) struct Chain {
 	pub dump: u64,
 	pub byte: u64,
 }
 
-impl Stage {
-	pub(super) fn title(self) -> &'static str {
+impl Planned for Stage {
+	type Cost = Chain;
+
+	fn title(self) -> &'static str {
 		match self {
 			Self::Download => "download",
 			Self::Verify => "verify",
@@ -44,17 +46,9 @@ pub(super) fn chain(pending: &[&Pending]) -> Chain {
 	}
 }
 
-pub(super) fn of(chain: &Chain) -> hmerr::Result<Board> {
-	Board::of(&PLAN.map(|stage| (stage.title(), stage.measure(chain))))
-}
-
-pub(super) fn start(board: &Board, stage: Stage) -> hmerr::Result<Running> {
-	board.start(stage.title())
-}
-
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use super::{super::super::board::Board, *};
 
 	fn chain() -> Chain {
 		Chain {
@@ -65,10 +59,10 @@ mod tests {
 
 	#[test]
 	fn the_whole_fold_is_on_one_board_before_the_first_byte_is_fetched() {
-		let board = of(&chain()).unwrap_or_else(|_| unreachable!());
+		let board = Board::of(&PLAN, &chain()).unwrap_or_else(|_| unreachable!());
 
 		for stage in PLAN {
-			assert!(start(&board, stage).is_ok(), "{}", stage.title());
+			assert!(board.start(stage).is_ok(), "{}", stage.title());
 		}
 	}
 

@@ -5,13 +5,15 @@ use chrono::Utc;
 
 use super::{
 	super::{board::Board, open::Meta, progress, query},
-	artist, recording, recording_listener, user_listen, user_stat,
+	artist, recording, recording_listener,
+	stage::Stage,
+	user_listen, user_stat,
 	work::{self, Reach},
 };
 
 pub(super) fn merge(
 	db: &duckdb::Connection,
-	board: &Board,
+	board: &Board<Stage>,
 	dir: &Path,
 	work: &Path,
 	held: &Meta,
@@ -64,12 +66,12 @@ mod tests {
 	use super::{
 		super::{
 			super::open,
-			board,
 			fixture::{
 				BUILT, DECLARED, FRESH, LATER, OTHER_RECORDING, POOLED, built, day, following,
 				incremental, morrow, one, plays,
 			},
 			reach::taken,
+			stage,
 		},
 		*,
 	};
@@ -80,8 +82,8 @@ mod tests {
 		let work = work::open(&index, meta.covered()).unwrap_or_default();
 		let db = open::session(&work).unwrap_or_else(|_| unreachable!());
 		let mut reach = work::reach(&work, &meta);
-		let board =
-			board::of(&board::Chain { dump: 2, byte: 0 }).unwrap_or_else(|_| unreachable!());
+		let board = Board::of(&stage::PLAN, &stage::Chain { dump: 2, byte: 0 })
+			.unwrap_or_else(|_| unreachable!());
 
 		taken(&db, &work, &mut reach, &incremental(&dir, BUILT, &day()))
 			.unwrap_or_else(|e| unreachable!("{e}"));

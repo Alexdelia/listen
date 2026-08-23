@@ -1,9 +1,9 @@
-mod board;
 #[cfg(test)]
 mod fixture;
 mod fold;
 mod reach;
 mod scan;
+mod stage;
 
 use std::path::Path;
 

@@ -1,5 +1,4 @@
 mod artist;
-mod board;
 mod chain;
 mod delta;
 #[cfg(test)]
@@ -10,6 +9,7 @@ mod reach;
 mod recording;
 mod recording_listener;
 mod skipped;
+mod stage;
 mod user_listen;
 mod user_stat;
 mod work;
@@ -17,6 +17,7 @@ mod work;
 use std::path::Path;
 
 use super::{
+	board::Board,
 	dump::{self, Pending},
 	open::{self, Meta},
 };
@@ -42,10 +43,13 @@ pub(super) fn run(dir: &Path, meta: &Meta, pending: &[Pending]) -> hmerr::Result
 	dump::room(&root, &left, chain::AT_ONCE)?;
 
 	let db = open::session(&work)?;
-	let board = board::of(&board::Chain {
-		dump: u64::try_from(left.len()).unwrap_or_default(),
-		byte: dump::weight(&left),
-	})?;
+	let board = Board::of(
+		&stage::PLAN,
+		&stage::Chain {
+			dump: u64::try_from(left.len()).unwrap_or_default(),
+			byte: dump::weight(&left),
+		},
+	)?;
 
 	chain::each(&board, &root, &left, |incremental| {
 		taken(&db, &work, &mut reach, incremental)
