@@ -25,7 +25,7 @@ pub(super) struct Held {
 	pub covered: i64,
 	pub count: ListenCount,
 	#[serde(default)]
-	pub fold: ListenCount,
+	pub fold: Option<ListenCount>,
 }
 
 struct Carried {
@@ -52,7 +52,7 @@ impl Held {
 	pub(super) fn counted(&self) -> ListenCount {
 		let mut count = self.count.clone();
 
-		for (mbid, folded) in &self.fold {
+		for (mbid, folded) in self.fold.iter().flatten() {
 			let listen = count.entry(*mbid).or_insert_with(|| Listen {
 				count: 0,
 				track: folded.track.clone(),
@@ -66,7 +66,7 @@ impl Held {
 	}
 
 	fn apart(&self) -> bool {
-		!self.fold.is_empty() || self.reach() == self.dump
+		self.fold.is_some() || self.reach() == self.dump
 	}
 
 	fn carried(self) -> Carried {
@@ -74,7 +74,7 @@ impl Held {
 			reached: self.reach().to_string(),
 			gap: self.gap,
 			covered: self.covered,
-			fold: self.fold,
+			fold: self.fold.unwrap_or_default(),
 		}
 	}
 }
@@ -137,7 +137,7 @@ fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 }
 
 fn absorbed(held: &mut Held, fold: own::Fold) {
-	merge(&mut held.fold, fold.play);
+	merge(held.fold.get_or_insert_default(), fold.play);
 	held.covered = held.covered.max(fold.covered);
 	held.gap.extend(fold.gap);
 	held.reached = fold.reached;
@@ -203,7 +203,7 @@ fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Hel
 				)
 			})
 			.collect(),
-		fold: carried.fold,
+		fold: Some(carried.fold),
 	};
 
 	cache::dump::write(username, &held)?;
@@ -249,7 +249,7 @@ mod tests {
 			gap: Vec::new(),
 			covered: 1_783_814_404,
 			count: ListenCount::new(),
-			fold: ListenCount::new(),
+			fold: Some(ListenCount::new()),
 		}
 	}
 
@@ -328,9 +328,32 @@ mod tests {
 	}
 
 	#[test]
-	fn a_cache_that_never_held_the_fold_apart_is_read_from_the_dump_up_again() {
+	fn an_incremental_that_added_no_play_still_leaves_the_dump_and_the_fold_apart() {
+		let mut quiet = held();
+		absorbed(
+			&mut quiet,
+			own::Fold {
+				reached: LATEST.to_string(),
+				covered: 0,
+				play: Vec::new(),
+				gap: Vec::new(),
+			},
+		);
+
+		assert_eq!(quiet.reach(), LATEST);
+
+		let carried = carried(kept(Some(quiet), Some(DUMP), true)).unwrap_or_else(|| {
+			unreachable!("an incremental holding nothing of ours is still an incremental read")
+		});
+
+		assert_eq!(carried.reached, LATEST);
+	}
+
+	#[test]
+	fn a_cache_written_before_the_fold_was_kept_apart_is_read_from_the_dump_up_again() {
 		let merged = Held {
 			reached: LATEST.to_string(),
+			fold: None,
 			count: ListenCount::from([(
 				MBID.parse().unwrap_or_default(),
 				Listen {
