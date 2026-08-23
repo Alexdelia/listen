@@ -10,7 +10,7 @@ use hmerr::ioe;
 
 use super::{
 	super::{
-		board::{Board, Planned, Running},
+		board::{Board, Running},
 		open::{self, BUCKET},
 		query, shard,
 	},
@@ -87,9 +87,10 @@ set preserve_insertion_order=false;
 	pub(super) fn batched(
 		&self,
 		stage: Stage,
+		part: &str,
 		query: &dyn Fn(&str) -> String,
 	) -> hmerr::Result<PathBuf> {
-		let partial = self.work.join(stage.title());
+		let partial = self.work.join(part);
 		fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
 
 		let per = self.shard.len().div_ceil(self.batch);

@@ -4,12 +4,13 @@ use super::{
 	super::open::{self, BUCKET, PLAY_CEILING},
 	scan::Scan,
 	stage::Stage,
+	work::LIBRARY,
 };
 
 pub(super) const BUCKETED: &str = "library_bucket";
 
 pub(super) fn of(scan: &Scan) -> hmerr::Result<PathBuf> {
-	let partial = scan.batched(Stage::Library, &|shard| {
+	let partial = scan.batched(Stage::Library, LIBRARY, &|shard| {
 		format!(
 			r"
 select

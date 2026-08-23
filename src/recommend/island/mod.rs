@@ -13,7 +13,7 @@ use std::path::Path;
 use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
 use hmerr::{GenericError, ge};
 
-pub(crate) use listen_index as index;
+use listen_index as index;
 
 use crate::{
 	args::IslandArg,

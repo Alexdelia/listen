@@ -1,17 +1,17 @@
 use std::path::{Path, PathBuf};
 
-use super::{
-	super::{
-		board::Planned,
-		open::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
-		work,
-	},
-	stage::Stage,
+use super::super::{
+	open::{RECORDING_LISTENER, USER_LISTEN, USER_STAT},
+	work,
 };
 
 pub(super) use work::{publish, release};
 
 const DIR: &str = "build";
+
+pub(super) const LIBRARY: &str = "library";
+pub(super) const ARTIST: &str = "artist";
+pub(super) const STAT: &str = "stat";
 const DUMP: &str = "dump";
 const EXCLUDED: &str = "excluded";
 const FORMAT: u32 = 4;
@@ -33,19 +33,14 @@ pub(super) fn exclude(work: &Path, own: u32) -> hmerr::Result<()> {
 }
 
 fn pooled() -> [&'static str; 4] {
-	[
-		Stage::Stat.title(),
-		USER_STAT,
-		USER_LISTEN,
-		RECORDING_LISTENER,
-	]
+	[STAT, USER_STAT, USER_LISTEN, RECORDING_LISTENER]
 }
 
 #[cfg(test)]
 mod tests {
 	use std::fs;
 
-	use super::{super::stage::Stage, *};
+	use super::*;
 
 	fn dir(name: &str) -> PathBuf {
 		let dir = std::env::temp_dir().join(format!("declarative_listen_work_{name}"));
@@ -66,7 +61,7 @@ mod tests {
 	}
 
 	fn partial(work: &Path) -> PathBuf {
-		shard(work, Stage::Library.title())
+		shard(work, LIBRARY)
 	}
 
 	fn stat(dir: &Path) -> PathBuf {
@@ -118,7 +113,7 @@ mod tests {
 		let dir = dir("declaration");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
-		let artist = shard(&work, Stage::Artist.title());
+		let artist = shard(&work, ARTIST);
 		let listen = shard(&dir, USER_LISTEN);
 		let stat = stat(&dir);
 
@@ -136,7 +131,7 @@ mod tests {
 		let dir = dir("same_own");
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let _ = exclude(&work, 1);
-		let stat = shard(&work, Stage::Stat.title());
+		let stat = shard(&work, STAT);
 		let listen = shard(&work, USER_LISTEN);
 
 		let _ = exclude(&work, 1);
@@ -152,7 +147,7 @@ mod tests {
 		let work = open(&dir, "20260712-000004").unwrap_or_default();
 		let partial = partial(&work);
 		let _ = exclude(&work, 1);
-		let stat = shard(&work, Stage::Stat.title());
+		let stat = shard(&work, STAT);
 		let listen = shard(&work, USER_LISTEN);
 
 		let _ = exclude(&work, 2);
@@ -175,5 +170,15 @@ mod tests {
 		assert!(listen.exists());
 		assert!(stat.exists());
 		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_staged_part_is_a_plain_directory_name() {
+		for part in [LIBRARY, ARTIST, STAT] {
+			assert!(
+				!part.is_empty() && part.chars().all(|c| c.is_ascii_lowercase() || c == '_'),
+				"{part}"
+			);
+		}
 	}
 }

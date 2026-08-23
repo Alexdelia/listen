@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::recommend::island::index::own::{self, Gap};
+use listen_index::own::{self, Gap};
 
 use super::super::{
 	age,

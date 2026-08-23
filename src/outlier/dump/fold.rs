@@ -1,4 +1,6 @@
-use crate::{ask, recommend::island::index::own};
+use listen_index::own;
+
+use crate::ask;
 
 use super::{
 	super::{
@@ -39,7 +41,7 @@ fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
 
 #[cfg(test)]
 mod tests {
-	use crate::recommend::island::index::own::Gap;
+	use listen_index::own::Gap;
 
 	use super::{
 		super::fixture::{LATEST, MBID, NEWER, fold, held, play, plays},

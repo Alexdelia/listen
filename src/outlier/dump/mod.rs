@@ -6,7 +6,7 @@ mod kept;
 mod say;
 mod scan;
 
-use crate::recommend::island::index::own;
+use listen_index::own;
 
 use super::cache;
 

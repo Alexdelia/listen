@@ -1,15 +1,9 @@
 use std::path::Path;
 
-use super::{
-	super::{board::Planned, open::USER_STAT},
-	library,
-	pool::Pool,
-	scan::Scan,
-	stage::Stage,
-};
+use super::{super::open::USER_STAT, library, pool::Pool, scan::Scan, stage::Stage, work::STAT};
 
 pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
-	let partial = scan.work.join(Stage::Stat.title());
+	let partial = scan.work.join(STAT);
 
 	scan.bucketed(&partial, Stage::Stat, &|bucket| {
 		crate::user_stat::stat(&pooled(library, bucket, pool))

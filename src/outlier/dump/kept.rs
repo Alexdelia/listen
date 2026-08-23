@@ -130,7 +130,7 @@ mod tests {
 		let mut quiet = held();
 		absorbed(
 			&mut quiet,
-			crate::recommend::island::index::own::Fold {
+			listen_index::own::Fold {
 				reached: LATEST.to_string(),
 				covered: 0,
 				play: Vec::new(),

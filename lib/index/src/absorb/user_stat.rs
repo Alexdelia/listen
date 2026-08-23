@@ -4,12 +4,12 @@ use hmerr::ioe;
 
 use super::{
 	super::{
-		board::{Board, Planned},
+		board::Board,
 		open::{self, BUCKET, USER_LISTEN, USER_STAT},
 		query,
 	},
 	stage::Stage,
-	work::Merge,
+	work::{Merge, STAT},
 };
 
 pub(super) fn of(
@@ -17,7 +17,7 @@ pub(super) fn of(
 	board: &Board<Stage>,
 	merge: &Merge,
 ) -> hmerr::Result<u64> {
-	let partial = merge.into.join(Stage::Stat.title());
+	let partial = merge.into.join(STAT);
 	fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
 
 	let bar = board.start(Stage::Stat)?;

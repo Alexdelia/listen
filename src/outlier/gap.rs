@@ -4,7 +4,7 @@ use ansi::{
 };
 use chrono::{DateTime, NaiveDateTime};
 
-use crate::recommend::island::index::own::Gap;
+use listen_index::own::Gap;
 
 use super::age;
 
