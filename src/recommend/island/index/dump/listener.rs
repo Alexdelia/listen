@@ -32,14 +32,35 @@ struct Published {
 	reach: u64,
 }
 
-pub(super) fn named(username: &str) -> hmerr::Result<Option<u32>> {
+pub(in crate::recommend::island::index) struct Search {
+	pub id: Option<u32>,
+	pub reach: Option<u64>,
+}
+
+pub(super) fn named(username: &str, past: Option<u64>) -> hmerr::Result<Search> {
+	let mut search = Search {
+		id: None,
+		reach: past,
+	};
+
 	for published in latest()? {
+		if !unread(&published, past) {
+			continue;
+		}
+
+		search.reach = Some(published.reach);
+
 		if let Some(id) = read(&published, username)? {
-			return Ok(Some(id));
+			search.id = Some(id);
+			return Ok(search);
 		}
 	}
 
-	Ok(None)
+	Ok(search)
+}
+
+fn unread(published: &Published, past: Option<u64>) -> bool {
+	past.is_none_or(|reach| published.reach > reach)
 }
 
 fn latest() -> hmerr::Result<Vec<Published>> {
@@ -190,6 +211,42 @@ mod tests {
 			needle(r#"quo"te"#).unwrap_or_default(),
 			r#""user_name":"quo\"te""#
 		);
+	}
+
+	#[test]
+	fn a_dump_published_past_the_one_already_read_is_read_in_turn() {
+		assert!(unread(
+			&Published {
+				url: String::new(),
+				size: 0,
+				reach: 20_260_823_000_003,
+			},
+			Some(20_260_822_000_003)
+		));
+	}
+
+	#[test]
+	fn a_dump_no_newer_than_the_one_already_read_is_left_alone() {
+		assert!(!unread(
+			&Published {
+				url: String::new(),
+				size: 0,
+				reach: 20_260_822_000_003,
+			},
+			Some(20_260_822_000_003)
+		));
+	}
+
+	#[test]
+	fn every_dump_is_worth_reading_when_none_was_read_before() {
+		assert!(unread(
+			&Published {
+				url: String::new(),
+				size: 0,
+				reach: 20_260_822_000_003,
+			},
+			None
+		));
 	}
 
 	#[test]

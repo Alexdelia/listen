@@ -12,6 +12,8 @@ const EXT: &str = "json";
 #[derive(Deserialize, Serialize)]
 pub struct Named {
 	pub id: Option<u32>,
+	#[serde(default)]
+	pub reach: Option<u64>,
 }
 
 pub fn read(username: &str) -> hmerr::Result<Option<Named>> {

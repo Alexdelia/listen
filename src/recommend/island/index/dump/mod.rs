@@ -16,6 +16,7 @@ use crate::cache;
 
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
+pub(super) use listener::Search;
 
 use listen::Offer;
 
@@ -47,8 +48,8 @@ pub(super) fn listen() -> hmerr::Result<Listen> {
 	}
 }
 
-pub(super) fn named(username: &str) -> hmerr::Result<Option<u32>> {
-	listener::named(username)
+pub(super) fn named(username: &str, past: Option<u64>) -> hmerr::Result<Search> {
+	listener::named(username, past)
 }
 
 pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {
