@@ -1,5 +1,5 @@
 use async_std::channel::Receiver;
-use indicatif::{MultiProgress, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 use super::channel::{Action, Status};
 
@@ -14,49 +14,12 @@ pub(super) struct Count {
 pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	let mp = MultiProgress::new();
 
-	let template = |title: &str, color: &str| -> hmerr::Result<ProgressStyle> {
-		let title = format!("{title:>8}");
-		ProgressStyle::with_template(
-			&[
-				&title,
-				" {wide_bar:.",
-				color,
-				"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:>3.bold.blue}|{eta:3.bold.magenta}",
-			]
-			.join(""),
-		)
-		.map_err(|e| format!("failed to create progress style\n{e}").into())
-	};
-
-	let pb_playlist = mp.add(indicatif::ProgressBar::new(total.playlist as u64));
-	pb_playlist.set_style(template("playlist", "magenta")?);
-	if total.playlist > 0 {
-		pb_playlist.tick();
-	}
-
-	let pb_rating = mp.add(indicatif::ProgressBar::new(total.rating as u64));
-	pb_rating.set_style(template("rating", "yellow")?);
-	if total.rating > 0 {
-		pb_rating.tick();
-	}
-
-	let pb_remove = mp.add(indicatif::ProgressBar::new(total.remove as u64));
-	pb_remove.set_style(template("remove", "red")?);
-	if total.remove > 0 {
-		pb_remove.tick();
-	}
-
-	let pb_fetch = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_fetch.set_style(template("fetch", "blue")?);
-	let pb_download = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_download.set_style(template("download", "cyan")?);
-	let pb_metadata = mp.add(indicatif::ProgressBar::new(total.fetch as u64));
-	pb_metadata.set_style(template("metadata", "green")?);
-	if total.fetch > 0 {
-		pb_fetch.tick();
-		pb_download.tick();
-		pb_metadata.tick();
-	}
+	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
+	let pb_rating = bar(&mp, total.rating, "rating", "yellow")?;
+	let pb_remove = bar(&mp, total.remove, "remove", "red")?;
+	let pb_fetch = bar(&mp, total.fetch, "fetch", "blue")?;
+	let pb_download = bar(&mp, total.fetch, "download", "cyan")?;
+	let pb_metadata = bar(&mp, total.fetch, "metadata", "green")?;
 
 	let mut err = vec![];
 
@@ -88,20 +51,12 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 		}
 	}
 
-	if total.fetch > 0 {
-		pb_fetch.finish();
-		pb_download.finish();
-		pb_metadata.finish();
-	}
-	if total.remove > 0 {
-		pb_remove.finish();
-	}
-	if total.playlist > 0 {
-		pb_playlist.finish();
-	}
-	if total.rating > 0 {
-		pb_rating.finish();
-	}
+	finished(&pb_fetch, total.fetch);
+	finished(&pb_download, total.fetch);
+	finished(&pb_metadata, total.fetch);
+	finished(&pb_remove, total.remove);
+	finished(&pb_playlist, total.playlist);
+	finished(&pb_rating, total.rating);
 
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
@@ -112,4 +67,36 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	}
 
 	Ok(())
+}
+
+fn bar(mp: &MultiProgress, total: usize, title: &str, color: &str) -> hmerr::Result<ProgressBar> {
+	let bar = mp.add(ProgressBar::new(total as u64));
+	bar.set_style(template(title, color)?);
+
+	if total > 0 {
+		bar.tick();
+	}
+
+	Ok(bar)
+}
+
+fn finished(bar: &ProgressBar, total: usize) {
+	if total > 0 {
+		bar.finish();
+	}
+}
+
+fn template(title: &str, color: &str) -> hmerr::Result<ProgressStyle> {
+	let title = format!("{title:>8}");
+
+	ProgressStyle::with_template(
+		&[
+			&title,
+			" {wide_bar:.",
+			color,
+			"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:>3.bold.blue}|{eta:3.bold.magenta}",
+		]
+		.join(""),
+	)
+	.map_err(|e| format!("failed to create progress style\n{e}").into())
 }
