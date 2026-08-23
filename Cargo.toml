@@ -46,6 +46,9 @@ tar = "0.4"
 zstd = "0.13"
 rustix = { version = "1", features = ["fs"] }
 
+[lints.rust]
+unreachable_pub = "deny"
+
 [lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
