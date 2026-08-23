@@ -10,13 +10,18 @@ pub(super) fn by_promise(
 	cohort: Vec<Vec<Member>>,
 	library: &Library,
 ) -> (Vec<Island>, Vec<Vec<Member>>) {
-	let mut pair: Vec<(Island, Vec<Member>)> = island.into_iter().zip(cohort).collect();
+	let mut ranked: Vec<(f32, Island, Vec<Member>)> = island
+		.into_iter()
+		.zip(cohort)
+		.map(|(island, cohort)| (promise(&island, cohort.len(), library), island, cohort))
+		.collect();
 
-	pair.sort_by(|a, b| {
-		promise(&b.0, b.1.len(), library).total_cmp(&promise(&a.0, a.1.len(), library))
-	});
+	ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
 
-	pair.into_iter().unzip()
+	ranked
+		.into_iter()
+		.map(|(_, island, cohort)| (island, cohort))
+		.unzip()
 }
 
 pub(super) fn promise(island: &Island, cohort: usize, library: &Library) -> f32 {
