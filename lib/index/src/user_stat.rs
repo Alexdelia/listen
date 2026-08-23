@@ -7,15 +7,13 @@ use super::{
 		self,
 		layout::{USER_LISTEN, USER_STAT},
 	},
-	partial, progress,
+	progress, query,
 };
 
 pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 	if !index::predates_stat(dir) {
 		return Ok(());
 	}
-
-	let into = dir.join(USER_STAT);
 
 	progress::say(format!(
 		"{F}index predates listener stat, derived from its listen, \
@@ -24,18 +22,14 @@ pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
 
 	let db = index::session::of(dir)?;
 
-	partial::write(&into, |partial| {
-		db.execute_batch(&format!(
-			"copy ({stat}) to '{partial}' (format parquet, compression zstd);",
-			stat = stat(&format!(
-				"read_parquet('{dir}/{USER_LISTEN}/*.parquet')",
-				dir = dir.display()
-			)),
-			partial = partial.display()
-		))?;
-
-		Ok(())
-	})
+	query::copy(
+		&db,
+		&dir.join(USER_STAT),
+		&stat(&format!(
+			"read_parquet('{dir}/{USER_LISTEN}/*.parquet')",
+			dir = dir.display()
+		)),
+	)
 }
 
 const LOW_QUANTILE: f32 = 0.05;
