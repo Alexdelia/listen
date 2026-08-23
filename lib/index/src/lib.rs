@@ -20,7 +20,7 @@ mod shard;
 pub mod user_stat;
 mod work;
 
-use std::path::Path;
+use std::{cmp::Ordering, path::Path};
 
 use uuid::Uuid;
 
@@ -92,10 +92,7 @@ fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> 
 }
 
 fn newer(listen: &Listen, built: &str) -> bool {
-	dump::reach(&listen.name)
-		.ok()
-		.zip(dump::reach(built).ok())
-		.is_none_or(|(unpacked, built)| unpacked > built)
+	dump::compare(&listen.name, built).is_none_or(Ordering::is_gt)
 }
 
 fn asked(listen: &Listen, reason: &str, decide: &dyn Decide) -> hmerr::Result<bool> {

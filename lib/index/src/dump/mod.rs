@@ -8,7 +8,10 @@ mod space;
 mod stage;
 mod stamp;
 
-use std::path::{Path, PathBuf};
+use std::{
+	cmp::Ordering,
+	path::{Path, PathBuf},
+};
 
 use ansi::abbrev::{B, D, F, Y};
 use hmerr::ioe;
@@ -133,6 +136,10 @@ pub(super) fn offered(
 
 pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
 	stamp::reach(timestamp)
+}
+
+pub(super) fn compare(timestamp: &str, against: &str) -> Option<Ordering> {
+	Some(reach(timestamp).ok()?.cmp(&reach(against).ok()?))
 }
 
 pub(super) fn weight(pending: &[&Pending]) -> u64 {

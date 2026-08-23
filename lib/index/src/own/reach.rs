@@ -1,17 +1,13 @@
+use std::cmp::Ordering;
+
 use super::super::dump;
 
 pub(super) fn lost(reached: &str, start: &str) -> bool {
-	dump::reach(start)
-		.ok()
-		.zip(dump::reach(reached).ok())
-		.is_some_and(|(start, reached)| start > reached)
+	dump::compare(start, reached).is_some_and(Ordering::is_gt)
 }
 
 pub(super) fn behind(reached: &str, start: &str) -> bool {
-	dump::reach(start)
-		.ok()
-		.zip(dump::reach(reached).ok())
-		.is_some_and(|(start, reached)| start < reached)
+	dump::compare(start, reached).is_some_and(Ordering::is_lt)
 }
 
 #[cfg(test)]
