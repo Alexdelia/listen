@@ -31,17 +31,17 @@ pub(crate) async fn run(
 	sort: RecommendSort,
 	arg: &IslandArg,
 ) -> hmerr::Result<()> {
-	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
-
 	selection::ensure_arg(source, arg)?;
 
-	if selection::island_only(source) {
+	let feed: Vec<Box<dyn Feed>> = if selection::island_only(source) {
 		selection::ensure_island_target(sort, target)?;
-		feed.push(island::feed(path, arg)?);
+
+		vec![island::feed(path, arg)?]
 	} else {
 		let target = target::resolve(target)?;
 		selection::ensure(source, sort, &target)?;
-		feed = remote(&target, source, sort).await?;
+
+		let mut feed = remote(&target, source, sort).await?;
 
 		if selection::island(source) && matches!(target, Target::Username(_)) {
 			if island::ready() {
@@ -50,7 +50,9 @@ pub(crate) async fn run(
 				island::absent();
 			}
 		}
-	}
+
+		feed
+	};
 
 	let mut skip = Skip::load(path)?;
 	let mut stream = Stream::new(feed, unlistened);
