@@ -5,10 +5,7 @@ mod requested;
 
 use crate::declaration::Source;
 
-use super::{
-	real,
-	seed::{Library, Seed},
-};
+use super::seed::{Library, Seed, mean_q};
 
 const THRESHOLD: f64 = 0.15;
 const MIN_MEMBER: usize = 10;
@@ -31,18 +28,7 @@ pub(super) struct Island {
 
 impl Island {
 	pub(super) fn q(&self, seed: &[Seed]) -> f32 {
-		let rated: Vec<f32> = self
-			.member
-			.iter()
-			.filter_map(|member| seed.get(*member))
-			.map(|seed| f32::from(seed.q))
-			.collect();
-
-		if rated.is_empty() {
-			return 0.0;
-		}
-
-		rated.iter().sum::<f32>() / real::of(rated.len())
+		mean_q(self.member.iter().filter_map(|member| seed.get(*member)))
 	}
 }
 

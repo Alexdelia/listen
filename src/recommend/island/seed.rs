@@ -33,12 +33,20 @@ impl Library {
 	}
 
 	pub(super) fn q(&self) -> f32 {
-		if self.seed.is_empty() {
-			return 0.0;
-		}
-
-		self.seed.iter().map(|seed| f32::from(seed.q)).sum::<f32>() / real::of(self.seed.len())
+		mean_q(self.seed.iter())
 	}
+}
+
+pub(super) fn mean_q<'s>(seed: impl Iterator<Item = &'s Seed>) -> f32 {
+	let (sum, count) = seed.fold((0.0, 0), |(sum, count), seed| {
+		(sum + f32::from(seed.q), count + 1)
+	});
+
+	if count == 0 {
+		return 0.0;
+	}
+
+	sum / real::of(count)
 }
 
 pub(super) fn load(entry: &[Entry], index: &Index) -> hmerr::Result<Library> {
