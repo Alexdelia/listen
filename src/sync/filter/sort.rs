@@ -3,14 +3,10 @@ use std::collections::HashMap;
 use super::SyncEntry;
 
 impl SyncEntry {
-	pub(crate) fn sort(&mut self) {
+	pub(super) fn sort(&mut self) {
 		self.add.sort();
 		self.remove.sort();
 	}
-}
-
-pub(super) fn fs(sync: &mut SyncEntry) {
-	sync.sort();
 }
 
 pub(super) fn grouped<K>(sync: &mut HashMap<K, SyncEntry>) {
