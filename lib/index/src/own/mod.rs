@@ -18,8 +18,6 @@ use super::{
 pub use index::Gap;
 pub use scan::Play;
 
-const AT_ONCE: u64 = 2;
-
 const STANDING: &str = "the counts as they stand";
 const PUBLISHED: &str = "incremental dump published since those counts were read";
 
@@ -90,7 +88,7 @@ pub fn fresh(
 	}
 
 	let root = dump::root()?;
-	dump::room(&root, &pending, AT_ONCE)?;
+	dump::room(&root, &pending, dump::AT_ONCE)?;
 
 	fold::run(
 		&index::session::of(&dir)?,

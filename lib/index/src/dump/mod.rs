@@ -1,3 +1,4 @@
+mod chain;
 mod incremental;
 mod listen;
 mod listener;
@@ -11,12 +12,12 @@ use std::path::{Path, PathBuf};
 
 use ansi::abbrev::{B, D, F, Y};
 use hmerr::ioe;
-use indicatif::ProgressBar;
 
 use listen_cache as cache;
 
 use crate::{board::Chain, decide::Decide, progress};
 
+pub(super) use chain::{AT_ONCE, Bar, each};
 pub(super) use incremental::{Incremental, Pending};
 pub(super) use listen::Listen;
 pub(super) use listener::Search;
@@ -140,27 +141,6 @@ pub(super) fn weight(pending: &[&Pending]) -> u64 {
 
 pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> hmerr::Result<()> {
 	incremental::room(root, pending, at_once)
-}
-
-pub(super) fn pull(
-	root: &Path,
-	pending: &Pending,
-	downloading: &ProgressBar,
-	verifying: &ProgressBar,
-) -> hmerr::Result<()> {
-	incremental::pull(root, pending, downloading, verifying)
-}
-
-pub(super) fn opened(
-	root: &Path,
-	pending: &Pending,
-	bar: &ProgressBar,
-) -> hmerr::Result<Incremental> {
-	incremental::opened(root, pending, bar)
-}
-
-pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
-	incremental::release(incremental)
 }
 
 pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()> {

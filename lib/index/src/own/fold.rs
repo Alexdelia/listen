@@ -30,21 +30,25 @@ pub(super) fn run(
 
 	let mut reached = reached.to_string();
 
-	for pending in pending {
-		dump::pull(root, pending, &downloading, &verifying)?;
-		let incremental = dump::opened(root, pending, &unpacking)?;
+	dump::each(
+		root,
+		pending,
+		&dump::Bar {
+			downloading: &downloading,
+			verifying: &verifying,
+			unpacking: &unpacking,
+			folding: &reading,
+		},
+		|incremental| {
+			let Some(taken) = taken(db, incremental, own, &reached)? else {
+				return Ok(());
+			};
 
-		let taken = taken(db, &incremental, own, &reached)?;
-		reading.inc(1);
-		dump::release(&incremental)?;
-
-		if let Some(taken) = taken {
 			reached.clone_from(&taken.reached);
-			keep(taken)?;
-		}
-	}
 
-	Ok(())
+			keep(taken)
+		},
+	)
 }
 
 fn taken(

@@ -48,7 +48,7 @@ pub(super) fn run(
 		return Ok(());
 	}
 
-	dump::room(&root, &left, chain::AT_ONCE)?;
+	dump::room(&root, &left, dump::AT_ONCE)?;
 
 	let db = index::session::of(&work)?;
 	let board = Board::of(&stage::PLAN, &dump::chain(&left))?;
