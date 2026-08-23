@@ -52,11 +52,10 @@ pub(super) fn of(
 	let similarity = cluster::similarity(&library.seed, library.user.len());
 	let label = cluster::detect(&similarity, THRESHOLD, granularity, MIN_MEMBER);
 
-	let mut member: Vec<Vec<usize>> = Vec::new();
+	let detected = label.iter().copied().max().map_or(0, |label| label + 1);
+
+	let mut member: Vec<Vec<usize>> = vec![Vec::new(); detected];
 	for (seed, label) in label.iter().enumerate() {
-		if member.len() <= *label {
-			member.resize_with(*label + 1, Vec::new);
-		}
 		member[*label].push(seed);
 	}
 	member.retain(|member| !member.is_empty());
