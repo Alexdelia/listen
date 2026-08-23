@@ -1,13 +1,10 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
-use ansi::abbrev::R;
-use hmerr::{ge, ioe};
 use serde::{Deserialize, Serialize};
 
-use listen_cache::{prepare, root};
+use listen_cache::json;
 
 const SUBDIR: &str = "listener";
-const EXT: &str = "json";
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct Named {
@@ -17,29 +14,13 @@ pub(crate) struct Named {
 }
 
 pub(crate) fn read(username: &str) -> hmerr::Result<Option<Named>> {
-	let path = path(username)?;
-
-	if !path.exists() {
-		return Ok(None);
-	}
-
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(serde_json::from_str(&content).ok())
+	json::read(&path(username)?)
 }
 
 pub(crate) fn write(username: &str, named: &Named) -> hmerr::Result<()> {
-	let path = path(username)?;
-	prepare(&path)?;
-
-	let content =
-		serde_json::to_string(named).map_err(|e| ge!(format!("{R}failed to encode cache\n{e}")))?;
-
-	fs::write(&path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	json::write(&path(username)?, named)
 }
 
 fn path(username: &str) -> hmerr::Result<PathBuf> {
-	Ok(root()?.join(SUBDIR).join(username).with_extension(EXT))
+	listen_cache::path(SUBDIR, username, json::EXT)
 }

@@ -1,40 +1,19 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
-use ansi::abbrev::R;
-use hmerr::{ge, ioe};
+use listen_cache::json;
 
 use super::super::dump::Held;
 
 const SUBDIR: &str = "own";
-const EXT: &str = "json";
 
 pub(in crate::outlier) fn read(username: &str) -> hmerr::Result<Option<Held>> {
-	let path = path(username)?;
-
-	if !path.exists() {
-		return Ok(None);
-	}
-
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(serde_json::from_str(&content).ok())
+	json::read(&path(username)?)
 }
 
 pub(in crate::outlier) fn write(username: &str, held: &Held) -> hmerr::Result<()> {
-	let path = path(username)?;
-	super::prepare(&path)?;
-
-	let content =
-		serde_json::to_string(held).map_err(|e| ge!(format!("{R}failed to encode cache\n{e}")))?;
-
-	fs::write(&path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
-
-	Ok(())
+	json::write(&path(username)?, held)
 }
 
 fn path(username: &str) -> hmerr::Result<PathBuf> {
-	Ok(super::root()?
-		.join(SUBDIR)
-		.join(username)
-		.with_extension(EXT))
+	listen_cache::path(SUBDIR, username, json::EXT)
 }

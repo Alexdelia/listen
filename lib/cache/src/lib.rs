@@ -1,3 +1,4 @@
+pub mod json;
 pub mod username;
 
 use std::{
@@ -16,6 +17,10 @@ const HOME: &str = "HOME";
 
 pub fn root() -> hmerr::Result<PathBuf> {
 	Ok(cache_home()?.join(APP))
+}
+
+pub fn path(subdir: &str, name: &str, ext: &str) -> hmerr::Result<PathBuf> {
+	Ok(root()?.join(subdir).join(name).with_extension(ext))
 }
 
 fn cache_home() -> hmerr::Result<PathBuf> {
