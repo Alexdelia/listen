@@ -34,6 +34,7 @@ complexity = { level = "deny", priority = -1 }
 style = { level = "deny", priority = -1 }
 perf = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
