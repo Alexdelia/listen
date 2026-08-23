@@ -9,7 +9,7 @@ mod stamp;
 
 use std::path::{Path, PathBuf};
 
-use ansi::abbrev::{D, F};
+use ansi::abbrev::{B, D, F, Y};
 use hmerr::ioe;
 use indicatif::ProgressBar;
 
@@ -105,6 +105,24 @@ pub(super) fn listed<T>(read: hmerr::Result<T>, keeping: &str) -> Option<T> {
 	}
 }
 
+pub(super) fn offered(
+	pending: &[&Pending],
+	saying: &str,
+	decide: &dyn Decide,
+) -> hmerr::Result<bool> {
+	if pending.is_empty() {
+		return Ok(true);
+	}
+
+	progress::say(format!(
+		"\n{F}{B}{count}{D}{F} {saying}, {B}{Y}{size}{D}{F}, each read once then deleted{D}",
+		count = pending.len(),
+		size = progress::bytes(weight(pending))
+	));
+
+	progress::confirm(decide, "download", true)
+}
+
 pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
 	stamp::reach(timestamp)
 }
@@ -150,9 +168,13 @@ pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()>
 mod tests {
 	use hmerr::ge;
 
+	use crate::decide::Refuse;
+
 	use super::*;
 
 	const KEEPING: &str = "what stands as it stands";
+	const SAYING: &str = "incremental dump to read";
+	const SIZE: u64 = 1 << 21;
 
 	fn read(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
 		listed(pending, KEEPING)
@@ -166,5 +188,22 @@ mod tests {
 	#[test]
 	fn what_is_published_is_read_as_it_comes() {
 		assert!(read(Ok(Vec::new())).is_some_and(|pending| pending.is_empty()));
+	}
+
+	#[test]
+	fn a_chain_a_previous_run_read_whole_asks_for_nothing() {
+		assert!(offered(&[], SAYING, &Refuse).unwrap_or_default());
+	}
+
+	#[test]
+	fn a_chain_left_to_fetch_reads_nothing_when_the_answer_is_no() {
+		let waiting = Pending {
+			name: "listenbrainz-dump-2594-20260714000003-incremental".to_string(),
+			archive: "listenbrainz-spark-dump-20260714000003-incremental.tar".to_string(),
+			size: SIZE,
+			reach: 20_260_714_000_003,
+		};
+
+		assert!(!offered(&[&waiting], SAYING, &Refuse).unwrap_or(true));
 	}
 }

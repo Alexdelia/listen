@@ -7,7 +7,7 @@ mod stage;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F, Y};
+use ansi::abbrev::{B, D, Y};
 
 use super::{
 	decide::Decide,
@@ -21,6 +21,7 @@ pub use scan::Play;
 const AT_ONCE: u64 = 2;
 
 const STANDING: &str = "the counts as they stand";
+const PUBLISHED: &str = "incremental dump published since those counts were read";
 
 pub struct Own {
 	pub dump: String,
@@ -84,7 +85,7 @@ pub fn fresh(
 	};
 	let pending: Vec<&Pending> = pending.iter().collect();
 
-	if pending.is_empty() || !offered(&pending, decide)? {
+	if pending.is_empty() || !dump::offered(&pending, PUBLISHED, decide)? {
 		return Ok(());
 	}
 
@@ -139,17 +140,6 @@ fn unstamped(name: &str) {
 		"{Y}the unpacked dump {B}{name}{D}{Y} carries no readable timestamp, \
 		its listens stay out of the counts until it is fetched again{D}"
 	));
-}
-
-fn offered(pending: &[&Pending], decide: &dyn Decide) -> hmerr::Result<bool> {
-	progress::say(format!(
-		"\n{F}{B}{count}{D}{F} incremental dump published since those counts were read, \
-		{B}{Y}{size}{D}{F}, each read once then deleted{D}",
-		count = pending.len(),
-		size = progress::bytes(dump::weight(pending))
-	));
-
-	progress::confirm(decide, "download", true)
 }
 
 #[cfg(test)]

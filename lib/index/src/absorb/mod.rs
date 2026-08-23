@@ -24,10 +24,12 @@ use super::{
 };
 
 use merge::merge;
-use offer::{left, offered, resuming};
+use offer::{left, resuming};
 use reach::taken;
 use skipped::skipped;
 use work::LIBRARY;
+
+const ABSORBING: &str = "incremental dump to absorb";
 
 pub(super) fn run(
 	dir: &Path,
@@ -42,7 +44,7 @@ pub(super) fn run(
 	let left = left(pending, &reach.covered)?;
 	resuming(pending, &left);
 
-	if !offered(&left, decide)? {
+	if !dump::offered(&left, ABSORBING, decide)? {
 		return Ok(());
 	}
 
