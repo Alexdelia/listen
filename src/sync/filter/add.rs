@@ -7,7 +7,7 @@ use crate::declaration::{Entry, Q, Source};
 
 use super::SyncEntry;
 
-pub fn fs(existing: &mut HashSet<Source>, add: &mut Vec<Source>, entry: &Entry) {
+pub(super) fn fs(existing: &mut HashSet<Source>, add: &mut Vec<Source>, entry: &Entry) {
 	if existing.contains(&entry.s) {
 		existing.remove(&entry.s);
 	} else {
@@ -15,7 +15,7 @@ pub fn fs(existing: &mut HashSet<Source>, add: &mut Vec<Source>, entry: &Entry) 
 	}
 }
 
-pub fn q(
+pub(super) fn q(
 	existing: &mut HashMap<Q, HashSet<Source>>,
 	add: &mut HashMap<Q, SyncEntry>,
 	entry: &Entry,
@@ -25,7 +25,7 @@ pub fn q(
 	}
 }
 
-pub fn playlist(
+pub(super) fn playlist(
 	existing: &mut HashMap<String, HashSet<Source>>,
 	add: &mut HashMap<String, SyncEntry>,
 	entry: &Entry,

@@ -1,6 +1,6 @@
 use super::{Q, Q_MAX};
 
-pub type Value = u8;
+pub(crate) type Value = u8;
 
 const VALUE: [Value; Q_MAX as usize + 1] = [
 	5,   // 0.25
@@ -10,13 +10,13 @@ const VALUE: [Value; Q_MAX as usize + 1] = [
 	100, // 5
 ];
 
-pub const NEUTRAL: Value = 50;
+pub(crate) const NEUTRAL: Value = 50;
 
-pub fn from_q(q: Q) -> Value {
+pub(crate) fn from_q(q: Q) -> Value {
 	VALUE[q as usize]
 }
 
-pub fn weight(q: Q) -> f32 {
+pub(crate) fn weight(q: Q) -> f32 {
 	(f32::from(from_q(q)) - f32::from(NEUTRAL)) / f32::from(NEUTRAL)
 }
 

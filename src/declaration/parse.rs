@@ -4,7 +4,7 @@ use hmerr::{ioe, pfe, ple, pwe};
 
 use super::Entry;
 
-pub fn parse<P>(path: P) -> hmerr::Result<Vec<Entry>>
+pub(crate) fn parse<P>(path: P) -> hmerr::Result<Vec<Entry>>
 where
 	P: AsRef<Path>,
 {

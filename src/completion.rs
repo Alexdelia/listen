@@ -7,7 +7,7 @@ use crate::args::Args;
 
 const SHELL_WRAPPER: [&str; 3] = ["match", "outlier", "recommend"];
 
-pub fn run(shell: Shell) {
+pub(crate) fn run(shell: Shell) {
 	let mut cmd = Args::command();
 
 	for bin in [env!("CARGO_BIN_NAME"), "run"] {

@@ -13,7 +13,7 @@ pub(crate) use yt_dlp::PROGRAM as YT_DLP;
 
 const STREAMING_RELATION: [&str; 2] = ["free streaming", "streaming"];
 
-pub fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {
+pub(crate) fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {
 	recording
 		.relations
 		.iter()
@@ -26,7 +26,7 @@ pub fn streaming_url(recording: &Recording) -> impl Iterator<Item = &str> {
 		})
 }
 
-pub enum StreamingSource {
+pub(crate) enum StreamingSource {
 	SoundCloud,
 	YouTube,
 	YouTubeMusic,
@@ -41,7 +41,7 @@ const ALL: [StreamingSource; 4] = [
 ];
 
 impl StreamingSource {
-	pub fn host(&self) -> &'static str {
+	pub(crate) fn host(&self) -> &'static str {
 		match self {
 			Self::SoundCloud => "soundcloud.com",
 			Self::YouTube => "www.youtube.com",
@@ -50,7 +50,7 @@ impl StreamingSource {
 		}
 	}
 
-	pub fn base_url(&self) -> String {
+	pub(crate) fn base_url(&self) -> String {
 		format!("https://{host}", host = self.host())
 	}
 
@@ -61,7 +61,7 @@ impl StreamingSource {
 		}
 	}
 
-	pub fn download<P>(&self, url: &str, path: P) -> hmerr::Result<()>
+	pub(crate) fn download<P>(&self, url: &str, path: P) -> hmerr::Result<()>
 	where
 		P: AsRef<Path>,
 	{
@@ -73,7 +73,7 @@ impl StreamingSource {
 		run(&mut command, url)
 	}
 
-	pub fn priority(&self) -> u8 {
+	pub(crate) fn priority(&self) -> u8 {
 		match self {
 			Self::SoundCloud => 0,
 			Self::YouTubeMusic => 1,

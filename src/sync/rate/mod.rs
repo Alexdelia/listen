@@ -1,5 +1,5 @@
 mod agent;
-pub mod auth;
+pub(super) mod auth;
 mod cache;
 mod submit;
 
@@ -15,15 +15,15 @@ use crate::{
 
 use super::channel::{Action, Status, report};
 
-pub type Rating = (Source, Value);
+pub(super) type Rating = (Source, Value);
 
-pub struct Pending {
+pub(super) struct Pending {
 	client: auth::Client,
 	submitted: cache::Submitted,
 	pub rating: Vec<Rating>,
 }
 
-pub fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
+pub(super) fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
 	let Some(client) = auth::client() else {
 		return Ok(None);
 	};
@@ -43,11 +43,11 @@ pub fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
 	}))
 }
 
-pub fn acquire(pending: &Pending) -> hmerr::Result<Option<String>> {
+pub(super) fn acquire(pending: &Pending) -> hmerr::Result<Option<String>> {
 	auth::acquire(&pending.client)
 }
 
-pub async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
+pub(super) async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 	let Pending {
 		mut submitted,
 		rating,

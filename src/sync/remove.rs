@@ -5,7 +5,7 @@ use crate::{declaration::Source, library};
 
 use super::channel::{Action, Status, report};
 
-pub async fn remove(sync: &[Source], tx: Sender<Status>) {
+pub(super) async fn remove(sync: &[Source], tx: Sender<Status>) {
 	for entry in sync {
 		let path = library::recording::path(*entry);
 

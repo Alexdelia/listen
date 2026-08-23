@@ -10,25 +10,25 @@ use crate::declaration::{Q, Source};
 
 use super::file;
 
-pub const DIR: &str = "./output/playlist";
+pub(crate) const DIR: &str = "./output/playlist";
 
-pub const PREFIX: &str = "+q";
+pub(crate) const PREFIX: &str = "+q";
 
-pub const EXT: &str = "m3u";
+pub(crate) const EXT: &str = "m3u";
 
-pub fn q_stem(q: Q) -> String {
+pub(crate) fn q_stem(q: Q) -> String {
 	format!("{PREFIX}{q}")
 }
 
-pub fn q_path(q: Q) -> PathBuf {
+pub(crate) fn q_path(q: Q) -> PathBuf {
 	PathBuf::from(DIR).join(q_stem(q)).with_extension(EXT)
 }
 
-pub fn path(playlist: &str) -> PathBuf {
+pub(crate) fn path(playlist: &str) -> PathBuf {
 	PathBuf::from(DIR).join(playlist).with_extension(EXT)
 }
 
-pub fn parse_q(name: &str) -> hmerr::Result<Q> {
+pub(crate) fn parse_q(name: &str) -> hmerr::Result<Q> {
 	let q = name.trim_start_matches(PREFIX);
 	Ok(q.parse().map_err(|e| {
 		se!(
@@ -40,7 +40,7 @@ pub fn parse_q(name: &str) -> hmerr::Result<Q> {
 	})?)
 }
 
-pub fn parse_content(content: &str) -> HashSet<Source> {
+pub(crate) fn parse_content(content: &str) -> HashSet<Source> {
 	let mut set = HashSet::<Source>::new();
 
 	for line in content.lines() {
@@ -63,12 +63,12 @@ pub fn parse_content(content: &str) -> HashSet<Source> {
 }
 
 #[derive(Default)]
-pub struct Existing {
+pub(crate) struct Existing {
 	pub q: HashMap<Q, HashSet<Source>>,
 	pub playlist: HashMap<String, HashSet<Source>>,
 }
 
-pub fn existing() -> hmerr::Result<Existing> {
+pub(crate) fn existing() -> hmerr::Result<Existing> {
 	let mut ret = Existing::default();
 
 	for found in file::with_extension(DIR, EXT)? {

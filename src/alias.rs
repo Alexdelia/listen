@@ -1,6 +1,6 @@
 use musicbrainz_rs::entity::alias::Alias;
 
-pub fn other_name<'a>(alias: Option<&'a [Alias]>, title: &str) -> Option<&'a str> {
+pub(crate) fn other_name<'a>(alias: Option<&'a [Alias]>, title: &str) -> Option<&'a str> {
 	alias
 		.into_iter()
 		.flatten()

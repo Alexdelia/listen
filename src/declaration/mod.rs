@@ -1,15 +1,15 @@
-pub mod parse;
-pub mod value;
+pub(crate) mod parse;
+pub(crate) mod value;
 
 use serde::{Deserialize, Deserializer, Serialize, de::Error};
 
-pub type Source = uuid::Uuid;
-pub type Q = u8;
+pub(crate) type Source = uuid::Uuid;
+pub(crate) type Q = u8;
 
-pub const Q_MAX: Q = 4;
+pub(crate) const Q_MAX: Q = 4;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Entry {
+pub(crate) struct Entry {
 	pub s: Source,
 	#[serde(deserialize_with = "bounded_q")]
 	pub q: Q,

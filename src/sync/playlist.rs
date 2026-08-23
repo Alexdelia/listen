@@ -13,11 +13,11 @@ use super::{
 	filter::SyncEntry,
 };
 
-pub async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
+pub(super) async fn q(q: Q, sync_entry: SyncEntry, tx: Sender<Status>) {
 	synced(&library::playlist::q_path(q), sync_entry, &tx).await;
 }
 
-pub async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status>) {
+pub(super) async fn playlist(playlist: String, sync_entry: SyncEntry, tx: Sender<Status>) {
 	synced(&library::playlist::path(&playlist), sync_entry, &tx).await;
 }
 

@@ -10,7 +10,7 @@ const SCALE: [(u64, &str); 5] = [
 	(1_000_000, "M"),
 ];
 
-pub fn split(n: u64) -> (String, &'static str) {
+pub(crate) fn split(n: u64) -> (String, &'static str) {
 	for (scale, unit) in SCALE {
 		if n >= scale {
 			return (scaled(n, scale), unit);
@@ -20,7 +20,7 @@ pub fn split(n: u64) -> (String, &'static str) {
 	(grouped(n), "")
 }
 
-pub fn text(n: u64) -> String {
+pub(crate) fn text(n: u64) -> String {
 	let (value, unit) = split(n);
 	if unit.is_empty() {
 		return value;

@@ -9,7 +9,7 @@ use super::super::tag;
 const TEMPLATE: &str =
 	"metadata {wide_bar:.green/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
 
-pub async fn run(list: &[Entry]) -> hmerr::Result<()> {
+pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	let client = music_brainz::client();
 
 	let existing = list

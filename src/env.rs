@@ -10,7 +10,7 @@ const FALSE: [&str; 4] = ["0", "false", "no", "off"];
 static DOTENV: OnceLock<Option<String>> = OnceLock::new();
 
 #[derive(Clone, Copy)]
-pub enum Var {
+pub(crate) enum Var {
 	SoundcloudClientId,
 	MusicBrainzClientId,
 	MusicBrainzClientSecret,
@@ -18,7 +18,7 @@ pub enum Var {
 }
 
 impl Var {
-	pub fn key(self) -> &'static str {
+	pub(crate) fn key(self) -> &'static str {
 		match self {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
 			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",
@@ -28,11 +28,11 @@ impl Var {
 	}
 }
 
-pub fn read() {
+pub(crate) fn read() {
 	let _ = complaint();
 }
 
-pub fn load() -> hmerr::Result<()> {
+pub(crate) fn load() -> hmerr::Result<()> {
 	let Some(complaint) = complaint() else {
 		return Ok(());
 	};
@@ -49,17 +49,17 @@ fn complaint() -> Option<&'static String> {
 		.as_ref()
 }
 
-pub fn get_opt(key: Var) -> Option<String> {
+pub(crate) fn get_opt(key: Var) -> Option<String> {
 	read();
 
 	std::env::var(key.key()).ok().filter(|v| !v.is_empty())
 }
 
-pub fn get_bool(key: Var) -> bool {
+pub(crate) fn get_bool(key: Var) -> bool {
 	get_opt(key).is_some_and(|value| !FALSE.contains(&value.trim().to_lowercase().as_str()))
 }
 
-pub fn get(key: Var) -> hmerr::Result<String> {
+pub(crate) fn get(key: Var) -> hmerr::Result<String> {
 	read();
 
 	let key = key.key();

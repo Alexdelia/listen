@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Default, Debug)]
-pub struct GroupedEntry<T> {
+pub(super) struct GroupedEntry<T> {
 	pub fs: T,
 
 	pub q: HashMap<Q, T>,
@@ -21,7 +21,7 @@ pub struct GroupedEntry<T> {
 }
 
 #[derive(Default, Debug)]
-pub struct SyncEntry {
+pub(super) struct SyncEntry {
 	pub add: Vec<Source>,
 	pub remove: Vec<Source>,
 }
@@ -30,7 +30,7 @@ fn touched<K>(_: &K, sync: &mut SyncEntry) -> bool {
 	!sync.add.is_empty() || !sync.remove.is_empty()
 }
 
-pub fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
+pub(super) fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
 
 	fs::create_dir_all(library::recording::DIR).map_err(|e| ioe!(library::recording::DIR, e))?;

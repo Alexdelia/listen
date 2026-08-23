@@ -1,5 +1,5 @@
 mod file;
 
-pub mod playlist;
-pub mod recording;
-pub mod tag;
+pub(crate) mod playlist;
+pub(crate) mod recording;
+pub(crate) mod tag;

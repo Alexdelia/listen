@@ -4,7 +4,7 @@ use crate::format;
 
 use super::filter::{GroupedEntry, SyncEntry};
 
-pub fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
+pub(super) fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 	let mut ret = false;
 
 	ret |= single_report("file", CYA, &sync.fs);

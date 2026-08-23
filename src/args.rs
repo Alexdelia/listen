@@ -4,13 +4,13 @@ use clap::Parser;
 
 use crate::declaration::Source;
 
-pub const POPULARITY_DAMP: f32 = 1.0 / 3.0;
-pub const GRANULARITY: f64 = 1.5;
+pub(crate) const POPULARITY_DAMP: f32 = 1.0 / 3.0;
+pub(crate) const GRANULARITY: f64 = 1.5;
 
 #[derive(Parser)]
 #[command(about)]
 #[command(args_conflicts_with_subcommands = true)]
-pub struct Args {
+pub(crate) struct Args {
 	#[command(subcommand)]
 	pub command: Option<Command>,
 
@@ -24,7 +24,7 @@ pub struct Args {
 }
 
 #[derive(clap::Subcommand)]
-pub enum Command {
+pub(crate) enum Command {
 	/// find the exact music.youtube.com match for a musicbrainz.org recording
 	Match {
 		/// musicbrainz.org recording MBID
@@ -68,7 +68,7 @@ pub enum Command {
 }
 
 #[derive(clap::Args)]
-pub struct IslandArg {
+pub(crate) struct IslandArg {
 	/// how hard to damp how many listeners already play it
 	#[arg(long, default_value_t = POPULARITY_DAMP)]
 	pub popularity_damp: f32,
@@ -90,7 +90,7 @@ pub struct IslandArg {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum RecommendSource {
+pub(crate) enum RecommendSource {
 	/// alternate between every source that fits the target
 	All,
 	/// taste islands from the local listenbrainz index, needs a built index
@@ -109,13 +109,13 @@ pub enum RecommendSource {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum RecommendSort {
+pub(crate) enum RecommendSort {
 	/// the most listened recording first
 	Popularity,
 	/// the most recently released recording first, an undated one last
 	Newest,
 }
 
-pub fn parse() -> Args {
+pub(crate) fn parse() -> Args {
 	Args::parse()
 }

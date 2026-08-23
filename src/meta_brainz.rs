@@ -17,14 +17,14 @@ static LIMITER: LazyLock<Arc<DefaultDirectRateLimiter>> = LazyLock::new(|| {
 	))
 });
 
-pub fn limiter() -> Arc<DefaultDirectRateLimiter> {
+pub(crate) fn limiter() -> Arc<DefaultDirectRateLimiter> {
 	LIMITER.clone()
 }
 
-pub async fn ready() {
+pub(crate) async fn ready() {
 	LIMITER.until_ready().await;
 }
 
-pub fn block_ready() {
+pub(crate) fn block_ready() {
 	block_on(LIMITER.until_ready());
 }

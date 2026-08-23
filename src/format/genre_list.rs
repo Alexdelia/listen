@@ -5,18 +5,18 @@ use ansi::{
 
 use crate::library::tag::GENRE_SEPARATOR;
 
-pub fn text(list: &str) -> String {
+pub(crate) fn text(list: &str) -> String {
 	list.split(GENRE_SEPARATOR)
 		.map(|genre| format!("{F}{WHITE}{genre}{D}"))
 		.collect::<Vec<_>>()
 		.join(&format!("{F}{GENRE_SEPARATOR}{D}"))
 }
 
-pub fn width(list: &str) -> usize {
+pub(crate) fn width(list: &str) -> usize {
 	list.chars().count()
 }
 
-pub fn pad(list: &str, width: usize) -> String {
+pub(crate) fn pad(list: &str, width: usize) -> String {
 	" ".repeat(width.saturating_sub(self::width(list)))
 }
 

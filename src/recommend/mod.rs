@@ -22,7 +22,7 @@ use skip::Skip;
 use stream::Stream;
 use target::Target;
 
-pub async fn run(
+pub(crate) async fn run(
 	path: &Path,
 	target: Option<&str>,
 	unlistened: bool,

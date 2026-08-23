@@ -20,7 +20,7 @@ use channel::{Action, Status};
 use filter::{GroupedEntry, SyncEntry};
 use progress::Count;
 
-pub fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
+pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	if refresh_metadata {
 		let list = parse::parse(path)?;
 		return block_on(refresh::metadata::run(&list));

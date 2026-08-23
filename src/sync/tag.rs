@@ -12,7 +12,7 @@ use crate::{
 const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
 
-pub fn write(path: &Path, recording: &Recording) -> Result<(), String> {
+pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	let mut tag = Tag::read_from_path(path).unwrap_or_default();
 
 	if !recording.title.is_empty() {

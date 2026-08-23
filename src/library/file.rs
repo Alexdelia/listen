@@ -2,12 +2,12 @@ use std::{fs, path::PathBuf};
 
 use hmerr::ioe;
 
-pub struct Named {
+pub(super) struct Named {
 	pub path: PathBuf,
 	pub stem: String,
 }
 
-pub fn with_extension(dir: &str, ext: &str) -> hmerr::Result<Vec<Named>> {
+pub(super) fn with_extension(dir: &str, ext: &str) -> hmerr::Result<Vec<Named>> {
 	let mut found = Vec::new();
 
 	for entry in fs::read_dir(dir).map_err(|e| ioe!(dir, e))? {

@@ -1,5 +1,5 @@
-pub mod listener;
-pub mod username;
+pub(crate) mod listener;
+pub(crate) mod username;
 
 use std::{
 	env,
@@ -14,7 +14,7 @@ use hmerr::{ge, ioe};
 const XDG_CACHE_HOME: &str = "XDG_CACHE_HOME";
 const HOME: &str = "HOME";
 
-pub fn root() -> hmerr::Result<PathBuf> {
+pub(crate) fn root() -> hmerr::Result<PathBuf> {
 	Ok(cache_home()?.join(env!("CARGO_PKG_NAME")))
 }
 
@@ -41,7 +41,7 @@ fn non_empty(var: Option<OsString>) -> Option<OsString> {
 	var.filter(|v| !v.is_empty())
 }
 
-pub fn prepare(path: &Path) -> hmerr::Result<()> {
+pub(crate) fn prepare(path: &Path) -> hmerr::Result<()> {
 	let Some(parent) = path.parent() else {
 		return Ok(());
 	};

@@ -11,7 +11,7 @@ use super::{prepare, root};
 
 const FILE: &str = "username";
 
-pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
+pub(crate) fn resolve(username: Option<&str>) -> hmerr::Result<String> {
 	if let Some(username) = username {
 		remember(username)?;
 		return Ok(username.to_string());
@@ -31,7 +31,7 @@ fn path() -> hmerr::Result<PathBuf> {
 	Ok(root()?.join(FILE))
 }
 
-pub fn read() -> hmerr::Result<Option<String>> {
+pub(crate) fn read() -> hmerr::Result<Option<String>> {
 	let path = path()?;
 
 	if !path.exists() {

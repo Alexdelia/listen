@@ -11,7 +11,7 @@ use crate::meta_brainz;
 
 const AUTHOR: &str = author_name(env!("CARGO_PKG_AUTHORS"));
 
-pub const CLIENT: &str = concatcp!(
+pub(crate) const CLIENT: &str = concatcp!(
 	AUTHOR,
 	"/",
 	env!("CARGO_PKG_NAME"),
@@ -19,9 +19,9 @@ pub const CLIENT: &str = concatcp!(
 	env!("CARGO_PKG_VERSION"),
 );
 
-pub const USER_AGENT: &str = concatcp!(CLIENT, " ( https://github.com/Alexdelia/listen )");
+pub(crate) const USER_AGENT: &str = concatcp!(CLIENT, " ( https://github.com/Alexdelia/listen )");
 
-pub fn client() -> MusicBrainzClient {
+pub(crate) fn client() -> MusicBrainzClient {
 	let agent = Agent::new_with_config(Config::builder().user_agent(USER_AGENT).build());
 
 	MusicBrainzClient::builder()

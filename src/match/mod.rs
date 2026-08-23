@@ -18,11 +18,11 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{music_brainz, open};
 
-pub fn declare(path: &Path, mbid: &str) -> hmerr::Result<bool> {
+pub(crate) fn declare(path: &Path, mbid: &str) -> hmerr::Result<bool> {
 	declare::run(path, mbid, true)
 }
 
-pub async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool> {
+pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool> {
 	let client = music_brainz::client();
 
 	let recording = Recording::fetch()

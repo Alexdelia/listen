@@ -16,7 +16,7 @@ use super::{
 	tag,
 };
 
-pub async fn fetch(sync: &[Source], tx: Sender<Status>) {
+pub(super) async fn fetch(sync: &[Source], tx: Sender<Status>) {
 	let client = music_brainz::client();
 
 	let mut handles = vec![];

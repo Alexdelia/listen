@@ -10,13 +10,13 @@ const SUBDIR: &str = "listener";
 const EXT: &str = "json";
 
 #[derive(Deserialize, Serialize)]
-pub struct Named {
+pub(crate) struct Named {
 	pub id: Option<u32>,
 	#[serde(default)]
 	pub reach: Option<u64>,
 }
 
-pub fn read(username: &str) -> hmerr::Result<Option<Named>> {
+pub(crate) fn read(username: &str) -> hmerr::Result<Option<Named>> {
 	let path = path(username)?;
 
 	if !path.exists() {
@@ -28,7 +28,7 @@ pub fn read(username: &str) -> hmerr::Result<Option<Named>> {
 	Ok(serde_json::from_str(&content).ok())
 }
 
-pub fn write(username: &str, named: &Named) -> hmerr::Result<()> {
+pub(crate) fn write(username: &str, named: &Named) -> hmerr::Result<()> {
 	let path = path(username)?;
 	prepare(&path)?;
 

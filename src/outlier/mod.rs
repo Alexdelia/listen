@@ -23,7 +23,7 @@ struct Listened {
 	covered: Covered,
 }
 
-pub fn run(
+pub(crate) fn run(
 	path: &Path,
 	username: Option<&str>,
 	refresh: bool,

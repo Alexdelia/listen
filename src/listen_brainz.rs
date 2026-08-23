@@ -8,18 +8,18 @@ use crate::meta_brainz;
 
 const API: &str = "https://api.listenbrainz.org/1";
 
-pub struct Fetched {
+pub(crate) struct Fetched {
 	pub status: StatusCode,
 	pub body: String,
 }
 
-pub fn get(path: &str, failure: &str) -> hmerr::Result<Fetched> {
+pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Fetched> {
 	meta_brainz::block_ready();
 
 	fetched(ureq::get(url(path)).call(), failure)
 }
 
-pub fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Fetched> {
+pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Fetched> {
 	meta_brainz::block_ready();
 
 	fetched(ureq::post(url(path)).send_json(body), failure)
