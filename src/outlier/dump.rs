@@ -38,7 +38,15 @@ struct Carried {
 
 enum Kept {
 	Cached(Held),
-	Rescan(Option<Carried>),
+	Rescan(Rescan),
+}
+
+enum Rescan {
+	Fresh,
+	Another(String),
+	Merged,
+	Stuck(String),
+	Carried(Carried),
 }
 
 impl Held {
@@ -117,29 +125,38 @@ pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held
 fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
 	let unpacked = own::unpacked()?;
 	let cached = cache::dump::read(username)?;
-	let merged = cached.as_ref().is_some_and(|held| !held.apart());
-	let stuck = cached
-		.as_ref()
-		.filter(|held| !held.foldable())
-		.map(|held| held.reach().to_string());
 
 	match kept(cached, unpacked.as_deref(), refresh) {
 		Kept::Cached(held) => Ok(Some(held)),
 		Kept::Rescan(_) if unpacked.is_none() => Ok(None),
-		Kept::Rescan(carried) => {
-			if carried.is_none() {
-				if merged {
-					merged_in();
-				}
+		Kept::Rescan(rescan) => scanned(username, told(rescan)),
+	}
+}
 
-				if let Some(stuck) = stuck {
-					stuck_at(&stuck);
-				}
-			}
-
-			scanned(username, carried)
+fn told(rescan: Rescan) -> Option<Carried> {
+	match rescan {
+		Rescan::Carried(carried) => Some(carried),
+		Rescan::Fresh => None,
+		Rescan::Another(dump) => {
+			another_dump(&dump);
+			None
+		}
+		Rescan::Merged => {
+			merged_in();
+			None
+		}
+		Rescan::Stuck(reached) => {
+			stuck_at(&reached);
+			None
 		}
 	}
+}
+
+fn another_dump(unpacked: &str) {
+	println!(
+		"{Y}the dump unpacked is not the one the counts were read off, \
+		reading {B}{unpacked}{D}{Y} up and asking for every incremental since{D}"
+	);
 }
 
 fn merged_in() {
@@ -187,7 +204,7 @@ fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
 
 fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Kept {
 	let Some(held) = held else {
-		return Kept::Rescan(None);
+		return Kept::Rescan(Rescan::Fresh);
 	};
 
 	let Some(unpacked) = unpacked else {
@@ -195,14 +212,22 @@ fn kept(held: Option<Held>, unpacked: Option<&str>, refresh: bool) -> Kept {
 	};
 
 	if held.dump != unpacked {
-		return Kept::Rescan(None);
+		return Kept::Rescan(Rescan::Another(unpacked.to_string()));
 	}
 
-	if refresh {
-		return Kept::Rescan((held.apart() && held.foldable()).then(|| held.carried()));
+	if !refresh {
+		return Kept::Cached(held);
 	}
 
-	Kept::Cached(held)
+	if !held.apart() {
+		return Kept::Rescan(Rescan::Merged);
+	}
+
+	if !held.foldable() {
+		return Kept::Rescan(Rescan::Stuck(held.reach().to_string()));
+	}
+
+	Kept::Rescan(Rescan::Carried(held.carried()))
 }
 
 fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Held>> {
@@ -318,8 +343,8 @@ mod tests {
 
 	fn carried(kept: Kept) -> Option<Carried> {
 		match kept {
-			Kept::Cached(_) => None,
-			Kept::Rescan(carried) => carried,
+			Kept::Rescan(Rescan::Carried(carried)) => Some(carried),
+			_ => None,
 		}
 	}
 
@@ -427,6 +452,46 @@ mod tests {
 		absorbed(&mut held, fold(LATEST, 5, Vec::new()));
 
 		assert_eq!(plays(&held, MBID), Some(35));
+	}
+
+	#[test]
+	fn an_unpacked_dump_the_counts_never_came_from_is_read_as_that_and_nothing_else() {
+		let merged = Held {
+			reached: LATEST.to_string(),
+			fold: None,
+			..held()
+		};
+
+		assert!(matches!(
+			kept(Some(merged), Some(NEWER), false),
+			Kept::Rescan(Rescan::Another(unpacked)) if unpacked == NEWER
+		));
+	}
+
+	#[test]
+	fn a_refresh_of_a_cache_that_cannot_tell_its_fold_apart_is_read_as_that() {
+		let merged = Held {
+			reached: LATEST.to_string(),
+			fold: None,
+			..held()
+		};
+
+		assert!(matches!(
+			kept(Some(merged), Some(DUMP), true),
+			Kept::Rescan(Rescan::Merged)
+		));
+	}
+
+	#[test]
+	fn a_refresh_of_counts_stopped_at_an_unreadable_stamp_says_where_they_stopped() {
+		let mut wedged = held();
+		absorbed(&mut wedged, fold(LATEST, 7, Vec::new()));
+		wedged.reached = "END_TIMESTAMP".to_string();
+
+		assert!(matches!(
+			kept(Some(wedged), Some(DUMP), true),
+			Kept::Rescan(Rescan::Stuck(reached)) if reached == "END_TIMESTAMP"
+		));
 	}
 
 	#[test]
