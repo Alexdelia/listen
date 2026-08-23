@@ -33,6 +33,16 @@ impl Held {
 		age::days_since(self.reached_at())
 	}
 
+	pub(super) fn recording(&self) -> usize {
+		self.count.len()
+			+ self
+				.fold
+				.iter()
+				.flatten()
+				.filter(|(mbid, _)| !self.count.contains_key(mbid))
+				.count()
+	}
+
 	pub(crate) fn counted(&self) -> ListenCount {
 		let mut count = self.count.clone();
 

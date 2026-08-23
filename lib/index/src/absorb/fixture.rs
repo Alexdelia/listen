@@ -185,7 +185,7 @@ pub(super) fn built(name: &str) -> (PathBuf, PathBuf, Meta) {
 	build::run(&index, &dump(&dir), &declaration()).unwrap_or_else(|e| unreachable!("{e}"));
 
 	(
-		dir.clone(),
+		dir,
 		index.clone(),
 		index::meta::read(&index).unwrap_or_else(|_| unreachable!()),
 	)

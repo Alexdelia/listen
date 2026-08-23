@@ -38,7 +38,7 @@ pub(super) fn announce(username: &str, held: &Held) -> hmerr::Result<()> {
 		"{B}{G}{count}{D} recording off the dump for {B}{username}{D}, covering up to \
 		{B}{reached}{D} {DIM}({day} day ago, last listen {last}, \
 		{B}--refresh{D}{DIM} to read the dump again){D}\n",
-		count = held.counted().len(),
+		count = held.recording(),
 		reached = at(held.reached_at()),
 		day = held.ago()?,
 		last = at(held.covered)

@@ -82,9 +82,10 @@ pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Resu
 						.await;
 					}
 					None => {
-						dead.insert(id.clone());
+						let replacement = redirect::resolve(&id)?;
+						dead.insert(id);
 
-						match redirect::resolve(&id)? {
+						match replacement {
 							Some(replacement) if !dead.contains(&replacement) => id = replacement,
 							_ => {
 								break no_link::run(

@@ -26,14 +26,14 @@ pub(super) fn listen_count(username: &str) -> hmerr::Result<ListenCount> {
 	loop {
 		let payload = page(username, fetched)?;
 
-		for recording in &payload.recordings {
+		for recording in payload.recordings {
 			if let Some(mbid) = recording.recording_mbid {
 				count.insert(
 					mbid,
 					Listen {
 						count: recording.listen_count,
-						track: recording.track_name.clone(),
-						artist: recording.artist_name.clone(),
+						track: recording.track_name,
+						artist: recording.artist_name,
 					},
 				);
 			}
