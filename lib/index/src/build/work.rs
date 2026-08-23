@@ -5,13 +5,10 @@ use super::super::{
 	work,
 };
 
-pub(super) use work::{publish, release};
+pub(super) use work::{ARTIST, LIBRARY, STAT, publish, release};
 
 const DIR: &str = "build";
 
-pub(super) const LIBRARY: &str = "library";
-pub(super) const ARTIST: &str = "artist";
-pub(super) const STAT: &str = "stat";
 const DUMP: &str = "dump";
 const EXCLUDED: &str = "excluded";
 const FORMAT: u32 = 4;
@@ -170,15 +167,5 @@ mod tests {
 		assert!(listen.exists());
 		assert!(stat.exists());
 		let _ = fs::remove_dir_all(&dir);
-	}
-
-	#[test]
-	fn a_staged_part_is_a_plain_directory_name() {
-		for part in [LIBRARY, ARTIST, STAT] {
-			assert!(
-				!part.is_empty() && part.chars().all(|c| c.is_ascii_lowercase() || c == '_'),
-				"{part}"
-			);
-		}
 	}
 }

@@ -12,6 +12,10 @@ use super::{
 	progress,
 };
 
+pub(super) const LIBRARY: &str = "library";
+pub(super) const ARTIST: &str = "artist";
+pub(super) const STAT: &str = "stat";
+
 pub(super) fn published() -> [&'static str; 5] {
 	[
 		RECORDING,
@@ -122,6 +126,13 @@ mod tests {
 			recording: 35,
 			user_listen: 200,
 		}
+	}
+
+	#[test]
+	fn a_staged_part_is_named_what_an_earlier_run_wrote_on_disk() {
+		assert_eq!(LIBRARY, "library");
+		assert_eq!(ARTIST, "artist");
+		assert_eq!(STAT, "stat");
 	}
 
 	#[test]
