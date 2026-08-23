@@ -8,6 +8,7 @@ use super::super::{
 	feed,
 	recommendation::{Origin, Recommendation},
 	skip::Skip,
+	turn,
 };
 use super::{log, score::Candidate};
 
@@ -149,12 +150,9 @@ impl Stream {
 	}
 
 	fn next_living(&self, from: usize) -> usize {
-		let count = self.candidate.len().max(1);
+		let count = self.candidate.len();
 
-		(0..count)
-			.map(|step| (from + step) % count)
-			.find(|turn| self.alive(*turn))
-			.unwrap_or(from % count)
+		turn::living(from, count, |turn| self.alive(turn)).unwrap_or(from % count.max(1))
 	}
 
 	fn alive(&self, turn: usize) -> bool {

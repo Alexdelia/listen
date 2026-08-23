@@ -1,4 +1,4 @@
-use super::{feed::Feed, recommendation::Recommendation, skip::Skip};
+use super::{feed::Feed, recommendation::Recommendation, skip::Skip, turn};
 
 pub(super) struct Stream {
 	feed: Vec<Option<Box<dyn Feed>>>,
@@ -59,11 +59,9 @@ impl Stream {
 	}
 
 	fn living(&self) -> Option<usize> {
-		let count = self.feed.len();
-
-		(0..count)
-			.map(|step| (self.turn + step) % count.max(1))
-			.find(|turn| self.feed.get(*turn).is_some_and(Option::is_some))
+		turn::living(self.turn, self.feed.len(), |turn| {
+			self.feed.get(turn).is_some_and(Option::is_some)
+		})
 	}
 }
 
