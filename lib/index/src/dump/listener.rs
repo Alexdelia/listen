@@ -110,7 +110,8 @@ fn read(published: &Published, username: &str) -> hmerr::Result<Option<u32>> {
 	let board = Board::of(&[Stage::Name], &published.size)?;
 
 	board.run(Stage::Name, |bar| {
-		let body = ureq::get(&published.url)
+		let body = listen_agent::shared()
+			.get(&published.url)
 			.call()
 			.map_err(|e| unreachable_dump(&published.url, &e.to_string()))?
 			.into_body()

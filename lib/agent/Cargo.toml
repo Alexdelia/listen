@@ -1,0 +1,13 @@
+[package]
+name = "listen_agent"
+version.workspace = true
+edition = "2024"
+authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
+description = "the single http agent declarative_listen identifies itself with"
+
+[dependencies]
+const_format.workspace = true
+ureq.workspace = true
+
+[lints]
+workspace = true

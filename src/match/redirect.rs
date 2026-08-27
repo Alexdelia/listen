@@ -9,7 +9,8 @@ const CANONICAL_CLOSE: char = '"';
 pub(super) fn resolve(id: &str) -> hmerr::Result<Option<String>> {
 	let url = verify::watch(id);
 
-	let body = ureq::get(&url)
+	let body = listen_agent::shared()
+		.get(&url)
 		.call()
 		.map_err(|e| ge!(format!("{R}failed to fetch {B}{url}{D}\n{e}")))?
 		.body_mut()

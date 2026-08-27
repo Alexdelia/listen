@@ -1,6 +1,6 @@
 [package]
 name = "listen_cache"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "where declarative_listen keeps what it caches"

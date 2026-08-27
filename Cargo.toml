@@ -1,7 +1,11 @@
 [workspace]
-members = ["lib/cache", "lib/index", "lib/prompt"]
+members = ["lib/agent", "lib/cache", "lib/index", "lib/prompt"]
+
+[workspace.package]
+version = "0.1.0"
 
 [workspace.dependencies]
+const_format = "0.2"
 hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
 ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
 ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
@@ -18,6 +22,7 @@ duckdb = "1"
 tar = "0.4"
 zstd = "0.13"
 rustix = { version = "1", features = ["fs"] }
+listen_agent = { path = "lib/agent" }
 listen_cache = { path = "lib/cache" }
 listen_index = { path = "lib/index" }
 listen_prompt = { path = "lib/prompt" }
@@ -42,7 +47,7 @@ future_not_send = "allow"
 
 [package]
 name = "declarative_listen"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "fetch declared listens and organize them"
@@ -59,7 +64,7 @@ panic = "abort"
 hmerr.workspace = true
 ansi.workspace = true
 ux.workspace = true
-const_format = "0.2"
+const_format.workspace = true
 async-std = { version = "1", features = ["tokio1"] }
 chrono.workspace = true
 dotenvy = "0.15"
@@ -81,6 +86,7 @@ api_bindium = { version = "0.4", features = ["rate_limit"] }
 id3 = "1"
 wana_kana = { version = "5", default-features = false }
 duckdb.workspace = true
+listen_agent.workspace = true
 listen_cache.workspace = true
 listen_index.workspace = true
 listen_prompt.workspace = true

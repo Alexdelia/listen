@@ -16,13 +16,16 @@ pub(crate) struct Fetched {
 pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Fetched> {
 	meta_brainz::block_ready();
 
-	fetched(ureq::get(url(path)).call(), failure)
+	fetched(listen_agent::shared().get(url(path)).call(), failure)
 }
 
 pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Fetched> {
 	meta_brainz::block_ready();
 
-	fetched(ureq::post(url(path)).send_json(body), failure)
+	fetched(
+		listen_agent::shared().post(url(path)).send_json(body),
+		failure,
+	)
 }
 
 fn url(path: &str) -> String {

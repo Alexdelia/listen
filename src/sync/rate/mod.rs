@@ -1,4 +1,3 @@
-mod agent;
 pub(super) mod auth;
 mod cache;
 mod submit;

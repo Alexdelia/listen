@@ -3,9 +3,7 @@ use std::fmt::Write;
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 
-use crate::music_brainz;
-
-use super::{Rating, agent};
+use super::Rating;
 
 pub(super) const CHUNK: usize = 200;
 
@@ -14,12 +12,11 @@ const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
 pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
-	let mut response = agent::get()
+	let mut response = listen_agent::status_kept()
 		.post(format!(
 			"{ENDPOINT}?client={client}",
-			client = music_brainz::CLIENT
+			client = listen_agent::CLIENT
 		))
-		.header("user-agent", music_brainz::USER_AGENT)
 		.header("content-type", CONTENT_TYPE)
 		.header("authorization", format!("Bearer {bearer}"))
 		.send(body(rating))

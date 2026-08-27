@@ -5,9 +5,7 @@ use hmerr::ge;
 use listen_cache::text;
 use serde::Deserialize;
 
-use crate::{cache, meta_brainz, music_brainz};
-
-use super::super::agent;
+use crate::{cache, meta_brainz};
 
 use super::Client;
 
@@ -68,9 +66,8 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Ref
 fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
 	meta_brainz::block_ready();
 
-	let mut response = agent::get()
+	let mut response = listen_agent::status_kept()
 		.post(ENDPOINT)
-		.header("user-agent", music_brainz::USER_AGENT)
 		.send_form(form.iter().copied())
 		.map_err(|e| ge!(format!("{R}failed to reach musicbrainz oauth{D}\n{e}")))?;
 
