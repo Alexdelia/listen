@@ -56,7 +56,9 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	}
 
 	let genre = genre(recording);
-	if !genre.is_empty() {
+	if genre.is_empty() {
+		tag.remove_genre();
+	} else {
 		tag.set_genre(genre);
 	}
 
