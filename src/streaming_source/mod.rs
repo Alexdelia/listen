@@ -65,12 +65,24 @@ impl StreamingSource {
 	where
 		P: AsRef<Path>,
 	{
+		let path = path.as_ref();
 		let mut command = match self {
 			Self::SoundCloud => soundcloud::command(url, path)?,
 			Self::YouTube | Self::YouTubeMusic | Self::Bandcamp => yt_dlp::command(url, path),
 		};
 
-		run(&mut command, url)
+		run(&mut command, url)?;
+
+		if !path.exists() {
+			return Err(format!(
+				"{downloader} exited successfully without downloading {url} to {path}",
+				downloader = command.get_program().to_string_lossy(),
+				path = path.to_string_lossy(),
+			)
+			.into());
+		}
+
+		Ok(())
 	}
 
 	pub(crate) const fn priority(&self) -> u8 {
