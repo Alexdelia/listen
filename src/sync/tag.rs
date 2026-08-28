@@ -7,10 +7,13 @@ use musicbrainz_rs::entity::recording::Recording;
 use crate::{
 	alias,
 	library::tag::{ARTIST_SEPARATOR, GENRE_SEPARATOR},
+	romaji,
 };
 
 const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
+const TITLE_SORT: &str = "TSOT";
+const ARTIST_SORT: &str = "TSOP";
 
 pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	let mut tag = Tag::read_from_path(path).unwrap_or_default();
@@ -29,6 +32,20 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 			.join(ARTIST_SEPARATOR);
 
 		tag.set_artist(artist);
+	}
+
+	match title_sort(recording) {
+		Some(sort) => tag.set_text(TITLE_SORT, sort),
+		None => {
+			tag.remove(TITLE_SORT);
+		}
+	}
+
+	match artist_sort(recording) {
+		Some(sort) => tag.set_text(ARTIST_SORT, sort),
+		None => {
+			tag.remove(ARTIST_SORT);
+		}
 	}
 
 	match subtitle(recording) {
@@ -54,6 +71,61 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 			path = path.to_string_lossy(),
 		)
 	})
+}
+
+fn title_sort(recording: &Recording) -> Option<String> {
+	let title = recording.title.trim();
+
+	if romaji::latin(title) {
+		return None;
+	}
+
+	romaji::of(title).or_else(|| romaji::of(reading(recording)?))
+}
+
+fn reading(recording: &Recording) -> Option<&str> {
+	let alias = recording.aliases.as_deref()?;
+	let title = recording.title.trim();
+
+	alias
+		.iter()
+		.find(|a| a.name.trim() == title && romaji::kana(a.sort_name.trim()))
+		.or_else(|| alias.iter().find(|a| romaji::kana(a.sort_name.trim())))
+		.map(|a| a.sort_name.trim())
+}
+
+fn artist_sort(recording: &Recording) -> Option<String> {
+	let artist_credit = recording.artist_credit.as_ref()?;
+	let mut moved = false;
+
+	let sort = artist_credit
+		.iter()
+		.map(|ac| {
+			let name = ac.artist.name.trim();
+
+			if romaji::latin(name) {
+				return name.to_string();
+			}
+
+			let sort_name = ac.artist.sort_name.trim();
+
+			if !sort_name.is_empty() && romaji::latin(sort_name) {
+				moved = true;
+				return sort_name.to_string();
+			}
+
+			romaji::of(name).map_or_else(
+				|| name.to_string(),
+				|romaji| {
+					moved = true;
+					romaji
+				},
+			)
+		})
+		.collect::<Vec<_>>()
+		.join(ARTIST_SEPARATOR);
+
+	moved.then_some(sort)
 }
 
 fn subtitle(recording: &Recording) -> Option<String> {
@@ -110,6 +182,38 @@ mod tests {
 		.unwrap()
 	}
 
+	fn sorted(title: &str, reading: &[(&str, &str)], artist: &[(&str, &str)]) -> Recording {
+		let alias = reading
+			.iter()
+			.map(|(name, sort_name)| {
+				format!(r#"{{"name": "{name}", "sort-name": "{sort_name}", "primary": true}}"#)
+			})
+			.collect::<Vec<_>>()
+			.join(",");
+
+		let artist_credit = artist
+			.iter()
+			.map(|(name, sort_name)| {
+				format!(
+					r#"{{"name": "{name}", "artist": {{"id": "8f8b0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f",
+					"name": "{name}", "sort-name": "{sort_name}", "disambiguation": ""}}}}"#
+				)
+			})
+			.collect::<Vec<_>>()
+			.join(",");
+
+		serde_json::from_str(&format!(
+			r#"{{
+				"id": "fbb4ccc1-2386-466e-a339-09594ac1bba6",
+				"title": "{title}",
+				"disambiguation": "",
+				"aliases": [{alias}],
+				"artist-credit": [{artist_credit}]
+			}}"#
+		))
+		.unwrap()
+	}
+
 	#[test]
 	fn the_other_name_alone_is_the_subtitle() {
 		assert_eq!(
@@ -141,5 +245,91 @@ mod tests {
 	#[test]
 	fn a_recording_with_neither_has_no_subtitle() {
 		assert_eq!(subtitle(&recording("Secret base", &[], "")), None);
+	}
+	#[test]
+	fn a_kana_title_is_romanized_on_its_own() {
+		assert_eq!(
+			title_sort(&sorted("インフェルノ", &[], &[])),
+			Some("infyeruno".to_string())
+		);
+	}
+
+	#[test]
+	fn a_kanji_title_is_romanized_off_the_kana_reading_its_alias_carries() {
+		assert_eq!(
+			title_sort(&sorted(
+				"ひみつ基地",
+				&[("ひみつ基地", "ひみつきち"), ("Secret base", "Secret base")],
+				&[]
+			)),
+			Some("himitsukichi".to_string())
+		);
+	}
+
+	#[test]
+	fn a_kanji_title_whose_alias_only_translates_it_is_left_unsorted() {
+		assert_eq!(
+			title_sort(&sorted("勇者", &[("The Brave", "The Brave")], &[])),
+			None
+		);
+	}
+
+	#[test]
+	fn a_title_already_in_latin_is_left_unsorted() {
+		assert_eq!(title_sort(&sorted("Secret base", &[], &[])), None);
+	}
+
+	#[test]
+	fn a_title_in_a_script_romaji_does_not_serve_is_left_unsorted() {
+		assert_eq!(title_sort(&sorted("Кончится лето", &[], &[])), None);
+		assert_eq!(title_sort(&sorted("우린 좀 달라", &[], &[])), None);
+	}
+
+	#[test]
+	fn the_artist_sort_name_is_the_artist_sort() {
+		assert_eq!(
+			artist_sort(&sorted(
+				"ひみつ基地",
+				&[],
+				&[("結束バンド", "Kessoku Band")]
+			)),
+			Some("Kessoku Band".to_string())
+		);
+	}
+
+	#[test]
+	fn an_artist_sort_name_that_never_left_its_script_is_romanized_instead() {
+		assert_eq!(
+			artist_sort(&sorted("オトノケ", &[], &[("ちか", "ちか")])),
+			Some("chika".to_string())
+		);
+	}
+
+	#[test]
+	fn an_artist_neither_names_in_latin_keeps_the_name_it_has() {
+		assert_eq!(
+			artist_sort(&sorted("常世想兼神", &[], &[("匠眞", "匠眞")])),
+			None
+		);
+	}
+
+	#[test]
+	fn every_credited_artist_is_sorted_together() {
+		assert_eq!(
+			artist_sort(&sorted(
+				"von",
+				&[],
+				&[("菅野よう子", "Kanno, Yōko"), ("Arnór Dan", "Dan, Arnór")]
+			)),
+			Some("Kanno, Yōko & Arnór Dan".to_string())
+		);
+	}
+
+	#[test]
+	fn an_artist_already_in_latin_is_left_unsorted() {
+		assert_eq!(
+			artist_sort(&sorted("Ignite", &[], &[("Alan Walker", "Walker, Alan")])),
+			None
+		);
 	}
 }

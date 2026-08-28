@@ -15,6 +15,7 @@ mod open;
 mod outlier;
 mod prompt;
 mod recommend;
+mod romaji;
 mod streaming_source;
 mod sync;
 
