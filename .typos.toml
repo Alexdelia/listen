@@ -1,1 +1,1 @@
-files.extend-exclude = ["*.ron"]
+files.extend-exclude = ["*.ron", "*.svg"]
