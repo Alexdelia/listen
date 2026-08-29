@@ -4,12 +4,14 @@ use ansi::abbrev::{B, D, R};
 use id3::{Tag, TagLike, Version, frame::ExtendedText};
 use musicbrainz_rs::entity::recording::Recording;
 
-use crate::{alias, library::tag::ARTIST_SEPARATOR, romaji};
+use crate::{
+	alias,
+	library::tag::{ARTIST_SEPARATOR, ARTIST_SORT, TITLE_SORT},
+	romaji,
+};
 
 const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
-const TITLE_SORT: &str = "TSOT";
-const ARTIST_SORT: &str = "TSOP";
 const GENRE: &str = "TCON";
 
 pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {

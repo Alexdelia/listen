@@ -114,19 +114,18 @@ fn process(
 		detach(&tx, |tx| block_on(rate::sync(bearer, pending, tx)));
 	}
 
-	detach(&tx, move |tx| block_on(fetch::fetch(&sync.fs.add, tx)));
-	detach(&tx, move |tx| {
-		block_on(remove::remove(&sync.fs.remove, tx));
-	});
+	let GroupedEntry { fs, q, playlist } = sync;
+	let SyncEntry { add, remove } = fs;
 
-	for (q, sync) in sync.q {
-		detach(&tx, move |tx| block_on(playlist::q(q, sync, tx)));
-	}
-	for (playlist, sync) in sync.playlist {
-		detach(&tx, move |tx| {
-			block_on(playlist::playlist(playlist, sync, tx));
+	detach(&tx, move |tx| {
+		block_on(async {
+			fetch::fetch(&add, tx.clone()).await;
+			playlist::all(q, playlist, tx).await;
 		});
-	}
+	});
+	detach(&tx, move |tx| {
+		block_on(remove::remove(&remove, tx));
+	});
 
 	drop(tx);
 }
