@@ -9,7 +9,7 @@ use hmerr::ioe;
 
 use crate::{
 	declaration::{Q, Source},
-	library::{self, playlist::parse_content},
+	library::{self, playlist::parse_content, tag::Sort},
 };
 
 use super::{
@@ -17,27 +17,43 @@ use super::{
 	filter::SyncEntry,
 };
 
+type SortName = HashMap<Source, Sort>;
+
 pub(super) async fn all(
 	q: HashMap<Q, SyncEntry>,
 	playlist: HashMap<String, SyncEntry>,
 	tx: Sender<Status>,
 ) {
+	let mut sort_name = SortName::new();
+
 	for (q, sync_entry) in q {
-		synced(&library::playlist::q_path(q), sync_entry, &tx).await;
+		synced(
+			&library::playlist::q_path(q),
+			sync_entry,
+			&mut sort_name,
+			&tx,
+		)
+		.await;
 	}
 
 	for (playlist, sync_entry) in playlist {
-		synced(&library::playlist::path(&playlist), sync_entry, &tx).await;
+		synced(
+			&library::playlist::path(&playlist),
+			sync_entry,
+			&mut sort_name,
+			&tx,
+		)
+		.await;
 	}
 }
 
-async fn synced(path: &Path, sync_entry: SyncEntry, tx: &Sender<Status>) {
-	let status = sync(path, sync_entry).map_err(|e| e.to_string());
+async fn synced(path: &Path, sync_entry: SyncEntry, sort_name: &mut SortName, tx: &Sender<Status>) {
+	let status = sync(path, sync_entry, sort_name).map_err(|e| e.to_string());
 
 	report(tx, Action::SyncPlaylist, status).await;
 }
 
-fn sync(path: &Path, sync: SyncEntry) -> hmerr::Result<()> {
+fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result<()> {
 	let previous = if path.exists() {
 		fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?
 	} else {
@@ -60,7 +76,7 @@ fn sync(path: &Path, sync: SyncEntry) -> hmerr::Result<()> {
 		return Ok(());
 	}
 
-	let content = content(set)?;
+	let content = content(set, sort_name)?;
 
 	if content == previous {
 		return Ok(());
@@ -71,7 +87,7 @@ fn sync(path: &Path, sync: SyncEntry) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn content(set: HashSet<Source>) -> hmerr::Result<String> {
+fn content(set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<String> {
 	let recording_path = std::env::current_dir()
 		.map_err(|e| ioe!("current_dir", e))?
 		.join(library::recording::DIR);
@@ -79,12 +95,23 @@ fn content(set: HashSet<Source>) -> hmerr::Result<String> {
 		.canonicalize()
 		.map_err(|e| ioe!(recording_path.to_string_lossy(), e))?;
 
-	let mut list = set.into_iter().collect::<Vec<_>>();
-	list.sort_by_cached_key(|source| (library::tag::sort(*source), *source));
+	let mut list = set
+		.into_iter()
+		.map(|source| {
+			(
+				sort_name
+					.entry(source)
+					.or_insert_with(|| library::tag::sort(source))
+					.clone(),
+				source,
+			)
+		})
+		.collect::<Vec<_>>();
+	list.sort();
 
 	Ok(list
 		.into_iter()
-		.map(|entry| {
+		.map(|(_, entry)| {
 			recording_path
 				.join(entry.to_string())
 				.with_extension(library::recording::EXT)
