@@ -1,4 +1,8 @@
-use id3::{Tag, TagLike};
+use std::io;
+
+use ansi::abbrev::{B, D, R};
+use hmerr::ge;
+use id3::{Error, ErrorKind, Tag, TagLike};
 
 use crate::declaration::Source;
 
@@ -11,8 +15,30 @@ pub(crate) const ARTIST_SORT: &str = "TSOP";
 
 pub(crate) type Sort = (bool, String, bool, String);
 
-pub(crate) fn sort(source: Source) -> Sort {
-	of(&Tag::read_from_path(recording::path(source)).unwrap_or_default())
+pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
+	let path = recording::path(source);
+	let path = path.to_string_lossy();
+
+	match Tag::read_from_path(path.as_ref()) {
+		Ok(tag) => Ok(of(&tag)),
+		Err(e) if nameless(&e) => Ok(unnamed()),
+		Err(e) => Err(Box::new(ge!(
+			format!("{R}failed to read the tag of{D} {B}{path}{D}\n{e}"),
+			h: format!("delete {B}{path}{D} and let the next run download it again")
+		))),
+	}
+}
+
+pub(crate) fn unnamed() -> Sort {
+	of(&Tag::default())
+}
+
+fn nameless(e: &Error) -> bool {
+	match &e.kind {
+		ErrorKind::NoTag => true,
+		ErrorKind::Io(e) => e.kind() == io::ErrorKind::NotFound,
+		_ => false,
+	}
 }
 
 fn of(tag: &Tag) -> Sort {
@@ -97,6 +123,29 @@ mod tests {
 				"ignite".to_string()
 			)
 		);
+	}
+
+	#[test]
+	fn a_missing_or_untagged_recording_is_nameless_rather_than_unread() {
+		assert!(nameless(&Error::new(ErrorKind::NoTag, "")));
+		assert!(nameless(&Error::new(
+			ErrorKind::Io(io::Error::from(io::ErrorKind::NotFound)),
+			""
+		)));
+	}
+
+	#[test]
+	fn a_recording_whose_tag_cannot_be_read_is_not_nameless() {
+		assert!(!nameless(&Error::new(ErrorKind::Parsing, "")));
+		assert!(!nameless(&Error::new(
+			ErrorKind::Io(io::Error::from(io::ErrorKind::PermissionDenied)),
+			""
+		)));
+	}
+
+	#[test]
+	fn a_recording_that_is_not_downloaded_yet_sorts_last_without_complaint() {
+		assert_eq!(sort(Source::nil()).ok(), Some(unnamed()));
 	}
 
 	#[test]

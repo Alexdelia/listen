@@ -42,6 +42,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 			}
 			Action::RemoveFile => pb_remove.inc(1),
 			Action::SyncPlaylist => pb_playlist.inc(1),
+			Action::ReadTag => pb_playlist.tick(),
 			Action::SubmitRating(count) => pb_rating.inc(count as u64),
 		}
 

@@ -17,14 +17,34 @@ use super::{
 	filter::SyncEntry,
 };
 
-type SortName = HashMap<Source, Sort>;
+#[derive(Default)]
+struct SortName {
+	name: HashMap<Source, Sort>,
+	unread: Vec<String>,
+}
+
+impl SortName {
+	fn of(&mut self, source: Source) -> Sort {
+		if let Some(sort) = self.name.get(&source) {
+			return sort.clone();
+		}
+
+		let sort = library::tag::sort(source).unwrap_or_else(|e| {
+			self.unread.push(e.to_string());
+			library::tag::unnamed()
+		});
+		self.name.insert(source, sort.clone());
+
+		sort
+	}
+}
 
 pub(super) async fn all(
 	q: HashMap<Q, SyncEntry>,
 	playlist: HashMap<String, SyncEntry>,
 	tx: Sender<Status>,
 ) {
-	let mut sort_name = SortName::new();
+	let mut sort_name = SortName::default();
 
 	for (q, sync_entry) in q {
 		synced(
@@ -49,6 +69,10 @@ pub(super) async fn all(
 
 async fn synced(path: &Path, sync_entry: SyncEntry, sort_name: &mut SortName, tx: &Sender<Status>) {
 	let status = sync(path, sync_entry, sort_name).map_err(|e| e.to_string());
+
+	for unread in sort_name.unread.drain(..) {
+		report(tx, Action::ReadTag, Err(unread)).await;
+	}
 
 	report(tx, Action::SyncPlaylist, status).await;
 }
@@ -97,15 +121,7 @@ fn content(header: &str, set: HashSet<Source>, sort_name: &mut SortName) -> hmer
 
 	let mut list = set
 		.into_iter()
-		.map(|source| {
-			(
-				sort_name
-					.entry(source)
-					.or_insert_with(|| library::tag::sort(source))
-					.clone(),
-				source,
-			)
-		})
+		.map(|source| (sort_name.of(source), source))
 		.collect::<Vec<_>>();
 	list.sort();
 

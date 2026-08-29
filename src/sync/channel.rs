@@ -9,6 +9,7 @@ pub(super) enum Action {
 	RemoveFile,
 
 	SyncPlaylist,
+	ReadTag,
 
 	SubmitRating(usize),
 }
