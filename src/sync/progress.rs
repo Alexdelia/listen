@@ -86,7 +86,7 @@ fn finished(bar: &ProgressBar, total: usize) {
 	}
 }
 
-fn template(title: &str, color: &str) -> hmerr::Result<ProgressStyle> {
+pub(super) fn template(title: &str, color: &str) -> hmerr::Result<ProgressStyle> {
 	let title = format!("{title:>8}");
 
 	ProgressStyle::with_template(

@@ -1,13 +1,10 @@
 use ansi::abbrev::{B, D, R};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::ProgressBar;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{declaration::Entry, library, music_brainz};
 
-use super::super::tag;
-
-const TEMPLATE: &str =
-	"metadata {wide_bar:.green/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}%";
+use super::super::{progress, tag};
 
 pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	let client = music_brainz::client();
@@ -18,10 +15,8 @@ pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 		.collect::<Vec<_>>();
 
 	let pb = ProgressBar::new(existing.len() as u64);
-	pb.set_style(
-		ProgressStyle::with_template(TEMPLATE)
-			.map_err(|e| format!("failed to create progress style\n{e}"))?,
-	);
+	pb.set_style(progress::template("metadata", "green")?);
+	pb.tick();
 
 	let mut err = vec![];
 
