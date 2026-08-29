@@ -46,7 +46,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 		}
 
 		if let Err(e) = status.status {
-			eprintln!("{e}\n");
+			mp.suspend(|| eprintln!("{e}\n"));
 			err.push(e);
 		}
 	}
