@@ -26,6 +26,12 @@ pub(super) struct SyncEntry {
 	pub remove: Vec<Source>,
 }
 
+impl SyncEntry {
+	pub(super) const fn changed(&self) -> bool {
+		!self.add.is_empty() || !self.remove.is_empty()
+	}
+}
+
 pub(super) fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
 

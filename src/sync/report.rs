@@ -10,7 +10,7 @@ pub(super) fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 	ret |= single_report("file", CYA, &sync.fs);
 
 	let mut q = sync.q.iter().collect::<Vec<_>>();
-	if !q.is_empty() {
+	if q.iter().any(|(_, update)| update.changed()) {
 		section("q");
 		q.sort_by_key(|(q, _)| *q);
 		for (q, update) in q {
@@ -19,7 +19,7 @@ pub(super) fn report(sync: &GroupedEntry<SyncEntry>) -> bool {
 	}
 
 	let mut playlist = sync.playlist.iter().collect::<Vec<_>>();
-	if !playlist.is_empty() {
+	if playlist.iter().any(|(_, update)| update.changed()) {
 		section("playlist");
 		playlist.sort_by_key(|(playlist, _)| *playlist);
 		for (playlist, update) in playlist {
@@ -37,7 +37,7 @@ fn section(title: &str) {
 const LEN_REPORT_LIMIT: usize = 4;
 
 fn single_report(title: &str, color: &str, update: &SyncEntry) -> bool {
-	if update.add.is_empty() && update.remove.is_empty() {
+	if !update.changed() {
 		return false;
 	}
 
