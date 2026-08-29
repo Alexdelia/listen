@@ -3,13 +3,13 @@ use ansi::{
 	abbrev::{D, F},
 };
 
-use crate::library::tag::GENRE_SEPARATOR;
+pub(crate) const SEPARATOR: &str = " / ";
 
 pub(crate) fn text(list: &str) -> String {
-	list.split(GENRE_SEPARATOR)
+	list.split(SEPARATOR)
 		.map(|genre| format!("{F}{WHITE}{genre}{D}"))
 		.collect::<Vec<_>>()
-		.join(&format!("{F}{GENRE_SEPARATOR}{D}"))
+		.join(&format!("{F}{SEPARATOR}{D}"))
 }
 
 pub(crate) fn width(list: &str) -> usize {
@@ -33,7 +33,7 @@ mod tests {
 	fn the_separator_is_faint_and_uncolored() {
 		assert_eq!(
 			text("eurobeat / touhou"),
-			format!("{F}{WHITE}eurobeat{D}{F}{GENRE_SEPARATOR}{D}{F}{WHITE}touhou{D}")
+			format!("{F}{WHITE}eurobeat{D}{F}{SEPARATOR}{D}{F}{WHITE}touhou{D}")
 		);
 	}
 

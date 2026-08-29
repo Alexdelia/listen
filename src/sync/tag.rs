@@ -4,16 +4,13 @@ use ansi::abbrev::{B, D, R};
 use id3::{Tag, TagLike, Version, frame::ExtendedText};
 use musicbrainz_rs::entity::recording::Recording;
 
-use crate::{
-	alias,
-	library::tag::{ARTIST_SEPARATOR, GENRE_SEPARATOR},
-	romaji,
-};
+use crate::{alias, library::tag::ARTIST_SEPARATOR, romaji};
 
 const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
 const TITLE_SORT: &str = "TSOT";
 const ARTIST_SORT: &str = "TSOP";
+const GENRE: &str = "TCON";
 
 pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	let mut tag = Tag::read_from_path(path).unwrap_or_default();
@@ -59,7 +56,7 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	if genre.is_empty() {
 		tag.remove_genre();
 	} else {
-		tag.set_genre(genre);
+		tag.set_text_values(GENRE, genre);
 	}
 
 	tag.add_frame(ExtendedText {
@@ -146,7 +143,7 @@ fn subtitle(recording: &Recording) -> Option<String> {
 	}
 }
 
-fn genre(recording: &Recording) -> String {
+fn genre(recording: &Recording) -> Vec<&str> {
 	let mut all = HashSet::new();
 
 	if let Some(genres) = &recording.genres {
@@ -159,7 +156,7 @@ fn genre(recording: &Recording) -> String {
 	let mut all = all.into_iter().collect::<Vec<_>>();
 	all.sort_unstable();
 
-	all.join(GENRE_SEPARATOR)
+	all
 }
 
 #[cfg(test)]

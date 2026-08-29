@@ -5,7 +5,7 @@ use hmerr::{GenericError, ge};
 
 use crate::declaration::Source;
 
-use crate::library::tag::GENRE_SEPARATOR;
+use crate::format::genre_list::SEPARATOR;
 
 use super::{super::seed::Library, Request};
 
@@ -55,7 +55,7 @@ fn name(request: &Request, member: usize) -> String {
 		.iter()
 		.map(|genre| genre.to_lowercase())
 		.collect::<Vec<_>>()
-		.join(GENRE_SEPARATOR)
+		.join(SEPARATOR)
 }
 
 fn undeclared(mbid: Source) -> GenericError {

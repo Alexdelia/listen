@@ -1,9 +1,6 @@
 use id3::{Tag, TagLike};
 
-use crate::{
-	declaration::Source,
-	library::{self, tag::GENRE_SEPARATOR},
-};
+use crate::{declaration::Source, library};
 
 const PLACEHOLDER: [&str; 4] = ["music", "other", "misc", "unknown"];
 const ATTRIBUTE: char = ':';
@@ -13,14 +10,9 @@ pub(super) fn read(mbid: Source) -> Vec<String> {
 		return Vec::new();
 	};
 
-	let Some(genre) = tag.genre() else {
-		return Vec::new();
-	};
-
-	genre
-		.split(GENRE_SEPARATOR)
-		.map(str::trim)
-		.map(str::to_lowercase)
+	tag.genres_parsed()
+		.iter()
+		.map(|genre| genre.trim().to_lowercase())
 		.filter(|token| describes_a_genre(token))
 		.collect()
 }

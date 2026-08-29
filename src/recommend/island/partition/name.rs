@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::library::tag::GENRE_SEPARATOR;
+use crate::format::genre_list::SEPARATOR;
 
 use super::super::real;
 
@@ -63,7 +63,7 @@ fn over_represented(
 			.take(TOKEN_IN_NAME)
 			.map(|(token, _, _)| *token)
 			.collect::<Vec<_>>()
-			.join(GENRE_SEPARATOR),
+			.join(SEPARATOR),
 	)
 }
 
@@ -128,7 +128,7 @@ mod tests {
 		let name = over_represented(&[0, 1], &genre, &library, tagged);
 
 		assert_eq!(
-			name.as_deref().map(|n| n.split(GENRE_SEPARATOR).next()),
+			name.as_deref().map(|n| n.split(SEPARATOR).next()),
 			Some(Some("touhou"))
 		);
 	}
@@ -193,6 +193,6 @@ mod tests {
 
 		let name = over_represented(&[0, 1], &genre, &library, tagged).unwrap_or_default();
 
-		assert_eq!(name.split(GENRE_SEPARATOR).count(), TOKEN_IN_NAME);
+		assert_eq!(name.split(SEPARATOR).count(), TOKEN_IN_NAME);
 	}
 }
