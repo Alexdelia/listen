@@ -40,6 +40,14 @@ pub(crate) fn parse_q(name: &str) -> hmerr::Result<Q> {
 	})?)
 }
 
+pub(crate) fn header(content: &str) -> String {
+	content
+		.lines()
+		.take_while(|line| line.starts_with('#'))
+		.collect::<Vec<_>>()
+		.join("\n")
+}
+
 pub(crate) fn parse_content(content: &str) -> HashSet<Source> {
 	let mut set = HashSet::<Source>::new();
 
@@ -105,6 +113,20 @@ mod tests {
 				PathBuf::from(format!("./output/playlist/+q{i}.m3u"))
 			);
 		}
+	}
+
+	#[test]
+	fn the_header_is_what_a_playlist_says_before_its_first_entry() {
+		assert_eq!(
+			header("#EXTM3U\n#the ones that carry a run\n/a.mp3\n/b.mp3"),
+			"#EXTM3U\n#the ones that carry a run"
+		);
+	}
+
+	#[test]
+	fn a_playlist_saying_nothing_before_its_first_entry_has_no_header() {
+		assert_eq!(header("/a.mp3\n#a word after the fact\n/b.mp3"), "");
+		assert_eq!(header(""), "");
 	}
 
 	#[test]

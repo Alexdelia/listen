@@ -76,7 +76,7 @@ fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result
 		return Ok(());
 	}
 
-	let content = content(set, sort_name)?;
+	let content = content(&library::playlist::header(&previous), set, sort_name)?;
 
 	if content == previous {
 		return Ok(());
@@ -87,7 +87,7 @@ fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result
 	Ok(())
 }
 
-fn content(set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<String> {
+fn content(header: &str, set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<String> {
 	let recording_path = std::env::current_dir()
 		.map_err(|e| ioe!("current_dir", e))?
 		.join(library::recording::DIR);
@@ -109,7 +109,7 @@ fn content(set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<Stri
 		.collect::<Vec<_>>();
 	list.sort();
 
-	Ok(list
+	let body = list
 		.into_iter()
 		.map(|(_, entry)| {
 			recording_path
@@ -119,5 +119,11 @@ fn content(set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<Stri
 				.to_string()
 		})
 		.collect::<Vec<_>>()
-		.join("\n"))
+		.join("\n");
+
+	Ok(if header.is_empty() {
+		body
+	} else {
+		format!("{header}\n{body}")
+	})
 }
