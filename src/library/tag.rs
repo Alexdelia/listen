@@ -23,7 +23,9 @@ fn of(tag: &Tag) -> Sort {
 }
 
 fn text<'a>(tag: &'a Tag, id: &str) -> Option<&'a str> {
-	tag.get(id).and_then(|frame| frame.content().text())
+	tag.get(id)
+		.and_then(|frame| frame.content().text())
+		.filter(|text| !text.trim().is_empty())
 }
 
 fn folded(text: Option<&str>) -> String {
@@ -71,6 +73,23 @@ mod tests {
 	fn a_recording_carrying_no_sort_name_sorts_by_the_name_it_has() {
 		assert_eq!(
 			of(&tag("Alan Walker", "", "Ignite", "")),
+			(
+				false,
+				"alan walker".to_string(),
+				false,
+				"ignite".to_string()
+			)
+		);
+	}
+
+	#[test]
+	fn a_recording_carrying_a_blank_sort_name_sorts_by_the_name_it_has() {
+		let mut tag = tag("Alan Walker", "", "Ignite", "");
+		tag.set_text(ARTIST_SORT, "  ");
+		tag.set_text(TITLE_SORT, "");
+
+		assert_eq!(
+			of(&tag),
 			(
 				false,
 				"alan walker".to_string(),
