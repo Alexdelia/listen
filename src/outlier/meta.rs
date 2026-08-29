@@ -20,7 +20,7 @@ pub(super) fn read(mbid: Source) -> Option<(String, String)> {
 	let tag = Tag::read_from_path(library::recording::path(mbid)).ok()?;
 
 	let title = tag.title().unwrap_or_default().trim().to_string();
-	let artist = tag.artist().unwrap_or_default().trim().to_string();
+	let artist = library::tag::artist(&tag);
 
 	if title.is_empty() && artist.is_empty() {
 		return None;

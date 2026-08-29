@@ -8,8 +8,9 @@ use crate::declaration::Source;
 
 use super::recording;
 
-pub(crate) const ARTIST_SEPARATOR: &str = " & ";
+const ARTIST_SEPARATOR: &str = " & ";
 
+pub(crate) const ARTIST: &str = "TPE1";
 pub(crate) const TITLE_SORT: &str = "TSOT";
 pub(crate) const ARTIST_SORT: &str = "TSOP";
 
@@ -29,6 +30,10 @@ pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
 	}
 }
 
+pub(crate) fn artist(tag: &Tag) -> String {
+	joined(values(tag, ARTIST))
+}
+
 pub(crate) fn unnamed() -> Sort {
 	of(&Tag::default())
 }
@@ -42,10 +47,25 @@ fn nameless(e: &Error) -> bool {
 }
 
 fn of(tag: &Tag) -> Sort {
-	let artist = folded(text(tag, ARTIST_SORT).or_else(|| tag.artist()));
+	let artist = joined(values(tag, ARTIST_SORT).or_else(|| values(tag, ARTIST))).to_lowercase();
 	let title = folded(text(tag, TITLE_SORT).or_else(|| tag.title()));
 
 	(artist.is_empty(), artist, title.is_empty(), title)
+}
+
+fn values<'a>(tag: &'a Tag, id: &str) -> Option<Vec<&'a str>> {
+	let values = tag
+		.get(id)
+		.and_then(|frame| frame.content().text_values())?
+		.map(str::trim)
+		.filter(|value| !value.is_empty())
+		.collect::<Vec<_>>();
+
+	(!values.is_empty()).then_some(values)
+}
+
+fn joined(values: Option<Vec<&str>>) -> String {
+	values.unwrap_or_default().join(ARTIST_SEPARATOR)
 }
 
 fn text<'a>(tag: &'a Tag, id: &str) -> Option<&'a str> {
@@ -93,6 +113,25 @@ mod tests {
 				"himitsukichi".to_string()
 			)
 		);
+	}
+
+	#[test]
+	fn every_credited_artist_sorts_under_one_name() {
+		let mut tag = Tag::new();
+		tag.set_text_values(ARTIST, ["菅野よう子", "Arnór Dan"]);
+		tag.set_text_values(ARTIST_SORT, ["Kanno, Yōko", "Dan, Arnór"]);
+		tag.set_title("von");
+
+		assert_eq!(
+			of(&tag),
+			(
+				false,
+				"kanno, yōko & dan, arnór".to_string(),
+				false,
+				"von".to_string()
+			)
+		);
+		assert_eq!(artist(&tag), "菅野よう子 & Arnór Dan");
 	}
 
 	#[test]

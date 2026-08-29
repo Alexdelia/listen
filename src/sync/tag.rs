@@ -6,7 +6,7 @@ use musicbrainz_rs::entity::recording::Recording;
 
 use crate::{
 	alias,
-	library::tag::{ARTIST_SEPARATOR, ARTIST_SORT, TITLE_SORT},
+	library::tag::{ARTIST, ARTIST_SORT, TITLE_SORT},
 	romaji,
 };
 
@@ -21,16 +21,9 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 		tag.set_title(recording.title.as_str());
 	}
 
-	if let Some(artist_credit) = &recording.artist_credit
-		&& !artist_credit.is_empty()
-	{
-		let artist = artist_credit
-			.iter()
-			.map(|ac| ac.artist.name.as_str())
-			.collect::<Vec<_>>()
-			.join(ARTIST_SEPARATOR);
-
-		tag.set_artist(artist);
+	let artist = artist(recording);
+	if !artist.is_empty() {
+		tag.set_text_values(ARTIST, artist);
 	}
 
 	match title_sort(recording) {
@@ -41,7 +34,7 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 	}
 
 	match artist_sort(recording) {
-		Some(sort) => tag.set_text(ARTIST_SORT, sort),
+		Some(sort) => tag.set_text_values(ARTIST_SORT, sort),
 		None => {
 			tag.remove(ARTIST_SORT);
 		}
@@ -95,7 +88,18 @@ fn reading(recording: &Recording) -> Option<&str> {
 		.map(|a| a.sort_name.trim())
 }
 
-fn artist_sort(recording: &Recording) -> Option<String> {
+fn artist(recording: &Recording) -> Vec<&str> {
+	recording
+		.artist_credit
+		.as_deref()
+		.unwrap_or_default()
+		.iter()
+		.map(|ac| ac.artist.name.trim())
+		.filter(|name| !name.is_empty())
+		.collect()
+}
+
+fn artist_sort(recording: &Recording) -> Option<Vec<String>> {
 	let artist_credit = recording.artist_credit.as_ref()?;
 	let mut moved = false;
 
@@ -123,8 +127,7 @@ fn artist_sort(recording: &Recording) -> Option<String> {
 				},
 			)
 		})
-		.collect::<Vec<_>>()
-		.join(ARTIST_SEPARATOR);
+		.collect::<Vec<_>>();
 
 	moved.then_some(sort)
 }
@@ -294,7 +297,7 @@ mod tests {
 				&[],
 				&[("結束バンド", "Kessoku Band")]
 			)),
-			Some("Kessoku Band".to_string())
+			Some(vec!["Kessoku Band".to_string()])
 		);
 	}
 
@@ -302,7 +305,7 @@ mod tests {
 	fn an_artist_sort_name_that_never_left_its_script_is_romanized_instead() {
 		assert_eq!(
 			artist_sort(&sorted("オトノケ", &[], &[("ちか", "ちか")])),
-			Some("chika".to_string())
+			Some(vec!["chika".to_string()])
 		);
 	}
 
@@ -322,7 +325,7 @@ mod tests {
 				&[],
 				&[("菅野よう子", "Kanno, Yōko"), ("Arnór Dan", "Dan, Arnór")]
 			)),
-			Some("Kanno, Yōko & Arnór Dan".to_string())
+			Some(vec!["Kanno, Yōko".to_string(), "Arnór Dan".to_string()])
 		);
 	}
 
