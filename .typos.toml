@@ -1,1 +1,4 @@
 files.extend-exclude = ["*.ron", "*.svg"]
+
+[default.extend-words]
+TPE = "TPE"
