@@ -1,4 +1,6 @@
 use std::{
+	error::Error,
+	fmt,
 	num::NonZeroU32,
 	sync::{Arc, LazyLock},
 	thread,
@@ -56,7 +58,9 @@ pub(crate) fn send(
 
 		if throttled(status) {
 			let wait = match said(response.headers()).and_then(seconds) {
-				Some(asked) if too_long(asked) => return Err(asked_for_longer(failure, asked)),
+				Some(asked) if too_long(asked) => {
+					return Err(gave_up_on(failure, GaveUp::AskedForLonger(asked)));
+				}
 				Some(asked) => sit_through(asked),
 				None => unsaid(taken),
 			};
@@ -66,6 +70,8 @@ pub(crate) fn send(
 				thread::sleep(wait);
 				continue;
 			}
+
+			return Err(gave_up_on(failure, GaveUp::StillThrottled(status)));
 		}
 
 		return Ok(Sent {
@@ -102,14 +108,60 @@ fn too_long(wait: Duration) -> bool {
 	wait > LONGEST_WAIT
 }
 
-fn asked_for_longer(failure: &str, wait: Duration) -> Box<dyn std::error::Error> {
-	let seconds = wait.as_secs();
+#[derive(Debug)]
+enum GaveUp {
+	AskedForLonger(Duration),
+	StillThrottled(StatusCode),
+}
 
-	ge!(
-		format!("{failure}\nthrottled for {B}{seconds}s{D}, longer than this run waits out"),
-		h: format!("the service is asking to be left alone, run it again in {seconds}s")
-	)
-	.into()
+impl GaveUp {
+	fn hint(&self) -> String {
+		match self {
+			Self::AskedForLonger(wait) => format!(
+				"the service is asking to be left alone, run it again in {seconds}s",
+				seconds = wait.as_secs()
+			),
+			Self::StillThrottled(_) => {
+				String::from("the service is still refusing, run it again later")
+			}
+		}
+	}
+}
+
+impl fmt::Display for GaveUp {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::AskedForLonger(wait) => write!(
+				f,
+				"throttled for {B}{seconds}s{D}, longer than this run waits out",
+				seconds = wait.as_secs()
+			),
+			Self::StillThrottled(status) => write!(
+				f,
+				"throttled ({B}{status}{D}) through every one of the {B}{RETRY}{D} retries"
+			),
+		}
+	}
+}
+
+impl Error for GaveUp {}
+
+fn gave_up_on(failure: &str, reason: GaveUp) -> Box<dyn Error> {
+	let hint = reason.hint();
+
+	ge!(failure, h: hint, s: reason).into()
+}
+
+pub(crate) fn gave_up(mut e: &(dyn Error + 'static)) -> bool {
+	while !e.is::<GaveUp>() {
+		let Some(source) = e.source() else {
+			return false;
+		};
+
+		e = source;
+	}
+
+	true
 }
 
 fn seconds(said: &str) -> Option<Duration> {
@@ -219,5 +271,43 @@ mod tests {
 	#[test]
 	fn a_throttling_naming_no_header_at_all_names_no_wait() {
 		assert_eq!(said(&HeaderMap::new()), None);
+	}
+
+	#[test]
+	fn the_error_a_wait_past_the_longest_one_builds_says_the_run_gave_up() {
+		let e = gave_up_on(
+			"failed to submit rating",
+			GaveUp::AskedForLonger(Duration::from_secs(90)),
+		);
+
+		assert!(gave_up(&*e));
+	}
+
+	#[test]
+	fn the_error_a_throttling_outliving_every_retry_builds_says_the_run_gave_up() {
+		let e = gave_up_on(
+			"failed to submit rating",
+			GaveUp::StillThrottled(StatusCode::SERVICE_UNAVAILABLE),
+		);
+
+		assert!(gave_up(&*e));
+	}
+
+	#[test]
+	fn a_failure_that_is_no_throttling_does_not_say_the_run_gave_up() {
+		let e: Box<dyn Error> = ge!("failed to submit rating").into();
+
+		assert!(!gave_up(&*e));
+	}
+
+	#[test]
+	fn a_giving_up_is_still_read_under_a_failure_that_wraps_it() {
+		let e: Box<dyn Error> = ge!(
+			"failed to submit rating",
+			s: ge!("throttled", s: GaveUp::StillThrottled(StatusCode::TOO_MANY_REQUESTS))
+		)
+		.into();
+
+		assert!(gave_up(&*e));
 	}
 }
