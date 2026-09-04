@@ -9,6 +9,7 @@ use std::{
 
 use ansi::abbrev::{B, D};
 use async_std::task::block_on;
+use chrono::{NaiveDateTime, Utc};
 use hmerr::ge;
 use musicbrainz_rs::api_bindium::governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use ureq::{
@@ -24,6 +25,10 @@ const RETRY: u8 = 4;
 const UNSAID_WAIT: Duration = Duration::from_secs(2);
 const LONGEST_WAIT: Duration = Duration::from_secs(60);
 const MARGIN: Duration = Duration::from_secs(1);
+
+const FIXDATE: &str = "%a, %d %b %Y %H:%M:%S GMT";
+const RFC_850: &str = "%A, %d-%b-%y %H:%M:%S GMT";
+const ASCTIME: &str = "%a %b %e %H:%M:%S %Y";
 
 const RETRY_AFTER: &str = "retry-after";
 const RESET_IN: &str = "x-ratelimit-reset-in";
@@ -58,13 +63,13 @@ pub(crate) fn send(
 		let status = response.status();
 
 		if throttled(status) {
-			let asked = said(response.headers()).and_then(seconds);
-			let wait = asked.map_or_else(|| unsaid(taken), sit_through);
+			let named = said(response.headers()).and_then(asked);
+			let wait = named.map_or_else(|| unsaid(taken), sit_through);
 
-			listen_agent::hold(url, wait);
+			listen_agent::hold(url, held(wait));
 
-			if let Some(asked) = asked.filter(|asked| too_long(*asked)) {
-				return Err(gave_up_on(failure, GaveUp::AskedForLonger(asked)));
+			if let Some(named) = named.filter(|named| too_long(*named)) {
+				return Err(gave_up_on(failure, GaveUp::AskedForLonger(named)));
 			}
 
 			if taken < RETRY {
@@ -166,8 +171,31 @@ pub(crate) fn gave_up(mut e: &(dyn Error + 'static)) -> bool {
 	true
 }
 
+fn held(wait: Duration) -> Duration {
+	wait.min(sit_through(LONGEST_WAIT))
+}
+
+fn asked(said: &str) -> Option<Duration> {
+	let said = said.trim();
+
+	seconds(said).or_else(|| date(said))
+}
+
 fn seconds(said: &str) -> Option<Duration> {
-	Some(Duration::from_secs(said.trim().parse().ok()?))
+	Some(Duration::from_secs(said.parse().ok()?))
+}
+
+fn date(said: &str) -> Option<Duration> {
+	let at = [FIXDATE, RFC_850, ASCTIME]
+		.into_iter()
+		.find_map(|format| NaiveDateTime::parse_from_str(said, format).ok())?;
+
+	Some(
+		at.and_utc()
+			.signed_duration_since(Utc::now())
+			.to_std()
+			.unwrap_or(Duration::ZERO),
+	)
 }
 
 #[cfg(test)]
@@ -194,7 +222,7 @@ mod tests {
 
 	#[test]
 	fn a_named_wait_is_read_through_the_spaces_around_it() {
-		assert_eq!(seconds(" 7 "), Some(Duration::from_secs(7)));
+		assert_eq!(asked(" 7 "), Some(Duration::from_secs(7)));
 	}
 
 	#[test]
@@ -203,8 +231,52 @@ mod tests {
 	}
 
 	#[test]
-	fn a_retry_after_holding_a_date_rather_than_seconds_names_no_wait_at_all() {
+	fn a_retry_after_holding_a_date_is_no_number_of_seconds() {
 		assert_eq!(seconds("Wed, 21 Oct 2015 07:28:00 GMT"), None);
+	}
+
+	#[test]
+	fn a_retry_after_holding_a_date_is_read_as_the_wait_until_that_date() {
+		let at = Utc::now() + chrono::TimeDelta::seconds(90);
+		let said = at.format(FIXDATE).to_string();
+
+		let read = asked(&said).expect("a date names the wait until it");
+
+		assert!(read > Duration::from_secs(85) && read <= Duration::from_secs(90));
+	}
+
+	#[test]
+	fn every_date_form_http_allows_is_read_as_a_wait() {
+		assert_eq!(date("Sun, 06 Nov 1994 08:49:37 GMT"), Some(Duration::ZERO));
+		assert_eq!(date("Sunday, 06-Nov-94 08:49:37 GMT"), Some(Duration::ZERO));
+		assert_eq!(date("Sun Nov  6 08:49:37 1994"), Some(Duration::ZERO));
+	}
+
+	#[test]
+	fn a_date_already_gone_by_names_no_wait_to_sit_through() {
+		assert_eq!(date("Wed, 21 Oct 2015 07:28:00 GMT"), Some(Duration::ZERO));
+	}
+
+	#[test]
+	fn a_date_far_past_the_longest_wait_is_given_up_on_rather_than_sat_through() {
+		let at = Utc::now() + chrono::TimeDelta::hours(1);
+
+		let read = asked(&at.format(FIXDATE).to_string()).expect("a date names a wait");
+
+		assert!(too_long(read));
+	}
+
+	#[test]
+	fn a_retry_after_that_is_neither_seconds_nor_a_date_names_no_wait_at_all() {
+		assert_eq!(asked("soon"), None);
+		assert_eq!(asked(""), None);
+	}
+
+	#[test]
+	fn no_wait_holds_a_host_for_longer_than_this_run_would_sit_through_itself() {
+		assert_eq!(held(Duration::from_secs(30)), Duration::from_secs(30));
+		assert_eq!(held(sit_through(LONGEST_WAIT)), sit_through(LONGEST_WAIT));
+		assert_eq!(held(Duration::from_secs(3600)), sit_through(LONGEST_WAIT));
 	}
 
 	#[test]
