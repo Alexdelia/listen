@@ -77,7 +77,7 @@ fn sent(
 	failure: &str,
 	resend: Resend,
 ) -> hmerr::Result<Sent> {
-	let mut taken = 0;
+	let mut taken = Taken::none();
 
 	loop {
 		block_ready();
@@ -87,7 +87,7 @@ fn sent(
 
 		if throttled(status) {
 			let named = said(response.headers()).and_then(asked);
-			let wait = named.map_or_else(|| unsaid(taken), sit_through);
+			let wait = taken.wait(named);
 
 			listen_agent::hold(url, held(wait));
 
@@ -99,8 +99,8 @@ fn sent(
 				return Err(gave_up_on(failure, GaveUp::NotSentAgain(status)));
 			}
 
-			if taken < RETRY {
-				taken += 1;
+			if taken.left() {
+				taken.took(named);
 				thread::sleep(wait);
 				continue;
 			}
@@ -115,6 +115,33 @@ fn sent(
 				.read_to_string()
 				.map_err(|e| ge!(format!("{failure}\n{e}")))?,
 		});
+	}
+}
+
+struct Taken {
+	any: u8,
+	blind: u8,
+}
+
+impl Taken {
+	const fn none() -> Self {
+		Self { any: 0, blind: 0 }
+	}
+
+	fn wait(&self, named: Option<Duration>) -> Duration {
+		named.map_or_else(|| unsaid(self.blind), sit_through)
+	}
+
+	const fn left(&self) -> bool {
+		self.any < RETRY
+	}
+
+	const fn took(&mut self, named: Option<Duration>) {
+		self.any += 1;
+
+		if named.is_none() {
+			self.blind += 1;
+		}
 	}
 }
 
@@ -389,6 +416,55 @@ mod tests {
 	fn the_longest_wait_a_run_accepts_is_judged_on_what_was_asked_not_on_the_margin() {
 		assert!(!too_long(LONGEST_WAIT));
 		assert_eq!(sit_through(LONGEST_WAIT), LONGEST_WAIT + MARGIN);
+	}
+
+	#[test]
+	fn a_wait_a_service_named_leaves_the_unsaid_ladder_where_it_stands() {
+		let mut taken = Taken::none();
+
+		taken.took(Some(Duration::from_secs(30)));
+		taken.took(Some(Duration::from_secs(30)));
+
+		assert_eq!(taken.wait(None), UNSAID_WAIT);
+	}
+
+	#[test]
+	fn each_unsaid_wait_taken_moves_the_ladder_one_rung_along() {
+		let mut taken = Taken::none();
+
+		assert_eq!(taken.wait(None), unsaid(0));
+
+		taken.took(None);
+
+		assert_eq!(taken.wait(None), unsaid(1));
+
+		taken.took(None);
+
+		assert_eq!(taken.wait(None), unsaid(2));
+	}
+
+	#[test]
+	fn every_retry_counts_against_the_budget_whoever_named_its_wait() {
+		let mut taken = Taken::none();
+
+		for _ in 0..RETRY {
+			assert!(taken.left());
+			taken.took(Some(Duration::from_secs(1)));
+		}
+
+		assert!(!taken.left());
+	}
+
+	#[test]
+	fn a_wait_a_service_names_is_taken_over_the_unsaid_one_whatever_the_ladder_stands_at() {
+		let mut taken = Taken::none();
+
+		taken.took(None);
+
+		assert_eq!(
+			taken.wait(Some(Duration::from_secs(30))),
+			sit_through(Duration::from_secs(30))
+		);
 	}
 
 	#[test]
