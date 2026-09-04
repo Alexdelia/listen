@@ -49,10 +49,33 @@ pub(crate) struct Sent {
 	pub body: String,
 }
 
+#[derive(Clone, Copy)]
+enum Resend {
+	Safe,
+	Never,
+}
+
 pub(crate) fn send(
 	url: &str,
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
+) -> hmerr::Result<Sent> {
+	sent(url, attempt, failure, Resend::Safe)
+}
+
+pub(crate) fn send_once(
+	url: &str,
+	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
+	failure: &str,
+) -> hmerr::Result<Sent> {
+	sent(url, attempt, failure, Resend::Never)
+}
+
+fn sent(
+	url: &str,
+	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
+	failure: &str,
+	resend: Resend,
 ) -> hmerr::Result<Sent> {
 	let mut taken = 0;
 
@@ -70,6 +93,10 @@ pub(crate) fn send(
 
 			if let Some(named) = named.filter(|named| too_long(*named)) {
 				return Err(gave_up_on(failure, GaveUp::AskedForLonger(named)));
+			}
+
+			if matches!(resend, Resend::Never) {
+				return Err(gave_up_on(failure, GaveUp::NotSentAgain(status)));
 			}
 
 			if taken < RETRY {
@@ -118,6 +145,7 @@ fn too_long(wait: Duration) -> bool {
 #[derive(Debug)]
 enum GaveUp {
 	AskedForLonger(Duration),
+	NotSentAgain(StatusCode),
 	StillThrottled(StatusCode),
 }
 
@@ -127,6 +155,9 @@ impl GaveUp {
 			Self::AskedForLonger(wait) => format!(
 				"the service is asking to be left alone, run it again in {seconds}s",
 				seconds = wait.as_secs()
+			),
+			Self::NotSentAgain(_) => String::from(
+				"the service took the request or refused it, running it again is the only way to tell",
 			),
 			Self::StillThrottled(_) => {
 				String::from("the service is still refusing, run it again later")
@@ -142,6 +173,10 @@ impl fmt::Display for GaveUp {
 				f,
 				"throttled for {B}{seconds}s{D}, longer than this run waits out",
 				seconds = wait.as_secs()
+			),
+			Self::NotSentAgain(status) => write!(
+				f,
+				"throttled ({B}{status}{D}), and this request is not one to send twice"
 			),
 			Self::StillThrottled(status) => write!(
 				f,
@@ -200,9 +235,72 @@ fn date(said: &str) -> Option<Duration> {
 
 #[cfg(test)]
 mod tests {
+	use std::cell::Cell;
+
 	use ureq::http::HeaderValue;
 
 	use super::*;
+
+	fn throttling(wait: &str) -> Response<Body> {
+		Response::builder()
+			.status(StatusCode::TOO_MANY_REQUESTS)
+			.header(RETRY_AFTER, wait)
+			.body(Body::builder().data(""))
+			.expect("a throttling response is well formed")
+	}
+
+	fn answered() -> Response<Body> {
+		Response::builder()
+			.status(StatusCode::OK)
+			.body(Body::builder().data("answered"))
+			.expect("an answered response is well formed")
+	}
+
+	#[test]
+	fn a_request_that_must_not_be_sent_twice_is_left_at_one_attempt_when_it_is_throttled() {
+		let taken = Cell::new(0);
+
+		let e = sent(
+			"https://not.sent.again.test/oauth2/token",
+			|| {
+				taken.set(taken.get() + 1);
+
+				Ok(throttling("1"))
+			},
+			"failed to reach musicbrainz oauth",
+			Resend::Never,
+		)
+		.err()
+		.expect("a throttled request that must not be sent twice gives up");
+
+		assert_eq!(taken.get(), 1);
+		assert!(gave_up(&*e));
+	}
+
+	#[test]
+	fn a_request_that_can_be_sent_again_is_sent_again_once_the_wait_is_out() {
+		let taken = Cell::new(0);
+
+		let answer = sent(
+			"https://sent.again.test/ws/2/rating",
+			|| {
+				taken.set(taken.get() + 1);
+
+				Ok(if taken.get() == 1 {
+					throttling("0")
+				} else {
+					answered()
+				})
+			},
+			"failed to submit rating",
+			Resend::Safe,
+		)
+		.expect("the attempt made once the wait is out is answered");
+
+		assert_eq!(taken.get(), 2);
+		assert_eq!(answer.status, StatusCode::OK);
+		assert_eq!(answer.body, "answered");
+	}
 
 	#[test]
 	fn the_two_statuses_that_mean_slow_down_are_the_only_ones_waited_out() {

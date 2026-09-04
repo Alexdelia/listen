@@ -67,7 +67,7 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Ref
 }
 
 fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
-	let Sent { status, body } = music_brainz::post(
+	let Sent { status, body } = music_brainz::post_once(
 		ENDPOINT,
 		|request| request.send_form(form.iter().copied()),
 		FAILURE,

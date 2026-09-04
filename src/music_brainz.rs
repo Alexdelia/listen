@@ -21,3 +21,11 @@ pub(crate) fn post(
 ) -> hmerr::Result<Sent> {
 	meta_brainz::send(url, || send(listen_agent::status_kept().post(url)), failure)
 }
+
+pub(crate) fn post_once(
+	url: &str,
+	send: impl Fn(RequestBuilder<WithBody>) -> Result<Response<Body>, ureq::Error>,
+	failure: &str,
+) -> hmerr::Result<Sent> {
+	meta_brainz::send_once(url, || send(listen_agent::status_kept().post(url)), failure)
+}
