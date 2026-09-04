@@ -45,7 +45,7 @@ pub(crate) fn send(
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
 ) -> hmerr::Result<Sent> {
-	let mut left = RETRY;
+	let mut taken = 0;
 
 	loop {
 		block_ready();
@@ -53,13 +53,15 @@ pub(crate) fn send(
 		let mut response = attempt().map_err(|e| ge!(format!("{failure}\n{e}")))?;
 		let status = response.status();
 
-		if let Some(wait) = throttling(&response) {
-			if too_long(wait) {
-				return Err(asked_for_longer(failure, wait));
-			}
+		if throttled(status) {
+			let wait = match said(response.headers()).and_then(seconds) {
+				Some(asked) if too_long(asked) => return Err(asked_for_longer(failure, asked)),
+				Some(asked) => asked,
+				None => unsaid(taken),
+			};
 
-			if left > 0 {
-				left -= 1;
+			if taken < RETRY {
+				taken += 1;
 				thread::sleep(wait);
 				continue;
 			}
@@ -75,10 +77,6 @@ pub(crate) fn send(
 	}
 }
 
-fn throttling(response: &Response<Body>) -> Option<Duration> {
-	throttled(response.status()).then(|| wait(said(response.headers())))
-}
-
 fn throttled(status: StatusCode) -> bool {
 	status == StatusCode::TOO_MANY_REQUESTS || status == StatusCode::SERVICE_UNAVAILABLE
 }
@@ -91,8 +89,8 @@ fn said(headers: &HeaderMap) -> Option<&str> {
 		.ok()
 }
 
-fn wait(said: Option<&str>) -> Duration {
-	said.and_then(seconds).unwrap_or(UNSAID_WAIT)
+fn unsaid(taken: u8) -> Duration {
+	UNSAID_WAIT.saturating_mul(2u32.saturating_pow(u32::from(taken)))
 }
 
 fn too_long(wait: Duration) -> bool {
@@ -132,27 +130,41 @@ mod tests {
 
 	#[test]
 	fn the_wait_a_service_names_in_seconds_is_the_wait_taken() {
-		assert_eq!(wait(Some("30")), Duration::from_secs(30));
+		assert_eq!(seconds("30"), Some(Duration::from_secs(30)));
 	}
 
 	#[test]
 	fn a_named_wait_is_read_through_the_spaces_around_it() {
-		assert_eq!(wait(Some(" 7 ")), Duration::from_secs(7));
+		assert_eq!(seconds(" 7 "), Some(Duration::from_secs(7)));
 	}
 
 	#[test]
-	fn a_service_naming_no_wait_is_waited_out_the_unsaid_one() {
-		assert_eq!(wait(None), UNSAID_WAIT);
+	fn a_named_wait_longer_than_the_longest_one_is_kept_whole_rather_than_cut_down() {
+		assert_eq!(seconds("90"), Some(Duration::from_secs(90)));
 	}
 
 	#[test]
-	fn a_retry_after_holding_a_date_rather_than_seconds_falls_back_to_the_unsaid_wait() {
-		assert_eq!(wait(Some("Wed, 21 Oct 2015 07:28:00 GMT")), UNSAID_WAIT);
+	fn a_retry_after_holding_a_date_rather_than_seconds_names_no_wait_at_all() {
+		assert_eq!(seconds("Wed, 21 Oct 2015 07:28:00 GMT"), None);
 	}
 
 	#[test]
-	fn a_wait_longer_than_the_longest_one_is_kept_whole_rather_than_cut_down() {
-		assert_eq!(wait(Some("90")), Duration::from_secs(90));
+	fn the_first_wait_a_service_names_none_for_is_the_unsaid_one() {
+		assert_eq!(unsaid(0), UNSAID_WAIT);
+	}
+
+	#[test]
+	fn each_unsaid_wait_doubles_the_one_taken_before_it() {
+		assert_eq!(unsaid(1), UNSAID_WAIT * 2);
+		assert_eq!(unsaid(2), UNSAID_WAIT * 4);
+		assert_eq!(unsaid(3), UNSAID_WAIT * 8);
+	}
+
+	#[test]
+	fn every_unsaid_wait_a_run_can_reach_stays_within_what_it_sits_through() {
+		for taken in 0..=RETRY {
+			assert!(!too_long(unsaid(taken)), "unsaid({taken}) is given up on");
+		}
 	}
 
 	#[test]
@@ -186,8 +198,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_throttling_naming_no_header_at_all_is_still_waited_out() {
+	fn a_throttling_naming_no_header_at_all_names_no_wait() {
 		assert_eq!(said(&HeaderMap::new()), None);
-		assert_eq!(wait(said(&HeaderMap::new())), UNSAID_WAIT);
 	}
 }
