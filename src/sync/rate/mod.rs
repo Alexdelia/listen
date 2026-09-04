@@ -54,15 +54,25 @@ pub(super) async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 	} = pending;
 
 	for chunk in rating.chunks(submit::CHUNK) {
-		meta_brainz::ready().await;
+		let sent = submit::submit(&bearer, chunk).and_then(|()| {
+			submitted.extend(chunk.iter().copied());
+			cache::write(&submitted)
+		});
 
-		let status = submit::submit(&bearer, chunk)
-			.and_then(|()| {
-				submitted.extend(chunk.iter().copied());
-				cache::write(&submitted)
-			})
-			.map_err(|e| e.to_string());
+		let gave_up = sent
+			.as_ref()
+			.err()
+			.is_some_and(|e| meta_brainz::gave_up(&**e));
 
-		report(&tx, Action::SubmitRating(chunk.len()), status).await;
+		report(
+			&tx,
+			Action::SubmitRating(chunk.len()),
+			sent.map_err(|e| e.to_string()),
+		)
+		.await;
+
+		if gave_up {
+			return;
+		}
 	}
 }

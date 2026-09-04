@@ -1,6 +1,10 @@
+mod hold;
+
 use std::sync::LazyLock;
 
 use const_format::concatcp;
+
+pub use hold::hold;
 
 const APP: &str = "Alexdelia_declarative_listen";
 const CONTACT: &str = "https://github.com/Alexdelia/listen";
@@ -25,7 +29,9 @@ pub fn status_kept() -> &'static ureq::Agent {
 }
 
 fn identified() -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
-	ureq::Agent::config_builder().user_agent(USER_AGENT)
+	ureq::Agent::config_builder()
+		.user_agent(USER_AGENT)
+		.middleware(hold::gate)
 }
 
 #[cfg(test)]

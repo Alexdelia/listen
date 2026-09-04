@@ -1,7 +1,10 @@
 use std::fmt::Write;
 
 use ansi::abbrev::{B, D, R};
+use const_format::concatcp;
 use hmerr::ge;
+
+use crate::{meta_brainz::Sent, music_brainz};
 
 use super::Rating;
 
@@ -11,20 +14,24 @@ const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 
 const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
-pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
-	let mut response = listen_agent::status_kept()
-		.post(format!(
-			"{ENDPOINT}?client={client}",
-			client = listen_agent::CLIENT
-		))
-		.header("content-type", CONTENT_TYPE)
-		.header("authorization", format!("Bearer {bearer}"))
-		.send(body(rating))
-		.map_err(|e| ge!(format!("{R}failed to submit rating{D}\n{e}")))?;
+const FAILURE: &str = concatcp!(R, "failed to submit rating", D);
 
-	let status = response.status();
+pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
+	let Sent {
+		status,
+		body: detail,
+	} = music_brainz::post(
+		&format!("{ENDPOINT}?client={client}", client = listen_agent::CLIENT),
+		|request| {
+			request
+				.header("content-type", CONTENT_TYPE)
+				.header("authorization", format!("Bearer {bearer}"))
+				.send(body(rating))
+		},
+		FAILURE,
+	)?;
+
 	if !status.is_success() {
-		let detail = response.body_mut().read_to_string().unwrap_or_default();
 		return Err(ge!(format!(
 			"{R}musicbrainz refused rating submission{D} ({B}{status}{D})\n{detail}"
 		))
