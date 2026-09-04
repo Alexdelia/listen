@@ -5,6 +5,7 @@ use std::{
 	time::Duration,
 };
 
+use ansi::abbrev::{B, D};
 use async_std::task::block_on;
 use hmerr::ge;
 use musicbrainz_rs::api_bindium::governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
@@ -52,12 +53,16 @@ pub(crate) fn send(
 		let mut response = attempt().map_err(|e| ge!(format!("{failure}\n{e}")))?;
 		let status = response.status();
 
-		if left > 0
-			&& let Some(wait) = throttling(&response)
-		{
-			left -= 1;
-			thread::sleep(wait);
-			continue;
+		if let Some(wait) = throttling(&response) {
+			if too_long(wait) {
+				return Err(asked_for_longer(failure, wait));
+			}
+
+			if left > 0 {
+				left -= 1;
+				thread::sleep(wait);
+				continue;
+			}
 		}
 
 		return Ok(Sent {
@@ -87,9 +92,21 @@ fn said(headers: &HeaderMap) -> Option<&str> {
 }
 
 fn wait(said: Option<&str>) -> Duration {
-	said.and_then(seconds)
-		.unwrap_or(UNSAID_WAIT)
-		.min(LONGEST_WAIT)
+	said.and_then(seconds).unwrap_or(UNSAID_WAIT)
+}
+
+fn too_long(wait: Duration) -> bool {
+	wait > LONGEST_WAIT
+}
+
+fn asked_for_longer(failure: &str, wait: Duration) -> Box<dyn std::error::Error> {
+	let seconds = wait.as_secs();
+
+	ge!(
+		format!("{failure}\nthrottled for {B}{seconds}s{D}, longer than this run waits out"),
+		h: format!("the service is asking to be left alone, run it again in {seconds}s")
+	)
+	.into()
 }
 
 fn seconds(said: &str) -> Option<Duration> {
@@ -134,8 +151,21 @@ mod tests {
 	}
 
 	#[test]
-	fn a_wait_longer_than_the_longest_one_is_cut_down_to_it() {
-		assert_eq!(wait(Some("86400")), LONGEST_WAIT);
+	fn a_wait_longer_than_the_longest_one_is_kept_whole_rather_than_cut_down() {
+		assert_eq!(wait(Some("90")), Duration::from_secs(90));
+	}
+
+	#[test]
+	fn a_wait_past_the_longest_one_is_given_up_on_rather_than_knocked_on_early() {
+		assert!(too_long(Duration::from_secs(90)));
+		assert!(too_long(LONGEST_WAIT + Duration::from_secs(1)));
+	}
+
+	#[test]
+	fn a_wait_the_run_can_sit_through_is_waited_out() {
+		assert!(!too_long(LONGEST_WAIT));
+		assert!(!too_long(Duration::from_secs(30)));
+		assert!(!too_long(UNSAID_WAIT));
 	}
 
 	#[test]
