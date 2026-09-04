@@ -4,12 +4,9 @@ mod submit;
 
 use async_std::channel::Sender;
 
-use crate::{
-	declaration::{
-		Entry, Source,
-		value::{self, Value},
-	},
-	meta_brainz,
+use crate::declaration::{
+	Entry, Source,
+	value::{self, Value},
 };
 
 use super::channel::{Action, Status, report};
@@ -54,8 +51,6 @@ pub(super) async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 	} = pending;
 
 	for chunk in rating.chunks(submit::CHUNK) {
-		meta_brainz::ready().await;
-
 		let status = submit::submit(&bearer, chunk)
 			.and_then(|()| {
 				submitted.extend(chunk.iter().copied());

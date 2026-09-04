@@ -16,10 +16,6 @@ pub(crate) fn limiter() -> Arc<DefaultDirectRateLimiter> {
 	LIMITER.clone()
 }
 
-pub(crate) async fn ready() {
-	LIMITER.until_ready().await;
-}
-
 pub(crate) fn block_ready() {
 	block_on(LIMITER.until_ready());
 }

@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 
 use ansi::abbrev::{B, D, R};
+use const_format::concatcp;
 use hmerr::ge;
 use listen_cache::text;
 use serde::Deserialize;
 
-use crate::{cache, meta_brainz};
+use crate::{
+	cache,
+	music_brainz::{self, Sent},
+};
 
 use super::Client;
 
@@ -15,6 +19,8 @@ pub(super) const REDIRECT_URI: &str = "urn:ietf:wg:oauth:2.0:oob";
 const FILE: &str = "musicbrainz-refresh-token";
 
 const INVALID_GRANT: &str = "invalid_grant";
+
+const FAILURE: &str = concatcp!(R, "failed to reach musicbrainz oauth", D);
 
 pub(super) struct Token {
 	pub access: String,
@@ -64,15 +70,11 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Ref
 }
 
 fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
-	meta_brainz::block_ready();
-
-	let mut response = listen_agent::status_kept()
-		.post(ENDPOINT)
-		.send_form(form.iter().copied())
-		.map_err(|e| ge!(format!("{R}failed to reach musicbrainz oauth{D}\n{e}")))?;
-
-	let status = response.status();
-	let body = response.body_mut().read_to_string().unwrap_or_default();
+	let Sent { status, body } = music_brainz::post(
+		ENDPOINT,
+		|request| request.send_form(form.iter().copied()),
+		FAILURE,
+	)?;
 
 	if !status.is_success() {
 		return Ok(Reply::Refused {
