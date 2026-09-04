@@ -237,7 +237,9 @@ fn held(wait: Duration) -> Duration {
 fn asked(said: &str) -> Option<Duration> {
 	let said = said.trim();
 
-	seconds(said).or_else(|| date(said))
+	seconds(said)
+		.or_else(|| date(said))
+		.filter(|wait| !wait.is_zero())
 }
 
 fn seconds(said: &str) -> Option<Duration> {
@@ -249,12 +251,7 @@ fn date(said: &str) -> Option<Duration> {
 		.into_iter()
 		.find_map(|format| NaiveDateTime::parse_from_str(said, format).ok())?;
 
-	Some(
-		at.and_utc()
-			.signed_duration_since(Utc::now())
-			.to_std()
-			.unwrap_or(Duration::ZERO),
-	)
+	at.and_utc().signed_duration_since(Utc::now()).to_std().ok()
 }
 
 #[cfg(test)]
@@ -369,14 +366,31 @@ mod tests {
 
 	#[test]
 	fn every_date_form_http_allows_is_read_as_a_wait() {
-		assert_eq!(date("Sun, 06 Nov 1994 08:49:37 GMT"), Some(Duration::ZERO));
-		assert_eq!(date("Sunday, 06-Nov-94 08:49:37 GMT"), Some(Duration::ZERO));
-		assert_eq!(date("Sun Nov  6 08:49:37 1994"), Some(Duration::ZERO));
+		let at = Utc::now() + chrono::TimeDelta::seconds(90);
+
+		for format in [FIXDATE, RFC_850, ASCTIME] {
+			let read = date(&at.format(format).to_string())
+				.unwrap_or_else(|| panic!("{format} names the wait until it"));
+
+			assert!(read > Duration::from_secs(85) && read <= Duration::from_secs(90));
+		}
 	}
 
 	#[test]
 	fn a_date_already_gone_by_names_no_wait_to_sit_through() {
-		assert_eq!(date("Wed, 21 Oct 2015 07:28:00 GMT"), Some(Duration::ZERO));
+		assert_eq!(date("Wed, 21 Oct 2015 07:28:00 GMT"), None);
+		assert_eq!(asked("Wed, 21 Oct 2015 07:28:00 GMT"), None);
+	}
+
+	#[test]
+	fn a_date_a_clock_ahead_of_the_service_reads_as_now_names_no_wait_either() {
+		assert_eq!(date(&Utc::now().format(FIXDATE).to_string()), None);
+	}
+
+	#[test]
+	fn a_wait_naming_no_time_at_all_leaves_the_unsaid_ladder_to_say_it() {
+		assert_eq!(asked("0"), None);
+		assert_eq!(Taken::none().wait(asked("0")), unsaid(0));
 	}
 
 	#[test]
