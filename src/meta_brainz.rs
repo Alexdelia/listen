@@ -100,7 +100,7 @@ fn sent(
 			}
 
 			if taken.left() {
-				taken.took(named);
+				taken.took();
 				thread::sleep(wait);
 				continue;
 			}
@@ -119,29 +119,26 @@ fn sent(
 }
 
 struct Taken {
-	any: u8,
-	blind: u8,
+	waits: u8,
 }
 
 impl Taken {
 	const fn none() -> Self {
-		Self { any: 0, blind: 0 }
+		Self { waits: 0 }
 	}
 
 	fn wait(&self, named: Option<Duration>) -> Duration {
-		named.map_or_else(|| unsaid(self.blind), sit_through)
+		let ladder = unsaid(self.waits);
+
+		named.map_or(ladder, |named| sit_through(named).max(ladder))
 	}
 
 	const fn left(&self) -> bool {
-		self.any < RETRY
+		self.waits < RETRY
 	}
 
-	const fn took(&mut self, named: Option<Duration>) {
-		self.any += 1;
-
-		if named.is_none() {
-			self.blind += 1;
-		}
+	const fn took(&mut self) {
+		self.waits += 1;
 	}
 }
 
@@ -419,47 +416,53 @@ mod tests {
 	}
 
 	#[test]
-	fn a_wait_a_service_named_leaves_the_unsaid_ladder_where_it_stands() {
-		let mut taken = Taken::none();
-
-		taken.took(Some(Duration::from_secs(30)));
-		taken.took(Some(Duration::from_secs(30)));
-
-		assert_eq!(taken.wait(None), UNSAID_WAIT);
-	}
-
-	#[test]
-	fn each_unsaid_wait_taken_moves_the_ladder_one_rung_along() {
+	fn each_wait_taken_moves_the_ladder_one_rung_along() {
 		let mut taken = Taken::none();
 
 		assert_eq!(taken.wait(None), unsaid(0));
 
-		taken.took(None);
+		taken.took();
 
 		assert_eq!(taken.wait(None), unsaid(1));
 
-		taken.took(None);
+		taken.took();
 
 		assert_eq!(taken.wait(None), unsaid(2));
 	}
 
 	#[test]
-	fn every_retry_counts_against_the_budget_whoever_named_its_wait() {
+	fn a_service_naming_the_same_short_wait_over_and_over_is_still_backed_off_from() {
+		let mut taken = Taken::none();
+		let named = Some(Duration::from_secs(1));
+
+		assert_eq!(taken.wait(named), sit_through(Duration::from_secs(1)));
+
+		taken.took();
+
+		assert_eq!(taken.wait(named), unsaid(1));
+
+		taken.took();
+
+		assert_eq!(taken.wait(named), unsaid(2));
+	}
+
+	#[test]
+	fn every_retry_counts_against_the_budget() {
 		let mut taken = Taken::none();
 
 		for _ in 0..RETRY {
 			assert!(taken.left());
-			taken.took(Some(Duration::from_secs(1)));
+			taken.took();
 		}
 
 		assert!(!taken.left());
 	}
 
 	#[test]
-	fn a_wait_a_service_names_is_taken_over_the_unsaid_one_whatever_the_ladder_stands_at() {
+	fn a_wait_a_service_names_is_taken_whole_while_it_stands_over_the_ladder() {
 		let mut taken = Taken::none();
 
-		taken.took(None);
+		taken.took();
 
 		assert_eq!(
 			taken.wait(Some(Duration::from_secs(30))),
