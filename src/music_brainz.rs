@@ -19,5 +19,5 @@ pub(crate) fn post(
 	send: impl Fn(RequestBuilder<WithBody>) -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
 ) -> hmerr::Result<Sent> {
-	meta_brainz::send(|| send(listen_agent::status_kept().post(url)), failure)
+	meta_brainz::send(url, || send(listen_agent::status_kept().post(url)), failure)
 }

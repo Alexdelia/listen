@@ -45,6 +45,7 @@ pub(crate) struct Sent {
 }
 
 pub(crate) fn send(
+	url: &str,
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
 ) -> hmerr::Result<Sent> {
@@ -57,13 +58,14 @@ pub(crate) fn send(
 		let status = response.status();
 
 		if throttled(status) {
-			let wait = match said(response.headers()).and_then(seconds) {
-				Some(asked) if too_long(asked) => {
-					return Err(gave_up_on(failure, GaveUp::AskedForLonger(asked)));
-				}
-				Some(asked) => sit_through(asked),
-				None => unsaid(taken),
-			};
+			let asked = said(response.headers()).and_then(seconds);
+			let wait = asked.map_or_else(|| unsaid(taken), sit_through);
+
+			listen_agent::hold(url, wait);
+
+			if let Some(asked) = asked.filter(|asked| too_long(*asked)) {
+				return Err(gave_up_on(failure, GaveUp::AskedForLonger(asked)));
+			}
 
 			if taken < RETRY {
 				taken += 1;

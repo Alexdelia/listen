@@ -6,9 +6,12 @@ use crate::meta_brainz::{self, Sent};
 const API: &str = "https://api.listenbrainz.org/1";
 
 pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Sent> {
+	let url = url(path);
+
 	answered(
 		meta_brainz::send(
-			|| listen_agent::status_kept().get(url(path)).call(),
+			&url,
+			|| listen_agent::status_kept().get(&url).call(),
 			failure,
 		)?,
 		failure,
@@ -16,9 +19,12 @@ pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Sent> {
 }
 
 pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Sent> {
+	let url = url(path);
+
 	answered(
 		meta_brainz::send(
-			|| listen_agent::status_kept().post(url(path)).send_json(body),
+			&url,
+			|| listen_agent::status_kept().post(&url).send_json(body),
 			failure,
 		)?,
 		failure,
