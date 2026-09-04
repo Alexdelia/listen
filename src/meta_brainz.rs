@@ -21,6 +21,7 @@ const RETRY: u8 = 4;
 
 const UNSAID_WAIT: Duration = Duration::from_secs(2);
 const LONGEST_WAIT: Duration = Duration::from_secs(60);
+const MARGIN: Duration = Duration::from_secs(1);
 
 const RETRY_AFTER: &str = "retry-after";
 const RESET_IN: &str = "x-ratelimit-reset-in";
@@ -56,7 +57,7 @@ pub(crate) fn send(
 		if throttled(status) {
 			let wait = match said(response.headers()).and_then(seconds) {
 				Some(asked) if too_long(asked) => return Err(asked_for_longer(failure, asked)),
-				Some(asked) => asked,
+				Some(asked) => sit_through(asked),
 				None => unsaid(taken),
 			};
 
@@ -87,6 +88,10 @@ fn said(headers: &HeaderMap) -> Option<&str> {
 		.or_else(|| headers.get(RESET_IN))?
 		.to_str()
 		.ok()
+}
+
+const fn sit_through(asked: Duration) -> Duration {
+	asked.saturating_add(MARGIN)
 }
 
 fn unsaid(taken: u8) -> Duration {
@@ -146,6 +151,20 @@ mod tests {
 	#[test]
 	fn a_retry_after_holding_a_date_rather_than_seconds_names_no_wait_at_all() {
 		assert_eq!(seconds("Wed, 21 Oct 2015 07:28:00 GMT"), None);
+	}
+
+	#[test]
+	fn a_wait_a_service_names_is_sat_through_a_moment_past_what_it_asked_for() {
+		assert_eq!(
+			sit_through(Duration::from_secs(30)),
+			Duration::from_secs(31)
+		);
+	}
+
+	#[test]
+	fn the_longest_wait_a_run_accepts_is_judged_on_what_was_asked_not_on_the_margin() {
+		assert!(!too_long(LONGEST_WAIT));
+		assert_eq!(sit_through(LONGEST_WAIT), LONGEST_WAIT + MARGIN);
 	}
 
 	#[test]
