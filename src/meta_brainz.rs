@@ -8,14 +8,9 @@ use musicbrainz_rs::api_bindium::governor::{DefaultDirectRateLimiter, Quota, Rat
 
 #[allow(clippy::unwrap_used, reason = "1 is valid NonZeroU32")]
 const PER_SECOND: NonZeroU32 = NonZeroU32::new(1).unwrap();
-#[allow(clippy::unwrap_used, reason = "5 is valid NonZeroU32")]
-const BURST: NonZeroU32 = NonZeroU32::new(5).unwrap();
 
-static LIMITER: LazyLock<Arc<DefaultDirectRateLimiter>> = LazyLock::new(|| {
-	Arc::new(RateLimiter::direct(
-		Quota::per_second(PER_SECOND).allow_burst(BURST),
-	))
-});
+static LIMITER: LazyLock<Arc<DefaultDirectRateLimiter>> =
+	LazyLock::new(|| Arc::new(RateLimiter::direct(Quota::per_second(PER_SECOND))));
 
 pub(crate) fn limiter() -> Arc<DefaultDirectRateLimiter> {
 	LIMITER.clone()
