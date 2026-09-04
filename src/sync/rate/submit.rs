@@ -4,7 +4,7 @@ use ansi::abbrev::{B, D, R};
 use const_format::concatcp;
 use hmerr::ge;
 
-use crate::music_brainz::{self, Sent};
+use crate::{meta_brainz::Sent, music_brainz};
 
 use super::Rating;
 

@@ -1,29 +1,26 @@
+use ansi::abbrev::{B, D};
 use hmerr::ge;
-use ureq::{
-	Body,
-	http::{Response, StatusCode},
-};
 
-use crate::meta_brainz;
+use crate::meta_brainz::{self, Sent};
 
 const API: &str = "https://api.listenbrainz.org/1";
 
-pub(crate) struct Fetched {
-	pub status: StatusCode,
-	pub body: String,
+pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Sent> {
+	answered(
+		meta_brainz::send(
+			|| listen_agent::status_kept().get(url(path)).call(),
+			failure,
+		)?,
+		failure,
+	)
 }
 
-pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Fetched> {
-	meta_brainz::block_ready();
-
-	fetched(listen_agent::shared().get(url(path)).call(), failure)
-}
-
-pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Fetched> {
-	meta_brainz::block_ready();
-
-	fetched(
-		listen_agent::shared().post(url(path)).send_json(body),
+pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Sent> {
+	answered(
+		meta_brainz::send(
+			|| listen_agent::status_kept().post(url(path)).send_json(body),
+			failure,
+		)?,
 		failure,
 	)
 }
@@ -32,15 +29,12 @@ fn url(path: &str) -> String {
 	format!("{API}/{path}")
 }
 
-fn fetched(called: Result<Response<Body>, ureq::Error>, failure: &str) -> hmerr::Result<Fetched> {
-	let mut response = called.map_err(|e| ge!(format!("{failure}\n{e}")))?;
-	let status = response.status();
+fn answered(sent: Sent, failure: &str) -> hmerr::Result<Sent> {
+	let Sent { status, body } = &sent;
 
-	Ok(Fetched {
-		status,
-		body: response
-			.body_mut()
-			.read_to_string()
-			.map_err(|e| ge!(format!("{failure}\n{e}")))?,
-	})
+	if status.is_client_error() || status.is_server_error() {
+		return Err(ge!(format!("{failure}\n{B}{status}{D}\n{body}")).into());
+	}
+
+	Ok(sent)
 }

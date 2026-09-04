@@ -1,12 +1,7 @@
-use hmerr::ge;
 use musicbrainz_rs::{MusicBrainzClient, api_bindium::ApiClient};
-use ureq::{
-	Body, RequestBuilder,
-	http::{Response, StatusCode},
-	typestate::WithBody,
-};
+use ureq::{Body, RequestBuilder, http::Response, typestate::WithBody};
 
-use crate::meta_brainz;
+use crate::meta_brainz::{self, Sent};
 
 pub(crate) fn client() -> MusicBrainzClient {
 	MusicBrainzClient::builder()
@@ -19,23 +14,10 @@ pub(crate) fn client() -> MusicBrainzClient {
 		.build()
 }
 
-pub(crate) struct Sent {
-	pub status: StatusCode,
-	pub body: String,
-}
-
 pub(crate) fn post(
 	url: &str,
-	send: impl FnOnce(RequestBuilder<WithBody>) -> Result<Response<Body>, ureq::Error>,
+	send: impl Fn(RequestBuilder<WithBody>) -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
 ) -> hmerr::Result<Sent> {
-	meta_brainz::block_ready();
-
-	let mut response =
-		send(listen_agent::status_kept().post(url)).map_err(|e| ge!(format!("{failure}\n{e}")))?;
-
-	Ok(Sent {
-		status: response.status(),
-		body: response.body_mut().read_to_string().unwrap_or_default(),
-	})
+	meta_brainz::send(|| send(listen_agent::status_kept().post(url)), failure)
 }

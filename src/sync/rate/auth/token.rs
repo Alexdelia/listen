@@ -6,10 +6,7 @@ use hmerr::ge;
 use listen_cache::text;
 use serde::Deserialize;
 
-use crate::{
-	cache,
-	music_brainz::{self, Sent},
-};
+use crate::{cache, meta_brainz::Sent, music_brainz};
 
 use super::Client;
 
