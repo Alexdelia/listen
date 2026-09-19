@@ -1,5 +1,6 @@
 mod attraction;
 mod cohort;
+mod converge;
 mod log;
 mod partition;
 mod rank;
@@ -8,7 +9,7 @@ mod score;
 mod seed;
 mod select;
 
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
 use hmerr::{GenericError, ge};
@@ -21,6 +22,9 @@ use crate::{
 	declaration::{Entry, parse},
 	format::{self, genre_list, human_readable_number},
 };
+
+use partition::{Island, Request};
+use seed::Library;
 
 pub(super) fn ready() -> bool {
 	index::ready()
@@ -38,34 +42,60 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 
 	report(&index.meta, &library);
 
-	let island = partition::of(&library, arg.granularity, &request(arg))?;
-	let island = pin(island, arg.island.as_deref())?;
+	let request = request(arg);
+	let found = if narrows(arg, &request) {
+		converge::raise(
+			&index,
+			&library,
+			narrowed(&library, arg, &request)?,
+			arg.popularity_damp,
+		)?
+		.live()
+	} else {
+		converge::of(
+			&index,
+			&library,
+			&partition::terrain(&library),
+			arg.granularity,
+			arg.popularity_damp,
+		)?
+	};
 
-	let cohort: Vec<Vec<cohort::Member>> = island
-		.iter()
-		.map(|island| cohort::of(&library, island, cohort::SIZE))
-		.collect();
-
-	let (island, cohort) = rank::by_promise(island, cohort, &library);
-
-	describe(&island, &cohort, &library);
-
-	let candidate = score::of(&index, &cohort, arg.popularity_damp)?;
+	describe(&found.island, &found.cohort, &library);
 
 	Ok(Box::new(select::stream(
-		island
+		found
+			.island
 			.into_iter()
 			.map(|island| select::Island {
 				name: island.name,
 				member: island.member.len(),
 			})
 			.collect(),
-		candidate,
+		found.candidate,
 		arg.ask,
 		arg.popularity_damp,
 		arg.granularity,
 		log::path()?,
 	)))
+}
+
+const fn narrows(arg: &IslandArg, request: &Request) -> bool {
+	request.asked() || arg.island.is_some()
+}
+
+fn narrowed(library: &Library, arg: &IslandArg, request: &Request) -> hmerr::Result<Vec<Island>> {
+	let island = if request.asked() {
+		partition::requested(library, request)?
+	} else {
+		partition::of(
+			&partition::terrain(library),
+			arg.granularity,
+			&HashSet::new(),
+		)
+	};
+
+	pin(island, arg.island.as_deref())
 }
 
 fn declared(entry: &[Entry]) -> Vec<index::Seed> {
@@ -85,16 +115,13 @@ fn request(arg: &IslandArg) -> partition::Request {
 	}
 }
 
-fn pin(
-	island: Vec<partition::Island>,
-	name: Option<&str>,
-) -> hmerr::Result<Vec<partition::Island>> {
+fn pin(island: Vec<Island>, name: Option<&str>) -> hmerr::Result<Vec<Island>> {
 	let Some(name) = name else {
 		return Ok(island);
 	};
 
 	let wanted = name.to_lowercase();
-	let matching: Vec<partition::Island> = island
+	let matching: Vec<Island> = island
 		.into_iter()
 		.filter(|island| island.name.contains(&wanted))
 		.collect();
@@ -113,7 +140,7 @@ fn unknown(name: &str) -> GenericError {
 	)
 }
 
-fn report(meta: &index::Meta, library: &seed::Library) {
+fn report(meta: &index::Meta, library: &Library) {
 	println!(
 		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {M}{F}listen{D} {CYA}{user} {F}user{D}",
 		built = meta.built,
@@ -153,7 +180,13 @@ fn day(timestamp: &str) -> &str {
 	timestamp.split(' ').next().unwrap_or(timestamp)
 }
 
-fn describe(island: &[partition::Island], cohort: &[Vec<cohort::Member>], library: &seed::Library) {
+fn describe(island: &[Island], cohort: &[Vec<cohort::Member>], library: &Library) {
+	if island.is_empty() {
+		println!("{Y}no island has a candidate{D}");
+
+		return;
+	}
+
 	let width = island
 		.iter()
 		.map(|island| genre_list::width(&island.name))

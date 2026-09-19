@@ -14,6 +14,19 @@ impl Similarity {
 		self.seed
 	}
 
+	pub(in crate::recommend::island::partition) fn restrict(&self, keep: &[usize]) -> Self {
+		let seed = keep.len();
+		let mut value = vec![0.0; seed * seed];
+
+		for (a, from_a) in keep.iter().enumerate() {
+			for (b, from_b) in keep.iter().enumerate() {
+				value[a * seed + b] = self.of(*from_a, *from_b);
+			}
+		}
+
+		Self { value, seed }
+	}
+
 	pub(super) fn edge(&self, threshold: f64) -> Vec<(usize, usize, f64)> {
 		let mut edge = Vec::new();
 
@@ -96,6 +109,32 @@ mod tests {
 		let similarity = similarity(&seed, 5);
 
 		assert!(similarity.of(0, 1).abs() < f64::EPSILON);
+	}
+
+	#[test]
+	fn a_restricted_matrix_holds_only_the_seeds_it_kept() {
+		let seed = seeded(&[&[1, 2, 3], &[1, 2, 3], &[9], &[1, 2, 3]]);
+		let similarity = similarity(&seed, 10).restrict(&[0, 3]);
+
+		assert_eq!(similarity.seed(), 2);
+	}
+
+	#[test]
+	fn a_restricted_matrix_keeps_what_the_seeds_it_kept_were_worth_to_each_other() {
+		let seed = seeded(&[&[1, 2, 3], &[9], &[2, 3, 4]]);
+		let full = similarity(&seed, 10);
+		let restricted = full.restrict(&[0, 2]);
+
+		assert!((restricted.of(0, 1) - full.of(0, 2)).abs() < f64::EPSILON);
+		assert!((restricted.of(1, 0) - full.of(2, 0)).abs() < f64::EPSILON);
+	}
+
+	#[test]
+	fn a_seed_left_out_takes_its_edges_with_it() {
+		let seed = seeded(&[&[1, 2], &[1, 2], &[1, 2]]);
+		let restricted = similarity(&seed, 4).restrict(&[0, 2]);
+
+		assert_eq!(restricted.edge(0.15).len(), 1);
 	}
 
 	#[test]
