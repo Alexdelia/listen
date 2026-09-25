@@ -7,14 +7,13 @@ use super::channel::{Action, Status};
 pub(super) struct Count {
 	pub fetch: usize,
 	pub remove: usize,
-	pub playlist: usize,
 	pub rating: usize,
 }
 
 pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	let mp = MultiProgress::new();
 
-	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
+	let pb_playlist = bar(&mp, 0, "playlist", "magenta")?;
 	let pb_rating = bar(&mp, total.rating, "rating", "yellow")?;
 	let pb_remove = bar(&mp, total.remove, "remove", "red")?;
 	let pb_fetch = bar(&mp, total.fetch, "fetch", "blue")?;
@@ -41,7 +40,10 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 				pb_metadata.inc(1);
 			}
 			Action::RemoveFile => pb_remove.inc(1),
-			Action::SyncPlaylist => pb_playlist.inc(1),
+			Action::SyncPlaylist => {
+				pb_playlist.inc_length(1);
+				pb_playlist.inc(1);
+			}
 			Action::ReadTag => pb_playlist.tick(),
 			Action::SubmitRating(count) => pb_rating.inc(count as u64),
 		}
@@ -52,12 +54,12 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 		}
 	}
 
-	finished(&pb_fetch, total.fetch);
-	finished(&pb_download, total.fetch);
-	finished(&pb_metadata, total.fetch);
-	finished(&pb_remove, total.remove);
-	finished(&pb_playlist, total.playlist);
-	finished(&pb_rating, total.rating);
+	finished(&pb_fetch);
+	finished(&pb_download);
+	finished(&pb_metadata);
+	finished(&pb_remove);
+	finished(&pb_playlist);
+	finished(&pb_rating);
 
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
@@ -81,8 +83,8 @@ fn bar(mp: &MultiProgress, total: usize, title: &str, color: &str) -> hmerr::Res
 	Ok(bar)
 }
 
-fn finished(bar: &ProgressBar, total: usize) {
-	if total > 0 {
+fn finished(bar: &ProgressBar) {
+	if bar.length().is_some_and(|total| total > 0) {
 		bar.finish();
 	}
 }

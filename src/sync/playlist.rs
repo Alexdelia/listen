@@ -74,10 +74,19 @@ async fn synced(path: &Path, sync_entry: SyncEntry, sort_name: &mut SortName, tx
 		report(tx, Action::ReadTag, Err(unread)).await;
 	}
 
-	report(tx, Action::SyncPlaylist, status).await;
+	match status {
+		Ok(Written::Untouched) => {}
+		Ok(Written::Changed) => report(tx, Action::SyncPlaylist, Ok(())).await,
+		Err(e) => report(tx, Action::SyncPlaylist, Err(e)).await,
+	}
 }
 
-fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result<()> {
+enum Written {
+	Changed,
+	Untouched,
+}
+
+fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result<Written> {
 	let previous = if path.exists() {
 		fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?
 	} else {
@@ -94,21 +103,22 @@ fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result
 	}
 
 	if set.is_empty() {
-		if path.exists() {
-			fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		if !path.exists() {
+			return Ok(Written::Untouched);
 		}
-		return Ok(());
+		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		return Ok(Written::Changed);
 	}
 
 	let content = content(&library::playlist::header(&previous), set, sort_name)?;
 
 	if content == previous {
-		return Ok(());
+		return Ok(Written::Untouched);
 	}
 
 	fs::write(path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
 
-	Ok(())
+	Ok(Written::Changed)
 }
 
 fn content(header: &str, set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<String> {

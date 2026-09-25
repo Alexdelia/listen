@@ -50,7 +50,6 @@ pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	let total = Count {
 		fetch: sync.fs.add.len(),
 		remove: sync.fs.remove.len(),
-		playlist: sync.q.len() + sync.playlist.len(),
 		rating: rating.count(),
 	};
 

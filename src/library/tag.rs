@@ -6,27 +6,32 @@ use id3::{Error, ErrorKind, Tag, TagLike};
 
 use crate::declaration::Source;
 
-use super::recording;
+use super::{recording, sparse};
 
 const ARTIST_SEPARATOR: &str = " & ";
 
 pub(crate) const ARTIST: &str = "TPE1";
+pub(crate) const TITLE: &str = "TIT2";
 pub(crate) const TITLE_SORT: &str = "TSOT";
 pub(crate) const ARTIST_SORT: &str = "TSOP";
 
 pub(crate) type Sort = (bool, String, bool, String);
 
+const SORT_FRAME: [&str; 4] = [ARTIST, TITLE, ARTIST_SORT, TITLE_SORT];
+
 pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
 	let path = recording::path(source);
-	let path = path.to_string_lossy();
 
-	match Tag::read_from_path(path.as_ref()) {
+	match sparse::read(&path, &SORT_FRAME) {
 		Ok(tag) => Ok(of(&tag)),
 		Err(e) if nameless(&e) => Ok(unnamed()),
-		Err(e) => Err(Box::new(ge!(
+		Err(e) => {
+			let path = path.to_string_lossy();
+			Err(Box::new(ge!(
 			format!("{R}failed to read the tag of{D} {B}{path}{D}\n{e}"),
 			h: format!("delete {B}{path}{D} and let the next run download it again")
-		))),
+			)))
+		}
 	}
 }
 
