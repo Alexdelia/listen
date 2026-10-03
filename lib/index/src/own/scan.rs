@@ -2,7 +2,7 @@ use std::path::Path;
 
 use uuid::Uuid;
 
-use super::super::play;
+use super::super::{play, shard};
 
 pub struct Play {
 	pub mbid: Uuid,
@@ -17,6 +17,13 @@ pub(super) struct Scanned {
 }
 
 pub(super) fn of(db: &duckdb::Connection, dump: &Path, own: u32) -> hmerr::Result<Scanned> {
+	let Some(held) = shard::held(dump)? else {
+		return Ok(Scanned {
+			play: Vec::new(),
+			covered: 0,
+		});
+	};
+
 	let mut statement = db.prepare(&format!(
 		r"
 select
@@ -25,12 +32,12 @@ select
 	arg_max(l.artist_name, l.listened_at),
 	least(count(*), {ceiling})::uinteger,
 	max(epoch(l.listened_at))::bigint
-from read_parquet('{dump}/*.parquet') l
+from read_parquet({shard}) l
 where l.user_id = {own} and l.recording_mbid is not null
 group by 1
 ",
 		ceiling = play::CEILING,
-		dump = dump.display()
+		shard = shard::quoted(&held.path)
 	))?;
 
 	let mut row = statement.query([])?;

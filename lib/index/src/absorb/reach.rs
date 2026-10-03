@@ -81,7 +81,8 @@ mod tests {
 		super::{
 			super::index,
 			fixture::{
-				BEFORE_THE_INDEX, BUILT, NEXT, POOLED, absorb, built, day, incremental, plays,
+				BEFORE_THE_INDEX, BUILT, NEXT, POOLED, absorb, built, day, incremental, listenless,
+				plays,
 			},
 		},
 		*,
@@ -99,6 +100,20 @@ mod tests {
 		assert_eq!(reach.absorbed, 0);
 		assert_eq!(reach.gap.len(), 1);
 		assert_eq!(reach.covered, NEXT);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_dump_holding_no_listen_folds_nothing_and_carries_the_index_to_its_end() {
+		let (dir, index, meta) = built("listenless");
+		let held = plays(&index, POOLED, 0);
+
+		let reach =
+			absorb(&index, &meta, &listenless(&dir)).unwrap_or_else(|e| unreachable!("{e}"));
+
+		assert_eq!(plays(&index, POOLED, 0), held);
+		assert_eq!(reach.covered, NEXT);
+		assert!(reach.gap.is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

@@ -9,6 +9,16 @@ pub(super) struct Shard {
 }
 
 pub(super) fn of(dump: &Path) -> hmerr::Result<Shard> {
+	held(dump)?.ok_or_else(|| {
+		ge!(format!(
+			"{R}no parquet shard under {B}{}{D}",
+			dump.display()
+		))
+		.into()
+	})
+}
+
+pub(super) fn held(dump: &Path) -> hmerr::Result<Option<Shard>> {
 	let read = fs::read_dir(dump).map_err(|e| ioe!(dump.to_string_lossy(), e))?;
 
 	let mut found: Vec<(String, u64)> = read
@@ -23,19 +33,15 @@ pub(super) fn of(dump: &Path) -> hmerr::Result<Shard> {
 		.collect();
 
 	if found.is_empty() {
-		return Err(ge!(format!(
-			"{R}no parquet shard under {B}{}{D}",
-			dump.display()
-		))
-		.into());
+		return Ok(None);
 	}
 
 	found.sort();
 
-	Ok(Shard {
+	Ok(Some(Shard {
 		bytes: found.iter().map(|(_, bytes)| bytes).sum(),
 		path: found.into_iter().map(|(path, _)| path).collect(),
-	})
+	}))
 }
 
 pub(super) fn quoted(shard: &[String]) -> String {
@@ -76,6 +82,15 @@ mod tests {
 		let dir = crate::scratch::of("shard", "empty");
 
 		assert!(of(&dir).is_err());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_directory_with_no_parquet_holds_no_shard() {
+		let dir = crate::scratch::of("shard", "held");
+		let _ = fs::write(dir.join("COPYING"), b"");
+
+		assert!(held(&dir).is_ok_and(|shard| shard.is_none()));
 		let _ = fs::remove_dir_all(&dir);
 	}
 

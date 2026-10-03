@@ -22,6 +22,7 @@ const SEQUENCE_UNDERSTOOD: &str = "1";
 pub(crate) struct Pending {
 	pub name: String,
 	pub archive: String,
+	pub number: u32,
 	pub size: u64,
 	pub reach: u64,
 }
@@ -37,22 +38,31 @@ pub(super) fn pending(covered: &str) -> hmerr::Result<Vec<Pending>> {
 	let reached = stamp::reach(covered)?;
 	let url = format!("{host}/{MODULE}/", host = rsync::HOST);
 
-	let mut found: Vec<Pending> = rsync::beneath(&url, &format!("{ARCHIVE}*{SUFFIX}{EXT}"))?
+	Ok(chained(
+		&rsync::beneath(&url, &format!("{ARCHIVE}*{SUFFIX}{EXT}"))?,
+		reached,
+	))
+}
+
+fn chained(listed: &[rsync::Entry], reached: u64) -> Vec<Pending> {
+	let mut found: Vec<Pending> = listed
 		.iter()
 		.filter_map(pending_of)
 		.filter(|pending| pending.reach > reached)
 		.collect();
 
-	found.sort_by_key(|pending| pending.reach);
+	found.sort_by_key(|pending| pending.number);
 
-	Ok(found)
+	found
 }
 
 fn pending_of(entry: &rsync::Entry) -> Option<Pending> {
 	let (name, archive) = entry.name.split_once('/')?;
+	let published = stamp::published(name, listen::PREFIX, SUFFIX)?;
 
 	Some(Pending {
-		reach: stamp::published(name, listen::PREFIX, SUFFIX)?.reach,
+		number: published.number,
+		reach: published.reach,
 		name: name.to_string(),
 		archive: archive.to_string(),
 		size: entry.size,
@@ -210,6 +220,33 @@ mod tests {
 			pending.map(|pending| pending.reach),
 			Some(20_260_822_000_002)
 		);
+	}
+
+	#[test]
+	fn the_chain_is_walked_in_the_order_it_was_numbered_not_the_second_it_was_named_after() {
+		let listed: Vec<rsync::Entry> = [
+			"2673-20260922-000002",
+			"2672-20260922-000003",
+			"2674-20260923-000003",
+		]
+		.iter()
+		.map(|stem| {
+			entry(
+				&format!(
+					"{prefix}{stem}{SUFFIX}/{ARCHIVE}{stem}{SUFFIX}{EXT}",
+					prefix = listen::PREFIX
+				),
+				1 << 20,
+			)
+		})
+		.collect();
+
+		let chain: Vec<u32> = chained(&listed, 20_260_921_000_003)
+			.iter()
+			.map(|pending| pending.number)
+			.collect();
+
+		assert_eq!(chain, [2672, 2673, 2674]);
 	}
 
 	#[test]

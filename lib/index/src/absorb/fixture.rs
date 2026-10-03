@@ -135,6 +135,19 @@ pub(super) fn following(dir: &Path, row: &[String]) -> Incremental {
 	}
 }
 
+pub(super) fn listenless(dir: &Path) -> Incremental {
+	let into = dir.join("listenless");
+	let _ = fs::create_dir_all(&into);
+	let _ = fs::write(into.join("COPYING"), b"");
+
+	Incremental {
+		dir: into,
+		name: "listenbrainz-dump-2594-20260713-000003-incremental".to_string(),
+		start: BUILT.to_string(),
+		end: NEXT.to_string(),
+	}
+}
+
 pub(super) fn torn(dir: &Path) -> Incremental {
 	let into = dir.join("torn");
 	let _ = fs::create_dir_all(&into);
@@ -172,6 +185,7 @@ pub(super) fn waiting(reach: u64, size: u64) -> Pending {
 	Pending {
 		name: format!("listenbrainz-dump-2594-{reach}-incremental"),
 		archive: format!("listenbrainz-spark-dump-{reach}-incremental.tar"),
+		number: 2594,
 		size,
 		reach,
 	}

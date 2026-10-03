@@ -194,6 +194,7 @@ mod tests {
 		let waiting = Pending {
 			name: "listenbrainz-dump-2594-20260714000003-incremental".to_string(),
 			archive: "listenbrainz-spark-dump-20260714000003-incremental.tar".to_string(),
+			number: 2594,
 			size: SIZE,
 			reach: 20_260_714_000_003,
 		};

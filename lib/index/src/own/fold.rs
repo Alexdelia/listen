@@ -187,6 +187,27 @@ mod tests {
 	}
 
 	#[test]
+	fn a_dump_holding_no_listen_at_all_carries_the_count_to_its_end() {
+		let dir = crate::scratch::of("own", "listenless");
+
+		let taken = take(
+			"2026-09-22 00:00:03.049829+00:00",
+			&incremental(
+				"listenbrainz-dump-2673-20260922-000002-incremental",
+				"2026-09-22 00:00:03.049829+00:00",
+				"2026-09-22 00:00:02.910209+00:00",
+				dir.clone(),
+			),
+		)
+		.unwrap_or_else(|| unreachable!());
+
+		assert!(taken.play.is_empty());
+		assert_eq!(taken.reached, "2026-09-22 00:00:02.910209+00:00");
+		assert!(window(&taken).is_empty());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
 	fn a_dump_reaching_no_further_than_the_count_is_skipped_rather_than_counted_twice() {
 		let dir = dump("twice", &[listen(OWN, AAAA, "2026-07-11 10:00:00")]);
 

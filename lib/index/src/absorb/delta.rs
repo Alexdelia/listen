@@ -12,7 +12,10 @@ pub(super) fn fold(
 	work: &Path,
 	incremental: &Incremental,
 ) -> hmerr::Result<()> {
-	let shard = shard::quoted(&shard::of(&incremental.dir)?.path);
+	let Some(held) = shard::held(&incremental.dir)? else {
+		return Ok(());
+	};
+	let shard = shard::quoted(&held.path);
 
 	kept(db, work, LIBRARY, &incremental.name, &play::counted(&shard))?;
 	kept(db, work, ARTIST, &incremental.name, &artist(&shard))
