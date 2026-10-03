@@ -30,25 +30,33 @@ pub(crate) struct Pending {
 pub(crate) struct Incremental {
 	pub dir: PathBuf,
 	pub name: String,
+	pub number: u32,
 	pub start: String,
 	pub end: String,
 }
 
-pub(super) fn pending(covered: &str) -> hmerr::Result<Vec<Pending>> {
+impl Pending {
+	pub(crate) fn past(&self, reached: u64, through: Option<u32>) -> bool {
+		through.map_or(self.reach > reached, |through| self.number > through)
+	}
+}
+
+pub(super) fn pending(covered: &str, through: Option<u32>) -> hmerr::Result<Vec<Pending>> {
 	let reached = stamp::reach(covered)?;
 	let url = format!("{host}/{MODULE}/", host = rsync::HOST);
 
 	Ok(chained(
 		&rsync::beneath(&url, &format!("{ARCHIVE}*{SUFFIX}{EXT}"))?,
 		reached,
+		through,
 	))
 }
 
-fn chained(listed: &[rsync::Entry], reached: u64) -> Vec<Pending> {
+fn chained(listed: &[rsync::Entry], reached: u64, through: Option<u32>) -> Vec<Pending> {
 	let mut found: Vec<Pending> = listed
 		.iter()
 		.filter_map(pending_of)
-		.filter(|pending| pending.reach > reached)
+		.filter(|pending| pending.past(reached, through))
 		.collect();
 
 	found.sort_by_key(|pending| pending.number);
@@ -106,7 +114,7 @@ pub(super) fn opened(
 	let dir = unpack(root, pending, bar)?;
 	keep::discard(&root.join(&pending.archive))?;
 
-	read(&dir, &pending.name)
+	read(&dir, &pending.name, pending.number)
 }
 
 pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
@@ -143,7 +151,7 @@ fn stem(archive: &str) -> &str {
 	archive.strip_suffix(EXT).unwrap_or(archive)
 }
 
-fn read(dir: &Path, name: &str) -> hmerr::Result<Incremental> {
+fn read(dir: &Path, name: &str, number: u32) -> hmerr::Result<Incremental> {
 	let sequence = marker(dir, SEQUENCE)?;
 
 	if sequence != SEQUENCE_UNDERSTOOD {
@@ -154,6 +162,7 @@ fn read(dir: &Path, name: &str) -> hmerr::Result<Incremental> {
 		start: marker(dir, START)?,
 		end: marker(dir, END)?,
 		name: name.to_string(),
+		number,
 		dir: dir.to_path_buf(),
 	})
 }
@@ -241,12 +250,46 @@ mod tests {
 		})
 		.collect();
 
-		let chain: Vec<u32> = chained(&listed, 20_260_921_000_003)
+		let chain: Vec<u32> = chained(&listed, 20_260_921_000_003, None)
 			.iter()
 			.map(|pending| pending.number)
 			.collect();
 
 		assert_eq!(chain, [2672, 2673, 2674]);
+	}
+
+	#[test]
+	fn once_the_number_read_through_is_known_every_dump_numbered_past_it_is_pending_whatever_its_name_says()
+	 {
+		let listed: Vec<rsync::Entry> = [
+			"2672-20260922-000003",
+			"2673-20260922-000002",
+			"2674-20260923-000003",
+			"2675-20260923-000003",
+		]
+		.iter()
+		.map(|stem| {
+			entry(
+				&format!(
+					"{prefix}{stem}{SUFFIX}/{ARCHIVE}{stem}{SUFFIX}{EXT}",
+					prefix = listen::PREFIX
+				),
+				1 << 20,
+			)
+		})
+		.collect();
+
+		let after_2672: Vec<u32> = chained(&listed, 20_260_922_000_003, Some(2672))
+			.iter()
+			.map(|pending| pending.number)
+			.collect();
+		let after_2674: Vec<u32> = chained(&listed, 20_260_923_000_003, Some(2674))
+			.iter()
+			.map(|pending| pending.number)
+			.collect();
+
+		assert_eq!(after_2672, [2673, 2674, 2675]);
+		assert_eq!(after_2674, [2675]);
 	}
 
 	#[test]
@@ -290,10 +333,14 @@ mod tests {
 		let dir = crate::scratch::of("incremental", "schema");
 		let _ = fs::write(dir.join(SEQUENCE), b"2");
 
-		let said = read(&dir, "listenbrainz-dump-2636-20260822-000002-incremental")
-			.err()
-			.map(|e| format!("{e}"))
-			.unwrap_or_default();
+		let said = read(
+			&dir,
+			"listenbrainz-dump-2636-20260822-000002-incremental",
+			2636,
+		)
+		.err()
+		.map(|e| format!("{e}"))
+		.unwrap_or_default();
 
 		assert!(said.contains("schema"), "{said}");
 		let _ = fs::remove_dir_all(&dir);
@@ -306,7 +353,11 @@ mod tests {
 		let _ = fs::write(dir.join(START), b"2026-08-21 00:00:03.155180+00:00\n");
 		let _ = fs::write(dir.join(END), b"2026-08-22 00:00:02.641933+00:00\n");
 
-		let read = read(&dir, "listenbrainz-dump-2636-20260822-000002-incremental");
+		let read = read(
+			&dir,
+			"listenbrainz-dump-2636-20260822-000002-incremental",
+			2636,
+		);
 
 		assert_eq!(
 			read.as_ref().map(|read| read.start.as_str()).ok(),

@@ -40,9 +40,7 @@ pub(super) fn run(
 			folding: &reading,
 		},
 		|incremental| {
-			let Some(taken) = taken(db, incremental, own, &reached)? else {
-				return Ok(());
-			};
+			let taken = taken(db, incremental, own, &reached)?;
 
 			reached.clone_from(&taken.reached);
 
@@ -56,10 +54,10 @@ fn taken(
 	incremental: &Incremental,
 	own: u32,
 	reached: &str,
-) -> hmerr::Result<Option<Fold>> {
+) -> hmerr::Result<Fold> {
 	if !stamped(&incremental.start) || !stamped(&incremental.end) {
 		unstamped(&incremental.name);
-		return Ok(None);
+		return Ok(untouched(incremental, reached));
 	}
 
 	if reach::behind(reached, &incremental.start) {
@@ -75,29 +73,41 @@ fn taken(
 
 	let scanned = scan::of(db, &incremental.dir, own)?;
 
-	Ok(Some(Fold {
+	Ok(Fold {
 		reached: incremental.end.clone(),
+		through: incremental.number,
 		covered: scanned.covered,
 		play: scanned.play,
 		gap,
-	}))
+	})
 }
 
-fn skipped(incremental: &Incremental, reached: &str) -> Option<Fold> {
+fn skipped(incremental: &Incremental, reached: &str) -> Fold {
 	already_counted(&incremental.name);
 
 	if !reach::lost(reached, &incremental.end) {
-		return None;
+		return untouched(incremental, reached);
 	}
 
 	stays_out(reached, &incremental.end);
 
-	Some(Fold {
+	Fold {
 		reached: incremental.end.clone(),
+		through: incremental.number,
 		covered: 0,
 		play: Vec::new(),
 		gap: vec![missed(reached, &incremental.end)],
-	})
+	}
+}
+
+fn untouched(incremental: &Incremental, reached: &str) -> Fold {
+	Fold {
+		reached: reached.to_string(),
+		through: incremental.number,
+		covered: 0,
+		play: Vec::new(),
+		gap: Vec::new(),
+	}
 }
 
 fn missed(reached: &str, to: &str) -> Gap {
@@ -147,12 +157,15 @@ mod tests {
 		Incremental {
 			dir,
 			name: name.to_string(),
+			number: NUMBER,
 			start: start.to_string(),
 			end: end.to_string(),
 		}
 	}
 
-	fn take(reached: &str, incremental: &Incremental) -> Option<Fold> {
+	const NUMBER: u32 = 2636;
+
+	fn take(reached: &str, incremental: &Incremental) -> Fold {
 		let db = duckdb::Connection::open_in_memory().unwrap_or_else(|_| unreachable!());
 
 		taken(&db, incremental, OWN, reached).unwrap_or_else(|e| unreachable!("{e}"))
@@ -177,11 +190,11 @@ mod tests {
 				"2026-08-22 00:00:02.641933+00:00",
 				dir.clone(),
 			),
-		)
-		.unwrap_or_else(|| unreachable!());
+		);
 
 		assert_eq!(taken.play.len(), 1);
 		assert_eq!(taken.reached, "2026-08-22 00:00:02.641933+00:00");
+		assert_eq!(taken.through, NUMBER);
 		assert!(window(&taken).is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
@@ -198,8 +211,7 @@ mod tests {
 				"2026-09-22 00:00:02.910209+00:00",
 				dir.clone(),
 			),
-		)
-		.unwrap_or_else(|| unreachable!());
+		);
 
 		assert!(taken.play.is_empty());
 		assert_eq!(taken.reached, "2026-09-22 00:00:02.910209+00:00");
@@ -208,7 +220,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_dump_reaching_no_further_than_the_count_is_skipped_rather_than_counted_twice() {
+	fn a_dump_reaching_no_further_than_the_count_is_read_through_rather_than_counted_twice() {
 		let dir = dump("twice", &[listen(OWN, AAAA, "2026-07-11 10:00:00")]);
 
 		let taken = take(
@@ -221,7 +233,10 @@ mod tests {
 			),
 		);
 
-		assert!(taken.is_none());
+		assert!(taken.play.is_empty());
+		assert_eq!(taken.reached, "2026-07-12 00:00:04.001868+00:00");
+		assert_eq!(taken.through, NUMBER);
+		assert!(window(&taken).is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -237,8 +252,7 @@ mod tests {
 				"2026-07-13 00:00:02.000000+00:00",
 				dir.clone(),
 			),
-		)
-		.unwrap_or_else(|| unreachable!());
+		);
 
 		assert!(taken.play.is_empty());
 		assert_eq!(taken.reached, "2026-07-13 00:00:02.000000+00:00");
@@ -266,7 +280,9 @@ mod tests {
 			),
 		);
 
-		assert!(taken.is_none());
+		assert!(taken.play.is_empty());
+		assert_eq!(taken.reached, "2026-08-21 00:00:03.155180+00:00");
+		assert_eq!(taken.through, NUMBER);
 
 		let taken = take(
 			"2026-08-21 00:00:03.155180+00:00",
@@ -278,7 +294,8 @@ mod tests {
 			),
 		);
 
-		assert!(taken.is_none());
+		assert!(taken.play.is_empty());
+		assert_eq!(taken.reached, "2026-08-21 00:00:03.155180+00:00");
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -294,8 +311,7 @@ mod tests {
 				"2026-07-24 00:00:02.000000+00:00",
 				dir.clone(),
 			),
-		)
-		.unwrap_or_else(|| unreachable!());
+		);
 
 		assert_eq!(taken.play.len(), 1);
 		assert_eq!(taken.reached, "2026-07-24 00:00:02.000000+00:00");

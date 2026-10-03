@@ -14,6 +14,8 @@ pub(crate) struct Held {
 	#[serde(default)]
 	pub reached: String,
 	#[serde(default)]
+	pub through: Option<u32>,
+	#[serde(default)]
 	pub gap: Vec<Gap>,
 	pub covered: i64,
 	pub count: ListenCount,
@@ -23,6 +25,7 @@ pub(crate) struct Held {
 
 pub(super) struct Carried {
 	pub reached: String,
+	pub through: Option<u32>,
 	pub gap: Vec<Gap>,
 	pub covered: i64,
 	pub fold: ListenCount,
@@ -82,6 +85,7 @@ impl Held {
 	pub(super) fn carried(self) -> Carried {
 		Carried {
 			reached: self.reach().to_string(),
+			through: self.through,
 			gap: self.gap,
 			covered: self.covered,
 			fold: self.fold.unwrap_or_default(),
@@ -93,6 +97,7 @@ impl Carried {
 	pub(super) fn of(dump: &str) -> Self {
 		Self {
 			reached: dump.to_string(),
+			through: None,
 			gap: Vec::new(),
 			covered: 0,
 			fold: ListenCount::new(),

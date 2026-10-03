@@ -41,7 +41,7 @@ pub(super) fn run(
 	let work = work::open(dir, meta.covered())?;
 	let mut reach = work::reach(&work, meta);
 
-	let left = left(pending, &reach.covered)?;
+	let left = left(pending, &reach)?;
 	resuming(pending, &left);
 
 	if !dump::offered(&left, ABSORBING, decide)? {

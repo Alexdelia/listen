@@ -21,6 +21,8 @@ pub struct Meta {
 	#[serde(default)]
 	pub reached: Option<String>,
 	#[serde(default)]
+	pub through: Option<u32>,
+	#[serde(default)]
 	pub gap: Vec<Gap>,
 	#[serde(default)]
 	pub absorbed: u32,

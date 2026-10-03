@@ -12,6 +12,7 @@ pub(super) fn held() -> Held {
 	Held {
 		dump: DUMP.to_string(),
 		reached: String::new(),
+		through: None,
 		gap: Vec::new(),
 		covered: 1_783_814_404,
 		count: ListenCount::new(),
@@ -28,9 +29,12 @@ pub(super) fn play(mbid: &str, plays: u32) -> own::Play {
 	}
 }
 
+pub(super) const THROUGH: u32 = 2636;
+
 pub(super) fn fold(reached: &str, plays: u32, gap: Vec<Gap>) -> own::Fold {
 	own::Fold {
 		reached: reached.to_string(),
+		through: THROUGH,
 		covered: 0,
 		play: vec![play(MBID, plays)],
 		gap,

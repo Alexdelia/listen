@@ -34,6 +34,7 @@ pub(super) fn merge(
 		dump: held.dump.clone(),
 		own: held.own,
 		reached: Some(reach.covered),
+		through: reach.through,
 		gap: reach.gap,
 		absorbed: held.absorbed + reach.absorbed,
 		user,

@@ -118,6 +118,7 @@ pub(super) fn incremental(dir: &Path, start: &str, row: &[String]) -> Incrementa
 	Incremental {
 		dir: into,
 		name: "listenbrainz-dump-2594-20260713-000003-incremental".to_string(),
+		number: 2594,
 		start: start.to_string(),
 		end: NEXT.to_string(),
 	}
@@ -130,6 +131,7 @@ pub(super) fn following(dir: &Path, row: &[String]) -> Incremental {
 	Incremental {
 		dir: into,
 		name: "listenbrainz-dump-2595-20260714-000003-incremental".to_string(),
+		number: 2595,
 		start: NEXT.to_string(),
 		end: LATER.to_string(),
 	}
@@ -143,6 +145,7 @@ pub(super) fn listenless(dir: &Path) -> Incremental {
 	Incremental {
 		dir: into,
 		name: "listenbrainz-dump-2594-20260713-000003-incremental".to_string(),
+		number: 2594,
 		start: BUILT.to_string(),
 		end: NEXT.to_string(),
 	}
@@ -156,6 +159,7 @@ pub(super) fn torn(dir: &Path) -> Incremental {
 	Incremental {
 		dir: into,
 		name: "listenbrainz-dump-2594-20260713-000003-incremental".to_string(),
+		number: 2594,
 		start: BUILT.to_string(),
 		end: NEXT.to_string(),
 	}
@@ -181,13 +185,22 @@ pub(super) fn morrow() -> Vec<String> {
 	]
 }
 
-pub(super) fn waiting(reach: u64, size: u64) -> Pending {
+pub(super) fn waiting(number: u32, reach: u64, size: u64) -> Pending {
 	Pending {
-		name: format!("listenbrainz-dump-2594-{reach}-incremental"),
-		archive: format!("listenbrainz-spark-dump-{reach}-incremental.tar"),
-		number: 2594,
+		name: format!("listenbrainz-dump-{number}-{reach}-incremental"),
+		archive: format!("listenbrainz-spark-dump-{number}-{reach}-incremental.tar"),
+		number,
 		size,
 		reach,
+	}
+}
+
+pub(super) fn reaching(covered: &str, through: Option<u32>) -> Reach {
+	Reach {
+		covered: covered.to_string(),
+		through,
+		gap: Vec::new(),
+		absorbed: 0,
 	}
 }
 

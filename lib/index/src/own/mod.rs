@@ -29,6 +29,7 @@ pub struct Own {
 
 pub struct Fold {
 	pub reached: String,
+	pub through: u32,
 	pub covered: i64,
 	pub play: Vec<Play>,
 	pub gap: Vec<Gap>,
@@ -64,6 +65,7 @@ pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
 pub fn fresh(
 	username: &str,
 	reached: &str,
+	through: Option<u32>,
 	decide: &dyn Decide,
 	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
 ) -> hmerr::Result<()> {
@@ -78,7 +80,7 @@ pub fn fresh(
 		return Ok(());
 	}
 
-	let Some(pending) = dump::listed(dump::pending(reached), STANDING) else {
+	let Some(pending) = dump::listed(dump::pending(reached, through), STANDING) else {
 		return Ok(());
 	};
 	let pending: Vec<&Pending> = pending.iter().collect();

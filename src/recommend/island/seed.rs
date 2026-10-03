@@ -172,6 +172,7 @@ insert into user_stat select range, {center}, 0, {high}, 100 from range({member}
 				dump: String::new(),
 				own: None,
 				reached: None,
+				through: None,
 				gap: Vec::new(),
 				absorbed: 0,
 				user: 0,

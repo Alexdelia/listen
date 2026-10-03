@@ -254,6 +254,7 @@ create table recording_listener as
 				dump: String::new(),
 				own: None,
 				reached: None,
+				through: None,
 				gap: Vec::new(),
 				absorbed: 0,
 				user: library.len() as u64,

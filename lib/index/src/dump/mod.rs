@@ -92,8 +92,8 @@ pub(super) fn repair(dump: &str, decide: &dyn Decide) -> hmerr::Result<Option<Li
 	Ok(taken)
 }
 
-pub(super) fn pending(covered: &str) -> hmerr::Result<Vec<Pending>> {
-	incremental::pending(covered)
+pub(super) fn pending(covered: &str, through: Option<u32>) -> hmerr::Result<Vec<Pending>> {
+	incremental::pending(covered, through)
 }
 
 pub(super) fn listed<T>(read: hmerr::Result<T>, keeping: &str) -> Option<T> {

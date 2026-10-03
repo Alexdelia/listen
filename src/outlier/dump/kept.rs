@@ -69,7 +69,7 @@ mod tests {
 	use super::{
 		super::{
 			super::fetch::{Listen, ListenCount},
-			fixture::{DUMP, LATEST, MBID, NEWER, fold, held},
+			fixture::{DUMP, LATEST, MBID, NEWER, THROUGH, fold, held},
 			fold::absorbed,
 		},
 		*,
@@ -132,6 +132,7 @@ mod tests {
 			&mut quiet,
 			listen_index::own::Fold {
 				reached: LATEST.to_string(),
+				through: THROUGH,
 				covered: 0,
 				play: Vec::new(),
 				gap: Vec::new(),
@@ -145,6 +146,7 @@ mod tests {
 		});
 
 		assert_eq!(carried.reached, LATEST);
+		assert_eq!(carried.through, Some(THROUGH));
 	}
 
 	#[test]

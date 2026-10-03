@@ -18,11 +18,24 @@ pub(super) fn taken(
 	reach: &mut Reach,
 	incremental: &Incremental,
 ) -> hmerr::Result<()> {
+	walked(db, work, reach, incremental)?;
+
+	reach.through = Some(incremental.number);
+
+	work::reached(work, reach)
+}
+
+fn walked(
+	db: &duckdb::Connection,
+	work: &Path,
+	reach: &mut Reach,
+	incremental: &Incremental,
+) -> hmerr::Result<()> {
 	let covered = dump::reach(&reach.covered)?;
 	let start = dump::reach(&incremental.start)?;
 
 	if start < covered {
-		return overlapping(work, reach, incremental, covered);
+		return overlapping(reach, incremental, covered);
 	}
 
 	if start > covered {
@@ -34,7 +47,7 @@ pub(super) fn taken(
 	reach.covered.clone_from(&incremental.end);
 	reach.absorbed += 1;
 
-	work::reached(work, reach)
+	Ok(())
 }
 
 fn lost(reach: &mut Reach, start: &str) {
@@ -51,12 +64,7 @@ fn lost(reach: &mut Reach, start: &str) {
 	});
 }
 
-fn overlapping(
-	work: &Path,
-	reach: &mut Reach,
-	incremental: &Incremental,
-	covered: u64,
-) -> hmerr::Result<()> {
+fn overlapping(reach: &mut Reach, incremental: &Incremental, covered: u64) -> hmerr::Result<()> {
 	progress::say(format!(
 		"{Y}{B}{name}{D}{Y} reaches back into what the index already holds, \
 		skipped rather than counted twice{D}",
@@ -70,7 +78,7 @@ fn overlapping(
 	lost(reach, &incremental.end);
 	reach.covered.clone_from(&incremental.end);
 
-	work::reached(work, reach)
+	Ok(())
 }
 
 #[cfg(test)]
@@ -114,6 +122,33 @@ mod tests {
 		assert_eq!(plays(&index, POOLED, 0), held);
 		assert_eq!(reach.covered, NEXT);
 		assert!(reach.gap.is_empty());
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_dump_skipped_as_already_held_is_still_one_the_index_read_through() {
+		let (dir, index, meta) = built("skipped_through");
+
+		let reach = absorb(&index, &meta, &incremental(&dir, BEFORE_THE_INDEX, &day()))
+			.unwrap_or_else(|e| unreachable!("{e}"));
+
+		assert_eq!(reach.absorbed, 0);
+		assert_eq!(reach.through, Some(2594));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn the_index_records_the_number_of_the_last_dump_it_absorbed() {
+		let (dir, index, meta) = built("through");
+
+		let _ = absorb(&index, &meta, &incremental(&dir, BUILT, &day()));
+
+		assert_eq!(
+			index::meta::read(&index)
+				.unwrap_or_else(|_| unreachable!())
+				.through,
+			Some(2594)
+		);
 		let _ = fs::remove_dir_all(&dir);
 	}
 

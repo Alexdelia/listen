@@ -128,7 +128,7 @@ fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
 	let meta = index::meta::read(dir)?;
 
-	let Some(pending) = dump::listed(dump::pending(meta.covered()), STANDING) else {
+	let Some(pending) = dump::listed(dump::pending(meta.covered(), meta.through), STANDING) else {
 		return Ok(());
 	};
 

@@ -104,6 +104,7 @@ mod tests {
 			dump: "20260712-000004".to_string(),
 			own: Some(1),
 			reached: None,
+			through: None,
 			gap: Vec::new(),
 			absorbed: 0,
 			user: 5,

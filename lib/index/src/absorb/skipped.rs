@@ -13,7 +13,7 @@ use super::{
 pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<()> {
 	progress::say(format!("{F}nothing absorbed{D}"));
 
-	if reach.absorbed > 0 || reach.gap.len() == held.gap.len() {
+	if reach.through == held.through && reach.gap.len() == held.gap.len() {
 		return Ok(());
 	}
 
@@ -21,10 +21,16 @@ pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<(
 		dir,
 		&Meta {
 			reached: Some(reach.covered.clone()),
+			through: reach.through,
 			gap: reach.gap.clone(),
+			absorbed: held.absorbed + reach.absorbed,
 			..held.clone()
 		},
 	)?;
+
+	if reach.gap.len() == held.gap.len() {
+		return Ok(());
+	}
 
 	progress::say(format!(
 		"{Y}the window those dumps left uncovered is recorded on the index{D}"
@@ -39,7 +45,7 @@ mod tests {
 
 	use super::{
 		super::{
-			fixture::{BEFORE_THE_INDEX, NEXT, built, day, incremental},
+			fixture::{BEFORE_THE_INDEX, NEXT, built, day, incremental, listenless},
 			reach::taken,
 			work::{self, LIBRARY},
 		},
@@ -73,6 +79,26 @@ mod tests {
 			now.recording, meta.recording,
 			"the parts it published nothing over never moved"
 		);
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn a_chain_of_listenless_dumps_still_carries_the_index_through_them() {
+		let (dir, index, meta) = built("listenless_chain");
+		let work = work::open(&index, meta.covered()).unwrap_or_default();
+		let db = index::session::of(&work).unwrap_or_else(|_| unreachable!());
+		let mut reach = work::reach(&work, &meta);
+
+		taken(&db, &work, &mut reach, &listenless(&dir)).unwrap_or_else(|e| unreachable!("{e}"));
+
+		assert!(!work::folded(&work, LIBRARY));
+		skipped(&index, &meta, &reach).unwrap_or_else(|e| unreachable!("{e}"));
+
+		let now = index::meta::read(&index).unwrap_or_else(|_| unreachable!());
+
+		assert_eq!(now.covered(), NEXT);
+		assert_eq!(now.through, Some(2594));
+		assert!(now.gap.is_empty());
 		let _ = fs::remove_dir_all(&dir);
 	}
 

@@ -13,11 +13,17 @@ use super::{
 pub(super) fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
 	let reached = held.reach().to_string();
 
-	own::fresh(username, &reached, &ask::Terminal, &mut |fold| {
-		absorbed(held, fold);
+	own::fresh(
+		username,
+		&reached,
+		held.through,
+		&ask::Terminal,
+		&mut |fold| {
+			absorbed(held, fold);
 
-		cache::dump::write(username, held)
-	})
+			cache::dump::write(username, held)
+		},
+	)
 }
 
 pub(super) fn absorbed(held: &mut Held, fold: own::Fold) {
@@ -25,6 +31,7 @@ pub(super) fn absorbed(held: &mut Held, fold: own::Fold) {
 	held.covered = held.covered.max(fold.covered);
 	held.gap.extend(fold.gap);
 	held.reached = fold.reached;
+	held.through = Some(fold.through);
 }
 
 fn merge(count: &mut ListenCount, play: Vec<own::Play>) {
@@ -44,7 +51,7 @@ mod tests {
 	use listen_index::own::Gap;
 
 	use super::{
-		super::fixture::{LATEST, MBID, NEWER, fold, held, play, plays},
+		super::fixture::{LATEST, MBID, NEWER, THROUGH, fold, held, play, plays},
 		*,
 	};
 
@@ -74,6 +81,7 @@ mod tests {
 		absorbed(&mut held, fold(NEWER, 40, Vec::new()));
 
 		assert_eq!(held.reach(), NEWER);
+		assert_eq!(held.through, Some(THROUGH));
 		assert_eq!(plays(&held, MBID), Some(40));
 
 		absorbed(

@@ -31,6 +31,8 @@ pub(super) struct Merge {
 #[derive(Clone, Deserialize, Serialize)]
 pub(super) struct Reach {
 	pub covered: String,
+	#[serde(default)]
+	pub through: Option<u32>,
 	pub gap: Vec<Gap>,
 	pub absorbed: u32,
 }
@@ -50,6 +52,7 @@ pub(super) fn merging(dir: &Path, work: &Path, covered: &str) -> hmerr::Result<M
 pub(super) fn reach(work: &Path, meta: &Meta) -> Reach {
 	held(work).unwrap_or_else(|| Reach {
 		covered: meta.covered().to_string(),
+		through: meta.through,
 		gap: meta.gap.clone(),
 		absorbed: 0,
 	})
@@ -99,6 +102,7 @@ mod tests {
 			dump: "2026-07-12 00:00:04.001868+00:00".to_string(),
 			own: Some(1),
 			reached: covered.map(str::to_string),
+			through: None,
 			gap: Vec::new(),
 			absorbed: 0,
 			user: 5,
@@ -141,6 +145,7 @@ mod tests {
 			&work,
 			&Reach {
 				covered: "2026-08-10 00:00:02.000000+00:00".to_string(),
+				through: Some(2620),
 				gap: vec![Gap {
 					from: from.to_string(),
 					to: "2026-07-23 00:00:03.690928+00:00".to_string(),
@@ -154,6 +159,7 @@ mod tests {
 
 		assert_eq!(reach.covered, "2026-08-10 00:00:02.000000+00:00");
 		assert_eq!(reach.absorbed, 18);
+		assert_eq!(reach.through, Some(2620));
 		assert_eq!(reach.gap.len(), 1);
 		let _ = fs::remove_dir_all(&dir);
 	}

@@ -19,6 +19,7 @@ pub(super) fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result
 	let held = Held {
 		dump: own.dump,
 		reached: carried.reached,
+		through: carried.through,
 		gap: carried.gap,
 		covered: carried.covered.max(own.covered),
 		count: own

@@ -57,6 +57,7 @@ pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result
 		dump: dump.name.clone(),
 		own: Some(pool.own),
 		reached: None,
+		through: None,
 		gap: Vec::new(),
 		absorbed: 0,
 		user: scan.count(&pool.path)?,
