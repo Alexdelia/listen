@@ -1224,4 +1224,7 @@
 	(s: "2e67171f-6226-4a83-a12b-b4315c4c075a", q: 2, playlist: []),
 	(s: "d95ebf35-533f-4c0f-a9f0-f332b77897f0", q: 1, playlist: []),
 	(s: "3c7b58af-f14e-409c-bd87-2a416dea5f9b", q: 0, playlist: []),
+	(s: "66c69f06-e4e2-4745-9aef-93ef0842f247", q: 0, playlist: []),
+	(s: "b798b3b3-1d1b-4684-b2a5-5745bbc701c2", q: 1, playlist: ["normie"]),
+	(s: "ebaf3244-8b65-41ca-893f-3f648ea9bc38", q: 1, playlist: []),
 ]
