@@ -7,13 +7,14 @@ use super::channel::{Action, Status};
 pub(super) struct Count {
 	pub fetch: usize,
 	pub remove: usize,
+	pub playlist: usize,
 	pub rating: usize,
 }
 
 pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	let mp = MultiProgress::new();
 
-	let pb_playlist = bar(&mp, 0, "playlist", "magenta")?;
+	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
 	let pb_rating = bar(&mp, total.rating, "rating", "yellow")?;
 	let pb_remove = bar(&mp, total.remove, "remove", "red")?;
 	let pb_fetch = bar(&mp, total.fetch, "fetch", "blue")?;
@@ -40,10 +41,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 				pb_metadata.inc(1);
 			}
 			Action::RemoveFile => pb_remove.inc(1),
-			Action::SyncPlaylist => {
-				pb_playlist.inc_length(1);
-				pb_playlist.inc(1);
-			}
+			Action::SyncPlaylist => pb_playlist.inc(1),
 			Action::ReadTag => pb_playlist.tick(),
 			Action::SubmitRating(count) => pb_rating.inc(count as u64),
 		}
