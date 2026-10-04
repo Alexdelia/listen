@@ -1229,4 +1229,7 @@
 	(s: "ebaf3244-8b65-41ca-893f-3f648ea9bc38", q: 1, playlist: []),
 	(s: "f86a4957-3068-41d8-9ad6-35144e02747d", q: 2, playlist: ["charged"]),
 	(s: "0f84d2ea-cefa-4d79-8721-89a258d88482", q: 1, playlist: []),
+	(s: "149a16a5-30cc-41e8-bbe0-c9849d145278", q: 2, playlist: []),
+	(s: "87323da5-ada1-46cd-9561-f4133384fea9", q: 0, playlist: []),
+	(s: "9d49e3fb-7d90-40c4-a092-d7577c0d7b2a", q: 0, playlist: []),
 ]
