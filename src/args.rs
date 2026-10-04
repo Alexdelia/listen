@@ -87,6 +87,9 @@ pub(crate) struct IslandArg {
 	/// build one island out of every declared recording tagged with this local mp3 genre
 	#[arg(long)]
 	pub genre: Vec<String>,
+	/// disable the block of known artists already declared, or related to one
+	#[arg(long)]
+	pub known_artist: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]

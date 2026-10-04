@@ -10,7 +10,10 @@ use super::super::{
 	skip::Skip,
 	turn,
 };
-use super::{log, score::Candidate};
+use super::{
+	log,
+	score::{Candidate, Tuning},
+};
 
 pub(super) struct Island {
 	pub name: String,
@@ -24,7 +27,7 @@ pub(super) struct Stream {
 	served: usize,
 	stay: bool,
 	ask: bool,
-	popularity_damp: f32,
+	tuning: Tuning,
 	granularity: f64,
 	log: PathBuf,
 }
@@ -33,7 +36,7 @@ pub(super) fn stream(
 	island: Vec<Island>,
 	candidate: Vec<Vec<Candidate>>,
 	ask: bool,
-	popularity_damp: f32,
+	tuning: Tuning,
 	granularity: f64,
 	log: PathBuf,
 ) -> Stream {
@@ -44,7 +47,7 @@ pub(super) fn stream(
 		served: 0,
 		stay: true,
 		ask,
-		popularity_damp,
+		tuning,
 		granularity,
 		log,
 	}
@@ -82,7 +85,8 @@ impl feed::Feed for Stream {
 				backer: candidate.backer,
 				listener: candidate.listener,
 				plays: candidate.plays,
-				popularity_damp: self.popularity_damp,
+				popularity_damp: self.tuning.damp,
+				known_artist: self.tuning.known_artist,
 				granularity: self.granularity,
 				stay: self.stay,
 				shown_at: Utc::now(),
@@ -178,6 +182,11 @@ mod tests {
 
 	const CYCLE: usize = 8;
 
+	const TUNING: Tuning = Tuning {
+		damp: 0.6,
+		known_artist: false,
+	};
+
 	fn every_island(each: usize) -> Vec<Vec<Candidate>> {
 		(0..CYCLE)
 			.map(|island| candidate(u8::try_from(island).unwrap_or_default(), each))
@@ -218,7 +227,7 @@ mod tests {
 		));
 		let _ = std::fs::remove_file(&log);
 
-		stream(island, candidate, false, 0.6, 1.0, log)
+		stream(island, candidate, false, TUNING, 1.0, log)
 	}
 
 	fn drain(stream: &mut Stream, take: usize) -> Vec<u8> {
@@ -308,7 +317,7 @@ mod tests {
 			island(1),
 			vec![candidate(1, 2)],
 			false,
-			0.6,
+			TUNING,
 			1.0,
 			log.clone(),
 		);

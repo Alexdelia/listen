@@ -6,6 +6,12 @@ pub(super) const MIN_BACKER: u32 = 5;
 
 const PER_ISLAND: usize = 200;
 
+#[derive(Clone, Copy)]
+pub(super) struct Tuning {
+	pub damp: f32,
+	pub known_artist: bool,
+}
+
 pub(super) struct Candidate {
 	pub mbid: Source,
 	pub score: f32,
@@ -17,16 +23,16 @@ pub(super) struct Candidate {
 pub(super) fn of(
 	index: &Index,
 	cohort: &[Vec<Member>],
-	damp: f32,
+	tuning: Tuning,
 ) -> hmerr::Result<Vec<Vec<Candidate>>> {
-	known_artist(index)?;
+	known_artist(index, tuning)?;
 	enlist(index, cohort)?;
 
 	let mut statement = index.db.prepare(&ranked())?;
 
 	let mut row = statement.query(duckdb::params![
 		MIN_BACKER,
-		damp,
+		tuning.damp,
 		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
 	])?;
 
@@ -153,9 +159,19 @@ fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn known_artist(index: &Index) -> hmerr::Result<()> {
-	index.db.execute_batch(
-		r"
+fn known_artist(index: &Index, tuning: Tuning) -> hmerr::Result<()> {
+	index.db.execute_batch(if tuning.known_artist {
+		NOTHING_KNOWN
+	} else {
+		KNOWN_ARTIST
+	})?;
+
+	Ok(())
+}
+
+const NOTHING_KNOWN: &str = "create or replace temp table known_artist (artist_mbid uuid);";
+
+const KNOWN_ARTIST: &str = r"
 create or replace temp table known_artist as
 with seed_artist as (
 	select distinct ra.artist_mbid
@@ -168,11 +184,7 @@ union
 select al.related_mbid
 from artist_link al
 semi join seed_artist s on s.artist_mbid = al.artist_mbid;
-",
-	)?;
-
-	Ok(())
-}
+";
 
 #[cfg(test)]
 mod tests {
@@ -289,8 +301,17 @@ create table recording_listener as
 			.collect()
 	}
 
+	const UNKNOWN_ARTIST_ONLY: Tuning = Tuning {
+		damp: POPULARITY_DAMP,
+		known_artist: false,
+	};
+
 	fn served(index: &Index, member: u32) -> Vec<Candidate> {
-		of(index, &cohort(member), POPULARITY_DAMP)
+		served_as(index, member, UNKNOWN_ARTIST_ONLY)
+	}
+
+	fn served_as(index: &Index, member: u32, tuning: Tuning) -> Vec<Candidate> {
+		of(index, &cohort(member), tuning)
 			.unwrap()
 			.into_iter()
 			.next()
@@ -366,6 +387,44 @@ create table recording_listener as
 				.map(|candidate| candidate.mbid.to_string())
 				.collect::<Vec<_>>(),
 			vec![mbid(LOVED)]
+		);
+	}
+
+	fn by_a_declared_artist() -> Index {
+		let index = index(&every(&[(OTHER, 100)]), &uniform(MIN_BACKER));
+		index
+			.db
+			.execute_batch(&format!(
+				"insert into recording_artist values ({OTHER}, '{declared}');",
+				declared = artist(SEED)
+			))
+			.unwrap();
+
+		index
+	}
+
+	#[test]
+	fn a_recording_by_a_declared_artist_stays_out() {
+		assert!(served(&by_a_declared_artist(), MIN_BACKER).is_empty());
+	}
+
+	#[test]
+	fn a_recording_by_a_declared_artist_comes_back_when_known_artists_are_kept() {
+		let candidate = served_as(
+			&by_a_declared_artist(),
+			MIN_BACKER,
+			Tuning {
+				known_artist: true,
+				..UNKNOWN_ARTIST_ONLY
+			},
+		);
+
+		assert_eq!(
+			candidate
+				.iter()
+				.map(|candidate| candidate.mbid.to_string())
+				.collect::<Vec<_>>(),
+			vec![mbid(OTHER)]
 		);
 	}
 

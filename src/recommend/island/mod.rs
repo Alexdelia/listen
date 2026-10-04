@@ -43,21 +43,19 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 	report(&index.meta, &library);
 
 	let request = request(arg);
+	let tuning = score::Tuning {
+		damp: arg.popularity_damp,
+		known_artist: arg.known_artist,
+	};
 	let found = if narrows(arg, &request) {
-		converge::raise(
-			&index,
-			&library,
-			narrowed(&library, arg, &request)?,
-			arg.popularity_damp,
-		)?
-		.live()
+		converge::raise(&index, &library, narrowed(&library, arg, &request)?, tuning)?.live()
 	} else {
 		converge::of(
 			&index,
 			&library,
 			&partition::terrain(&library),
 			arg.granularity,
-			arg.popularity_damp,
+			tuning,
 		)?
 	};
 
@@ -74,7 +72,7 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 			.collect(),
 		found.candidate,
 		arg.ask,
-		arg.popularity_damp,
+		tuning,
 		arg.granularity,
 		log::path()?,
 	)))

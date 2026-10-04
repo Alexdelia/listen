@@ -9,7 +9,7 @@ use super::{
 	index::Index,
 	partition::{self, Island, Terrain},
 	rank,
-	score::{self, Candidate},
+	score::{self, Candidate, Tuning},
 	seed::Library,
 };
 
@@ -68,7 +68,7 @@ pub(super) fn raise(
 	index: &Index,
 	library: &Library,
 	island: Vec<Island>,
-	damp: f32,
+	tuning: Tuning,
 ) -> hmerr::Result<Found> {
 	let cohort: Vec<Vec<Member>> = island
 		.iter()
@@ -76,7 +76,7 @@ pub(super) fn raise(
 		.collect();
 
 	let (island, cohort) = rank::by_promise(island, cohort, library);
-	let candidate = score::of(index, &cohort, damp)?;
+	let candidate = score::of(index, &cohort, tuning)?;
 
 	Ok(Found {
 		island,
@@ -90,14 +90,14 @@ pub(super) fn of(
 	library: &Library,
 	terrain: &Terrain,
 	granularity: f64,
-	damp: f32,
+	tuning: Tuning,
 ) -> hmerr::Result<Found> {
 	let mut without: HashSet<usize> = HashSet::new();
 	let mut round = 0;
 
 	loop {
 		let island = partition::of(terrain, granularity, &without);
-		let found = raise(index, library, island, damp)?;
+		let found = raise(index, library, island, tuning)?;
 		let barren = found.barren();
 
 		if barren.is_empty() {
