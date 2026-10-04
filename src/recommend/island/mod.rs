@@ -45,7 +45,7 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 	let request = request(arg);
 	let tuning = score::Tuning {
 		damp: arg.popularity_damp,
-		known_artist: arg.known_artist,
+		allow_known_artist: arg.allow_known_artist,
 	};
 	let found = if narrows(arg, &request) {
 		converge::raise(&index, &library, narrowed(&library, arg, &request)?, tuning)?.live()

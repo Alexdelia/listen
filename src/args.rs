@@ -89,7 +89,7 @@ pub(crate) struct IslandArg {
 	pub genre: Vec<String>,
 	/// disable the block of known artists already declared, or related to one
 	#[arg(long)]
-	pub known_artist: bool,
+	pub allow_known_artist: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]

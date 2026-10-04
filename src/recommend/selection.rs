@@ -111,7 +111,7 @@ fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Resu
 		("--genre", !arg.genre.is_empty()),
 		("--popularity-damp", tuned_popularity_damp(arg)),
 		("--granularity", tuned_granularity(arg)),
-		("--known-artist", arg.known_artist),
+		("--allow-known-artist", arg.allow_known_artist),
 	];
 
 	let Some((flag, _)) = unusable.iter().find(|(_, given)| *given) else {
@@ -361,7 +361,7 @@ mod tests {
 			ask: false,
 			seed: Vec::new(),
 			genre: Vec::new(),
-			known_artist: false,
+			allow_known_artist: false,
 		}
 	}
 
@@ -429,9 +429,9 @@ mod tests {
 	}
 
 	#[test]
-	fn keeping_known_artists_needs_a_source_that_reaches_the_index() {
+	fn allowing_known_artists_needs_a_source_that_reaches_the_index() {
 		let keep = IslandArg {
-			known_artist: true,
+			allow_known_artist: true,
 			..no_arg()
 		};
 

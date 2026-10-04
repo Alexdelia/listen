@@ -86,7 +86,7 @@ impl feed::Feed for Stream {
 				listener: candidate.listener,
 				plays: candidate.plays,
 				popularity_damp: self.tuning.damp,
-				known_artist: self.tuning.known_artist,
+				allow_known_artist: self.tuning.allow_known_artist,
 				granularity: self.granularity,
 				stay: self.stay,
 				shown_at: Utc::now(),
@@ -184,7 +184,7 @@ mod tests {
 
 	const TUNING: Tuning = Tuning {
 		damp: 0.6,
-		known_artist: false,
+		allow_known_artist: false,
 	};
 
 	fn every_island(each: usize) -> Vec<Vec<Candidate>> {

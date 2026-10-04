@@ -9,7 +9,7 @@ const PER_ISLAND: usize = 200;
 #[derive(Clone, Copy)]
 pub(super) struct Tuning {
 	pub damp: f32,
-	pub known_artist: bool,
+	pub allow_known_artist: bool,
 }
 
 pub(super) struct Candidate {
@@ -160,7 +160,7 @@ fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
 }
 
 fn known_artist(index: &Index, tuning: Tuning) -> hmerr::Result<()> {
-	index.db.execute_batch(if tuning.known_artist {
+	index.db.execute_batch(if tuning.allow_known_artist {
 		NOTHING_KNOWN
 	} else {
 		KNOWN_ARTIST
@@ -303,7 +303,7 @@ create table recording_listener as
 
 	const UNKNOWN_ARTIST_ONLY: Tuning = Tuning {
 		damp: POPULARITY_DAMP,
-		known_artist: false,
+		allow_known_artist: false,
 	};
 
 	fn served(index: &Index, member: u32) -> Vec<Candidate> {
@@ -409,12 +409,12 @@ create table recording_listener as
 	}
 
 	#[test]
-	fn a_recording_by_a_declared_artist_comes_back_when_known_artists_are_kept() {
+	fn a_recording_by_a_declared_artist_comes_back_when_known_artists_are_allowed() {
 		let candidate = served_as(
 			&by_a_declared_artist(),
 			MIN_BACKER,
 			Tuning {
-				known_artist: true,
+				allow_known_artist: true,
 				..UNKNOWN_ARTIST_ONLY
 			},
 		);
