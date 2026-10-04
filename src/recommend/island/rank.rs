@@ -70,6 +70,7 @@ mod tests {
 			.map(|user| Member {
 				user: i64::try_from(user).unwrap_or_default(),
 				weight: 1.0,
+				liked_seed: 1,
 			})
 			.collect()
 	}

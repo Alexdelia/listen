@@ -5,10 +5,12 @@ pub(super) const SIZE: usize = 500;
 pub(super) struct Member {
 	pub user: i64,
 	pub weight: f32,
+	pub liked_seed: u32,
 }
 
 pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member> {
 	let mut affinity = vec![0.0f32; library.user.len()];
+	let mut liked_seed = vec![0u32; library.user.len()];
 	let total = real::of(library.user.len());
 
 	for member in &island.member {
@@ -17,6 +19,14 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 		};
 		if seed.listener.is_empty() {
 			continue;
+		}
+
+		if seed.weight() > 0.0 {
+			for listener in &seed.listener {
+				if let Some(liked_seed) = liked_seed.get_mut(listener.user as usize) {
+					*liked_seed += 1;
+				}
+			}
 		}
 
 		let weight = seed.weight() * (total / real::of(seed.listener.len())).ln();
@@ -39,6 +49,7 @@ pub(super) fn of(library: &Library, island: &Island, size: usize) -> Vec<Member>
 			Some(Member {
 				user: *library.user.get(user)?,
 				weight,
+				liked_seed: *liked_seed.get(user)?,
 			})
 		})
 		.collect();
@@ -222,6 +233,46 @@ mod tests {
 			cohort.iter().map(|member| member.user).collect::<Vec<_>>(),
 			vec![0]
 		);
+	}
+
+	fn liked_seed(cohort: &[Member], user: i64) -> Option<u32> {
+		cohort
+			.iter()
+			.find(|member| member.user == user)
+			.map(|member| member.liked_seed)
+	}
+
+	#[test]
+	fn every_liked_seed_a_member_played_is_counted() {
+		let library = library(&[(4, &[0, 1]), (3, &[0]), (2, &[0])], 4);
+		let cohort = of(&library, &island(&[0, 1, 2]), SIZE);
+
+		assert_eq!(liked_seed(&cohort, 0), Some(3));
+		assert_eq!(liked_seed(&cohort, 1), Some(1));
+	}
+
+	#[test]
+	fn a_liked_seed_played_and_dropped_still_counts_as_played() {
+		let library = weighted(&[(4, &[(0, 0.8)]), (4, &[(0, -0.3)])], 4);
+		let cohort = of(&library, &island(&[0, 1]), SIZE);
+
+		assert_eq!(liked_seed(&cohort, 0), Some(2));
+	}
+
+	#[test]
+	fn a_neutral_or_disliked_seed_is_not_counted_as_liked() {
+		let library = library(&[(4, &[0]), (1, &[0]), (0, &[0])], 4);
+		let cohort = of(&library, &island(&[0, 1, 2]), SIZE);
+
+		assert_eq!(liked_seed(&cohort, 0), Some(1));
+	}
+
+	#[test]
+	fn a_seed_outside_the_island_is_not_counted() {
+		let library = library(&[(4, &[0]), (4, &[0])], 4);
+		let cohort = of(&library, &island(&[0]), SIZE);
+
+		assert_eq!(liked_seed(&cohort, 0), Some(1));
 	}
 
 	#[test]

@@ -4,6 +4,8 @@ use super::{attraction, cohort::Member, index::Index};
 
 pub(super) const MIN_BACKER: u32 = 5;
 
+const MIN_DISTINCT_BACKER: u32 = 3;
+
 const PER_ISLAND: usize = 200;
 
 #[derive(Clone, Copy)]
@@ -31,6 +33,7 @@ pub(super) fn of(
 	let mut statement = index.db.prepare(&ranked())?;
 
 	let mut row = statement.query(duckdb::params![
+		max_reach(),
 		MIN_BACKER,
 		tuning.damp,
 		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
@@ -50,6 +53,7 @@ vote as (
 		ul.recording_id,
 		c.island,
 		c.weight as cohort_weight,
+		c.liked_seed,
 		{weight}(ul.plays, s.center, s.low, s.high) as attraction,
 		sqrt(greatest(s.recording, 1) / u.recording) as breadth
 	from user_listen ul
@@ -62,7 +66,8 @@ backing as (
 		recording_id,
 		island,
 		sum(cohort_weight * attraction / breadth) as weight,
-		count(*) filter (where attraction > 0) as backer
+		count(*) filter (where attraction > 0) as backer,
+		sum(least(sqrt(liked_seed), ?)) filter (where attraction > 0) as reach
 	from vote
 	group by 1, 2
 ),
@@ -71,7 +76,7 @@ eligible as (
 	from backing b
 	join recording r using (recording_id)
 	join recording_listener l using (recording_id)
-	where b.backer >= ?
+	where b.reach >= ?
 		and b.weight > 0
 		and not exists (select 1 from declared d where d.mbid::uuid = r.mbid)
 		and not exists (
@@ -110,6 +115,10 @@ order by island, position
 	)
 }
 
+fn max_reach() -> f64 {
+	f64::from(MIN_BACKER) / f64::from(MIN_DISTINCT_BACKER)
+}
+
 fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec<Candidate>>> {
 	let mut candidate: Vec<Vec<Candidate>> = (0..island).map(|_| Vec::new()).collect();
 
@@ -145,13 +154,18 @@ fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec
 
 fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
 	index.db.execute_batch(
-		"create or replace temp table cohort (island ubigint, user_id bigint, weight float);",
+		"create or replace temp table cohort (island ubigint, user_id bigint, weight float, liked_seed uinteger);",
 	)?;
 
 	let mut appender = index.db.appender("cohort")?;
 	for (island, cohort) in cohort.iter().enumerate() {
 		for member in cohort {
-			appender.append_row(duckdb::params![island as u64, member.user, member.weight])?;
+			appender.append_row(duckdb::params![
+				island as u64,
+				member.user,
+				member.weight,
+				member.liked_seed
+			])?;
 		}
 	}
 	appender.flush()?;
@@ -277,11 +291,16 @@ create table recording_listener as
 	}
 
 	fn cohort(member: u32) -> Vec<Vec<Member>> {
+		cohort_liking(member, 1)
+	}
+
+	fn cohort_liking(member: u32, liked_seed: u32) -> Vec<Vec<Member>> {
 		vec![
 			(0..member)
 				.map(|user| Member {
 					user: i64::from(user),
 					weight: 1.0,
+					liked_seed,
 				})
 				.collect(),
 		]
@@ -307,11 +326,11 @@ create table recording_listener as
 	};
 
 	fn served(index: &Index, member: u32) -> Vec<Candidate> {
-		served_as(index, member, UNKNOWN_ARTIST_ONLY)
+		served_as(index, &cohort(member), UNKNOWN_ARTIST_ONLY)
 	}
 
-	fn served_as(index: &Index, member: u32, tuning: Tuning) -> Vec<Candidate> {
-		of(index, &cohort(member), tuning)
+	fn served_as(index: &Index, cohort: &[Vec<Member>], tuning: Tuning) -> Vec<Candidate> {
+		of(index, cohort, tuning)
 			.unwrap()
 			.into_iter()
 			.next()
@@ -412,7 +431,7 @@ create table recording_listener as
 	fn a_recording_by_a_declared_artist_comes_back_when_known_artists_are_allowed() {
 		let candidate = served_as(
 			&by_a_declared_artist(),
-			MIN_BACKER,
+			&cohort(MIN_BACKER),
 			Tuning {
 				allow_known_artist: true,
 				..UNKNOWN_ARTIST_ONLY
@@ -426,6 +445,49 @@ create table recording_listener as
 				.collect::<Vec<_>>(),
 			vec![mbid(OTHER)]
 		);
+	}
+
+	fn loved_by(member: u32) -> Index {
+		let listen: Vec<(u32, u32, u32)> = (0..member).map(|user| (user, LOVED, 100)).collect();
+
+		index(&listen, &uniform(member))
+	}
+
+	#[test]
+	fn backers_who_played_many_liked_seeds_carry_a_recording_too_few_heads_could_not() {
+		let candidate = served_as(
+			&loved_by(MIN_DISTINCT_BACKER),
+			&cohort_liking(MIN_DISTINCT_BACKER, MIN_BACKER),
+			UNKNOWN_ARTIST_ONLY,
+		);
+
+		assert_eq!(
+			candidate
+				.iter()
+				.map(|candidate| (candidate.mbid.to_string(), candidate.backer))
+				.collect::<Vec<_>>(),
+			vec![(mbid(LOVED), MIN_DISTINCT_BACKER)]
+		);
+	}
+
+	#[test]
+	fn too_few_backers_never_carry_a_recording_however_many_liked_seeds_they_played() {
+		let few = MIN_DISTINCT_BACKER - 1;
+
+		assert!(
+			served_as(
+				&loved_by(few),
+				&cohort_liking(few, u32::MAX),
+				UNKNOWN_ARTIST_ONLY
+			)
+			.is_empty()
+		);
+	}
+
+	#[test]
+	fn backers_who_played_a_single_liked_seed_each_count_as_one_head() {
+		assert!(served(&loved_by(MIN_BACKER - 1), MIN_BACKER - 1).is_empty());
+		assert!(!served(&loved_by(MIN_BACKER), MIN_BACKER).is_empty());
 	}
 
 	#[test]
