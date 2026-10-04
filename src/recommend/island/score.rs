@@ -12,6 +12,22 @@ const PER_ISLAND: usize = 200;
 pub(super) struct Tuning {
 	pub damp: f32,
 	pub allow_known_artist: bool,
+	pub backing: Backing,
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Backing {
+	Head,
+	Reach,
+}
+
+impl Backing {
+	fn most_a_backer_counts(self) -> f64 {
+		match self {
+			Self::Head => 1.0,
+			Self::Reach => f64::from(MIN_BACKER) / f64::from(MIN_DISTINCT_BACKER),
+		}
+	}
 }
 
 pub(super) struct Candidate {
@@ -33,7 +49,7 @@ pub(super) fn of(
 	let mut statement = index.db.prepare(&ranked())?;
 
 	let mut row = statement.query(duckdb::params![
-		max_reach(),
+		tuning.backing.most_a_backer_counts(),
 		MIN_BACKER,
 		tuning.damp,
 		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
@@ -113,10 +129,6 @@ order by island, position
 ",
 		weight = attraction::WEIGHT
 	)
-}
-
-fn max_reach() -> f64 {
-	f64::from(MIN_BACKER) / f64::from(MIN_DISTINCT_BACKER)
 }
 
 fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec<Candidate>>> {
@@ -323,6 +335,12 @@ create table recording_listener as
 	const UNKNOWN_ARTIST_ONLY: Tuning = Tuning {
 		damp: POPULARITY_DAMP,
 		allow_known_artist: false,
+		backing: Backing::Head,
+	};
+
+	const REQUESTED: Tuning = Tuning {
+		backing: Backing::Reach,
+		..UNKNOWN_ARTIST_ONLY
 	};
 
 	fn served(index: &Index, member: u32) -> Vec<Candidate> {
@@ -454,11 +472,11 @@ create table recording_listener as
 	}
 
 	#[test]
-	fn backers_who_played_many_liked_seeds_carry_a_recording_too_few_heads_could_not() {
+	fn a_requested_island_lets_deep_backers_carry_what_too_few_heads_could_not() {
 		let candidate = served_as(
 			&loved_by(MIN_DISTINCT_BACKER),
 			&cohort_liking(MIN_DISTINCT_BACKER, MIN_BACKER),
-			UNKNOWN_ARTIST_ONLY,
+			REQUESTED,
 		);
 
 		assert_eq!(
@@ -471,14 +489,19 @@ create table recording_listener as
 	}
 
 	#[test]
-	fn too_few_backers_never_carry_a_recording_however_many_liked_seeds_they_played() {
+	fn a_requested_island_never_lets_too_few_backers_carry_a_recording() {
 		let few = MIN_DISTINCT_BACKER - 1;
 
+		assert!(served_as(&loved_by(few), &cohort_liking(few, u32::MAX), REQUESTED).is_empty());
+	}
+
+	#[test]
+	fn a_detected_island_counts_heads_however_many_liked_seeds_they_played() {
 		assert!(
 			served_as(
-				&loved_by(few),
-				&cohort_liking(few, u32::MAX),
-				UNKNOWN_ARTIST_ONLY
+				&loved_by(MIN_DISTINCT_BACKER),
+				&cohort_liking(MIN_DISTINCT_BACKER, MIN_BACKER),
+				UNKNOWN_ARTIST_ONLY,
 			)
 			.is_empty()
 		);

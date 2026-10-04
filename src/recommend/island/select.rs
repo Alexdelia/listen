@@ -177,7 +177,7 @@ mod tests {
 		abbrev::{B, D, F},
 	};
 
-	use super::{super::super::feed::Feed, *};
+	use super::{super::super::feed::Feed, super::score::Backing, *};
 	use crate::declaration::Source;
 
 	const CYCLE: usize = 8;
@@ -185,6 +185,7 @@ mod tests {
 	const TUNING: Tuning = Tuning {
 		damp: 0.6,
 		allow_known_artist: false,
+		backing: Backing::Head,
 	};
 
 	fn every_island(each: usize) -> Vec<Vec<Candidate>> {
