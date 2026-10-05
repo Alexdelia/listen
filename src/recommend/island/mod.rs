@@ -1,4 +1,3 @@
-mod attraction;
 mod cohort;
 mod converge;
 mod log;
@@ -9,7 +8,7 @@ mod score;
 mod seed;
 mod select;
 
-use std::{collections::HashSet, path::Path};
+use std::{collections::HashSet, path::PathBuf};
 
 use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
 use hmerr::{GenericError, ge};
@@ -18,27 +17,26 @@ use listen_index as index;
 
 use crate::{
 	args::IslandArg,
-	ask,
-	declaration::{Entry, parse},
 	format::{self, genre_list, human_readable_number},
 };
+
+use super::{attraction, local::Local};
 
 use partition::{Island, Request};
 use seed::Library;
 
-pub(super) fn ready() -> bool {
-	index::ready()
+pub(super) fn log_path() -> hmerr::Result<PathBuf> {
+	log::path()
 }
 
 pub(super) fn absent() {
 	println!("{F}no island index, {G}run --source island{D}{F} to build it{D}");
 }
 
-pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
-	let entry = parse::parse(path)?;
-	let index = index::ensure(&declared(&entry), &ask::Terminal)?;
+pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
+	let index = &local.index;
 	attraction::declare(&index.db)?;
-	let library = seed::load(&entry, &index)?;
+	let library = seed::load(&local.entry, index)?;
 
 	report(&index.meta, &library);
 
@@ -53,10 +51,10 @@ pub(super) fn feed(path: &Path, arg: &IslandArg) -> hmerr::Result<Box<dyn super:
 		},
 	};
 	let found = if narrows(arg, &request) {
-		converge::raise(&index, &library, narrowed(&library, arg, &request)?, tuning)?.live()
+		converge::raise(index, &library, narrowed(&library, arg, &request)?, tuning)?.live()
 	} else {
 		converge::of(
-			&index,
+			index,
 			&library,
 			&partition::terrain(&library),
 			arg.granularity,
@@ -99,16 +97,6 @@ fn narrowed(library: &Library, arg: &IslandArg, request: &Request) -> hmerr::Res
 	};
 
 	pin(island, arg.island.as_deref())
-}
-
-fn declared(entry: &[Entry]) -> Vec<index::Seed> {
-	entry
-		.iter()
-		.map(|entry| index::Seed {
-			mbid: entry.s,
-			q: entry.q,
-		})
-		.collect()
 }
 
 fn request(arg: &IslandArg) -> partition::Request {

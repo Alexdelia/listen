@@ -1,6 +1,9 @@
 use std::io;
 
-use ansi::abbrev::{B, D, R};
+use ansi::{
+	DIM,
+	abbrev::{B, D, R},
+};
 use hmerr::ge;
 use id3::{Error, ErrorKind, Tag, TagLike};
 
@@ -37,6 +40,35 @@ pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
 
 pub(crate) fn artist(tag: &Tag) -> String {
 	joined(values(tag, ARTIST))
+}
+
+pub(crate) fn title_artist(source: Source) -> Option<(String, String)> {
+	let tag = sparse::read(&recording::path(source), &[TITLE, ARTIST]).ok()?;
+
+	let title = tag.title().unwrap_or_default().trim().to_string();
+	let artist = artist(&tag);
+
+	if title.is_empty() && artist.is_empty() {
+		return None;
+	}
+
+	Some((title, artist))
+}
+
+pub(crate) fn label(source: Source) -> String {
+	title_artist(source).map_or_else(String::new, |(title, artist)| join(&title, &artist))
+}
+
+pub(crate) fn join(title: &str, artist: &str) -> String {
+	let title = title.trim();
+	let artist = artist.trim();
+
+	match (title.is_empty(), artist.is_empty()) {
+		(true, true) => String::new(),
+		(false, true) => title.to_string(),
+		(true, false) => artist.to_string(),
+		(false, false) => format!("{title} {DIM}-{D} {artist}"),
+	}
 }
 
 pub(crate) fn unnamed() -> Sort {

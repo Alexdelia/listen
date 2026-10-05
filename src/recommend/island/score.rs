@@ -1,6 +1,10 @@
 use crate::declaration::Source;
 
-use super::{attraction, cohort::Member, index::Index};
+use super::{
+	super::{attraction, known_artist},
+	cohort::Member,
+	index::Index,
+};
 
 pub(super) const MIN_BACKER: u32 = 5;
 
@@ -43,7 +47,7 @@ pub(super) fn of(
 	cohort: &[Vec<Member>],
 	tuning: Tuning,
 ) -> hmerr::Result<Vec<Vec<Candidate>>> {
-	known_artist(index, tuning)?;
+	known_artist::declare(&index.db, tuning.allow_known_artist)?;
 	enlist(index, cohort)?;
 
 	let mut statement = index.db.prepare(&ranked())?;
@@ -184,33 +188,6 @@ fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
 
 	Ok(())
 }
-
-fn known_artist(index: &Index, tuning: Tuning) -> hmerr::Result<()> {
-	index.db.execute_batch(if tuning.allow_known_artist {
-		NOTHING_KNOWN
-	} else {
-		KNOWN_ARTIST
-	})?;
-
-	Ok(())
-}
-
-const NOTHING_KNOWN: &str = "create or replace temp table known_artist (artist_mbid uuid);";
-
-const KNOWN_ARTIST: &str = r"
-create or replace temp table known_artist as
-with seed_artist as (
-	select distinct ra.artist_mbid
-	from declared d
-	join recording r on r.mbid = d.mbid::uuid
-	join recording_artist ra using (recording_id)
-)
-select artist_mbid from seed_artist
-union
-select al.related_mbid
-from artist_link al
-semi join seed_artist s on s.artist_mbid = al.artist_mbid;
-";
 
 #[cfg(test)]
 mod tests {

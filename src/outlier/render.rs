@@ -6,10 +6,10 @@ use ansi::{
 };
 use hmerr::ge;
 
-use crate::format;
+use crate::{format, library};
 
 use super::analyze::{Analysis, Record, Undeclared};
-use super::{cache, meta};
+use super::cache;
 
 const CAP: usize = 50;
 
@@ -84,7 +84,7 @@ pub(super) fn line(record: &Record) {
 		days = record.days,
 		rate = record.rate,
 		mbid = record.mbid,
-		label = meta::label(record.mbid),
+		label = library::tag::label(record.mbid),
 	);
 }
 
@@ -146,7 +146,7 @@ fn undeclared_line(undeclared: &Undeclared) {
 		"{B}{listen:>4}{D} {DIM}{mbid}{D} {label}",
 		listen = undeclared.listen,
 		mbid = undeclared.mbid,
-		label = meta::join(&undeclared.track, &undeclared.artist),
+		label = library::tag::join(&undeclared.track, &undeclared.artist),
 	);
 }
 

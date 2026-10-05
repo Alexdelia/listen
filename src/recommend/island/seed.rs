@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::declaration::{Entry, Q, Source, value};
 
-use super::{attraction, index::Index, real};
+use super::{
+	super::{attraction, declared},
+	index::Index,
+	real,
+};
 
 pub(super) struct Listener {
 	pub user: u32,
@@ -50,7 +54,7 @@ pub(super) fn mean_q<'s>(seed: impl Iterator<Item = &'s Seed>) -> f32 {
 }
 
 pub(super) fn load(entry: &[Entry], index: &Index) -> hmerr::Result<Library> {
-	declare(index, entry)?;
+	declared::table(&index.db, entry)?;
 
 	let mut listen: HashMap<Source, Vec<Listener>> = HashMap::new();
 	let mut dense: HashMap<i64, u32> = HashMap::new();
@@ -110,20 +114,6 @@ semi join declared d on d.mbid::uuid = r.mbid
 		user,
 		declared: entry.iter().map(|entry| entry.s).collect(),
 	})
-}
-
-fn declare(index: &Index, entry: &[Entry]) -> hmerr::Result<()> {
-	index
-		.db
-		.execute_batch("create or replace temp table declared (mbid varchar, q utinyint);")?;
-
-	let mut appender = index.db.appender("declared")?;
-	for entry in entry {
-		appender.append_row(duckdb::params![entry.s.to_string(), entry.q])?;
-	}
-	appender.flush()?;
-
-	Ok(())
 }
 
 #[cfg(test)]

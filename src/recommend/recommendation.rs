@@ -6,12 +6,16 @@ use ansi::{
 };
 use chrono::{DateTime, NaiveDate, Utc};
 
-use crate::{declaration::Source, format::DATE_FORMAT};
+use crate::{
+	declaration::{Q, Source},
+	format::DATE_FORMAT,
+};
 
 const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
 const LISTEN_BRAINZ: &str = "listenbrainz";
 const ISLAND: &str = "island";
+const SIMILAR: &str = "similar";
 
 pub(super) struct Recommendation {
 	pub mbid: Source,
@@ -43,6 +47,13 @@ pub(super) enum Origin {
 		plays: u64,
 		position: usize,
 	},
+	Similar {
+		expected: f32,
+		raw: f32,
+		support: u32,
+		near: Vec<(String, Q)>,
+		position: usize,
+	},
 }
 
 impl Origin {
@@ -54,6 +65,7 @@ impl Origin {
 			}
 			Self::ListenCount { .. } => text(LISTEN_BRAINZ),
 			Self::Island { name, .. } => precise(ISLAND, name),
+			Self::Similar { .. } => text(SIMILAR),
 		}
 	}
 
@@ -62,7 +74,8 @@ impl Origin {
 			Self::CollaborativeFiltering { position, .. }
 			| Self::WeeklyExploration { position, .. }
 			| Self::ListenCount { position, .. }
-			| Self::Island { position, .. } => *position,
+			| Self::Island { position, .. }
+			| Self::Similar { position, .. } => *position,
 		}
 	}
 
@@ -71,7 +84,10 @@ impl Origin {
 			Self::CollaborativeFiltering {
 				latest_listened_at, ..
 			} => *latest_listened_at,
-			Self::WeeklyExploration { .. } | Self::ListenCount { .. } | Self::Island { .. } => None,
+			Self::WeeklyExploration { .. }
+			| Self::ListenCount { .. }
+			| Self::Island { .. }
+			| Self::Similar { .. } => None,
 		}
 	}
 }
@@ -141,5 +157,20 @@ mod tests {
 		assert_eq!(weekly(7).position(), 7);
 		assert_eq!(collaborative_filtering(51).position(), 51);
 		assert_eq!(listen_count(3).position(), 3);
+	}
+
+	#[test]
+	fn the_similar_source_is_just_similar() {
+		let similar = Origin::Similar {
+			expected: 60.0,
+			raw: 55.0,
+			support: 5,
+			near: Vec::new(),
+			position: 4,
+		};
+
+		assert_eq!(similar.source(), format!("{B}{WHITE}similar{D}"));
+		assert_eq!(similar.position(), 4);
+		assert_eq!(similar.latest_listened_at(), None);
 	}
 }

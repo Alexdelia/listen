@@ -90,6 +90,9 @@ pub(crate) struct IslandArg {
 	/// disable the block of known artists already declared, or related to one
 	#[arg(long)]
 	pub allow_known_artist: bool,
+	/// print how well source similar predicts the q of past recommendations, recommend nothing
+	#[arg(long)]
+	pub backtest: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -98,6 +101,8 @@ pub(crate) enum RecommendSource {
 	All,
 	/// taste islands from the local listenbrainz index, needs a built index
 	Island,
+	/// what the listeners of your declaration love, judged against every declared q, needs a built index
+	Similar,
 	/// the raw collaborative filtering recording list
 	CollaborativeFiltering,
 	/// the most listened recording of an artist, needs an MBID

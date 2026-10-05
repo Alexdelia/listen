@@ -2,7 +2,10 @@ use ansi::abbrev::{B, BLU, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
-use crate::format::{DATE_FORMAT, TIME_FORMAT};
+use crate::{
+	declaration::Q,
+	format::{DATE_FORMAT, TIME_FORMAT, q_color},
+};
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
@@ -49,7 +52,30 @@ fn label(origin: &Origin) -> String {
 			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
 			{BLU}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
+		Origin::Similar {
+			expected,
+			raw,
+			support,
+			near,
+			..
+		} => format!(
+			" {Y}{expected:.0} {F}expected{D} {F}raw {raw:.0}{D} {CYA}{support} {F}support{D}{near}",
+			near = near_line(near),
+		),
 	}
+}
+
+fn near_line(near: &[(String, Q)]) -> String {
+	if near.is_empty() {
+		return String::new();
+	}
+
+	let shown: Vec<String> = near
+		.iter()
+		.map(|(label, q)| format!("{label} {color}q{q}{D}", color = q_color(*q)))
+		.collect();
+
+	format!("\n{F}near{D} {}", shown.join(&format!("{F},{D} ")))
 }
 
 fn listened(at: DateTime<Utc>) -> String {
@@ -227,5 +253,37 @@ mod tests {
 		});
 
 		assert!(shown.is_empty(), "{shown}");
+	}
+
+	fn similar(near: Vec<(String, u8)>) -> Origin {
+		Origin::Similar {
+			expected: 61.4,
+			raw: 57.2,
+			support: 23,
+			near,
+			position: 0,
+		}
+	}
+
+	#[test]
+	fn a_similar_recommendation_shows_its_expected_rating_raw_and_support() {
+		let shown = label(&similar(Vec::new()));
+
+		assert!(shown.contains("61"), "{shown}");
+		assert!(shown.contains("raw 57"), "{shown}");
+		assert!(shown.contains("23"), "{shown}");
+		assert_eq!(shown.lines().count(), 1, "{shown}");
+	}
+
+	#[test]
+	fn a_similar_recommendation_lists_what_it_is_near_with_their_q() {
+		let shown = label(&similar(vec![
+			("Mela! - 緑黄色社会".to_string(), 3),
+			("POP/STARS - K/DA".to_string(), 0),
+		]));
+		let near = shown.lines().nth(1).unwrap_or_default();
+
+		assert!(near.contains("Mela!") && near.contains("q3"), "{near}");
+		assert!(near.contains("POP/STARS") && near.contains("q0"), "{near}");
 	}
 }

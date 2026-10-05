@@ -1,5 +1,5 @@
 use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use hmerr::{GenericError, ge};
 
 use clap::ValueEnum;
 
@@ -15,10 +15,25 @@ pub(super) const fn island_only(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::Island)
 }
 
-pub(super) fn ensure_island_target(sort: RecommendSort, target: Option<&str>) -> hmerr::Result<()> {
+pub(super) const fn similar(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::All | RecommendSource::Similar)
+}
+
+pub(super) const fn similar_only(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::Similar)
+}
+
+pub(super) fn ensure_local_target(
+	source: RecommendSource,
+	sort: RecommendSort,
+	target: Option<&str>,
+) -> hmerr::Result<()> {
 	if let Some(target) = target {
 		return Err(ge!(
-			format!("{R}source {B}island{D}{R} takes no target, got {B}{target}{D}"),
+			format!(
+				"{R}source {B}{source}{D}{R} takes no target, got {B}{target}{D}",
+				source = name(&source)
+			),
 			h: "it reads the declaration and the local index, never a listenbrainz account"
 		)
 		.into());
@@ -26,8 +41,9 @@ pub(super) fn ensure_island_target(sort: RecommendSort, target: Option<&str>) ->
 
 	if sort != RecommendSort::Popularity {
 		return Err(ge!(format!(
-			"{R}sort {B}{sort}{D}{R} needs an artist mbid, not source {B}island{D}",
-			sort = name(&sort)
+			"{R}sort {B}{sort}{D}{R} needs an artist mbid, not source {B}{source}{D}",
+			sort = name(&sort),
+			source = name(&source)
 		))
 		.into());
 	}
@@ -36,6 +52,14 @@ pub(super) fn ensure_island_target(sort: RecommendSort, target: Option<&str>) ->
 }
 
 pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
+	if arg.backtest && !similar_only(source) {
+		return Err(needs("--backtest", RecommendSource::Similar, source).into());
+	}
+
+	if similar_only(source) {
+		return ensure_similar_arg(arg);
+	}
+
 	if island(source) {
 		return ensure_island_arg(arg);
 	}
@@ -103,29 +127,46 @@ fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> hmerr::Result<()>
 	Ok(())
 }
 
-fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
-	let unusable = [
+fn island_only_flag(arg: &IslandArg) -> [(&'static str, bool); 6] {
+	[
 		("--island", arg.island.is_some()),
 		("--ask", arg.ask),
 		("--seed", !arg.seed.is_empty()),
 		("--genre", !arg.genre.is_empty()),
 		("--popularity-damp", tuned_popularity_damp(arg)),
 		("--granularity", tuned_granularity(arg)),
-		("--allow-known-artist", arg.allow_known_artist),
-	];
+	]
+}
 
-	let Some((flag, _)) = unusable.iter().find(|(_, given)| *given) else {
+fn ensure_similar_arg(arg: &IslandArg) -> hmerr::Result<()> {
+	let Some((flag, _)) = island_only_flag(arg).into_iter().find(|(_, given)| *given) else {
 		return Ok(());
 	};
 
-	Err(ge!(
+	Err(needs(flag, RecommendSource::Island, RecommendSource::Similar).into())
+}
+
+fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
+	let Some((flag, _)) = island_only_flag(arg)
+		.into_iter()
+		.chain([("--allow-known-artist", arg.allow_known_artist)])
+		.find(|(_, given)| *given)
+	else {
+		return Ok(());
+	};
+
+	Err(needs(flag, RecommendSource::Island, source).into())
+}
+
+fn needs(flag: &str, wanted: RecommendSource, source: RecommendSource) -> GenericError {
+	ge!(
 		format!(
-			"{R}{B}{flag}{D}{R} needs source {B}island{D}{R}, not {B}{source}{D}",
+			"{R}{B}{flag}{D}{R} needs source {B}{wanted}{D}{R}, not {B}{source}{D}",
+			wanted = name(&wanted),
 			source = name(&source)
 		),
-		h: format!("run with {B}--source island{D}")
+		h: format!("run with {B}--source {wanted}{D}", wanted = name(&wanted))
 	)
-	.into())
 }
 
 pub(super) const fn weekly(source: RecommendSource) -> bool {
@@ -362,6 +403,7 @@ mod tests {
 			seed: Vec::new(),
 			genre: Vec::new(),
 			allow_known_artist: false,
+			backtest: false,
 		}
 	}
 
@@ -516,8 +558,95 @@ mod tests {
 
 	#[test]
 	fn island_takes_no_target() {
-		assert!(ensure_island_target(RecommendSort::Popularity, None).is_ok());
-		assert!(ensure_island_target(RecommendSort::Popularity, Some("alexdelia")).is_err());
-		assert!(ensure_island_target(RecommendSort::Newest, None).is_err());
+		assert!(
+			ensure_local_target(RecommendSource::Island, RecommendSort::Popularity, None).is_ok()
+		);
+		assert!(
+			ensure_local_target(
+				RecommendSource::Island,
+				RecommendSort::Popularity,
+				Some("alexdelia")
+			)
+			.is_err()
+		);
+		assert!(ensure_local_target(RecommendSource::Island, RecommendSort::Newest, None).is_err());
+	}
+
+	#[test]
+	fn similar_takes_no_target() {
+		let said = ensure_local_target(
+			RecommendSource::Similar,
+			RecommendSort::Popularity,
+			Some("alexdelia"),
+		)
+		.err()
+		.map(|e| e.to_string())
+		.unwrap_or_default();
+
+		assert!(said.contains("similar"), "{said}");
+	}
+
+	#[test]
+	fn similar_refuses_the_flags_that_only_shape_islands() {
+		for arg in [
+			IslandArg {
+				ask: true,
+				..no_arg()
+			},
+			IslandArg {
+				genre: vec!["touhou".to_string()],
+				..no_arg()
+			},
+			IslandArg {
+				granularity: TUNED_GRANULARITY,
+				..no_arg()
+			},
+		] {
+			assert!(ensure_arg(RecommendSource::Similar, &arg).is_err());
+		}
+	}
+
+	#[test]
+	fn similar_takes_known_artists_and_the_backtest() {
+		assert!(
+			ensure_arg(
+				RecommendSource::Similar,
+				&IslandArg {
+					allow_known_artist: true,
+					backtest: true,
+					..no_arg()
+				}
+			)
+			.is_ok()
+		);
+	}
+
+	#[test]
+	fn the_backtest_needs_source_similar() {
+		for source in [
+			RecommendSource::All,
+			RecommendSource::Island,
+			RecommendSource::CollaborativeFiltering,
+		] {
+			assert!(
+				ensure_arg(
+					source,
+					&IslandArg {
+						backtest: true,
+						..no_arg()
+					}
+				)
+				.is_err()
+			);
+		}
+	}
+
+	#[test]
+	fn all_walks_similar_too() {
+		assert!(similar(RecommendSource::All));
+		assert!(similar(RecommendSource::Similar));
+		assert!(!similar(RecommendSource::Island));
+		assert!(similar_only(RecommendSource::Similar));
+		assert!(!similar_only(RecommendSource::All));
 	}
 }
