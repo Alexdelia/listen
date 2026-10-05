@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use ansi::abbrev::{CYA, D, F, G, Y};
+use serde::Serialize;
 
 use crate::format::genre_list;
 
@@ -64,6 +65,54 @@ impl Found {
 	}
 }
 
+#[derive(Serialize)]
+pub(super) struct Glance {
+	pub name: String,
+	pub seed: usize,
+	pub user: usize,
+	pub candidate: usize,
+}
+
+#[derive(Serialize)]
+pub(super) struct Round {
+	pub island: Vec<Glance>,
+	pub next_without: Option<usize>,
+}
+
+impl Round {
+	fn of(found: &Found, next_without: Option<usize>) -> Self {
+		Self {
+			island: found
+				.island
+				.iter()
+				.zip(&found.cohort)
+				.zip(&found.candidate)
+				.map(|((island, cohort), candidate)| Glance {
+					name: island.name.clone(),
+					seed: island.member.len(),
+					user: cohort.len(),
+					candidate: candidate.len(),
+				})
+				.collect(),
+			next_without,
+		}
+	}
+}
+
+pub(super) struct Converged {
+	pub found: Found,
+	pub round: Vec<Round>,
+}
+
+pub(super) fn narrowed(found: Found) -> Converged {
+	let round = vec![Round::of(&found, None)];
+
+	Converged {
+		found: found.live(),
+		round,
+	}
+}
+
 pub(super) fn raise(
 	index: &Index,
 	library: &Library,
@@ -91,9 +140,9 @@ pub(super) fn of(
 	terrain: &Terrain,
 	granularity: f64,
 	tuning: Tuning,
-) -> hmerr::Result<Found> {
+) -> hmerr::Result<Converged> {
 	let mut without: HashSet<usize> = HashSet::new();
-	let mut round = 0;
+	let mut round = Vec::new();
 
 	loop {
 		let island = partition::of(terrain, granularity, &without);
@@ -101,46 +150,58 @@ pub(super) fn of(
 		let barren = found.barren();
 
 		if barren.is_empty() {
-			return Ok(found);
+			round.push(Round::of(&found, None));
+			return Ok(Converged { found, round });
 		}
 
-		say(&found, &barren);
-
 		let seed = found.seed(&barren);
-		round += 1;
+		let last = round.len() + 1 == ROUND
+			|| seed.is_empty()
+			|| without.len() + seed.len() >= library.seed.len();
 
-		if round == ROUND || seed.is_empty() || without.len() + seed.len() >= library.seed.len() {
-			return Ok(found.live());
+		if last {
+			round.push(Round::of(&found, None));
+			return Ok(Converged {
+				found: found.live(),
+				round,
+			});
 		}
 
 		without.extend(seed);
-		again(without.len());
+		round.push(Round::of(&found, Some(without.len())));
 	}
 }
 
-fn say(found: &Found, barren: &[usize]) {
-	let named: Vec<(&Island, usize)> = barren
-		.iter()
-		.filter_map(|island| {
-			Some((
-				found.island.get(*island)?,
-				found.cohort.get(*island).map_or(0, Vec::len),
-			))
-		})
-		.collect();
+pub(super) fn print(round: &[Round]) {
+	for round in round {
+		let barren: Vec<&Glance> = round
+			.island
+			.iter()
+			.filter(|glance| glance.candidate == 0)
+			.collect();
 
-	let width = named
+		say(&barren);
+
+		if let Some(without) = round.next_without {
+			again(without);
+		}
+	}
+}
+
+fn say(barren: &[&Glance]) {
+	let width = barren
 		.iter()
-		.map(|(island, _)| genre_list::width(&island.name))
+		.map(|glance| genre_list::width(&glance.name))
 		.max()
 		.unwrap_or_default();
 
-	for (island, user) in named {
+	for glance in barren {
 		println!(
 			"{name}{pad} {Y}no candidate{D} {CYA}{user:>4} {F}user{D} {G}{member:>4} {F}seed{D}",
-			name = genre_list::text(&island.name),
-			pad = genre_list::pad(&island.name, width),
-			member = island.member.len(),
+			name = genre_list::text(&glance.name),
+			pad = genre_list::pad(&glance.name, width),
+			user = glance.user,
+			member = glance.seed,
 		);
 	}
 }
@@ -254,5 +315,24 @@ mod tests {
 		assert!(live.island.is_empty());
 		assert!(live.cohort.is_empty());
 		assert!(live.candidate.is_empty());
+	}
+
+	#[test]
+	fn a_round_tells_how_many_candidates_each_island_found() {
+		let round = Round::of(&found(&[0, 3]), None);
+
+		let candidate: Vec<usize> = round.island.iter().map(|glance| glance.candidate).collect();
+
+		assert_eq!(candidate, vec![0, 3]);
+		assert_eq!(round.next_without, None);
+	}
+
+	#[test]
+	fn a_narrowed_run_records_one_round_and_keeps_only_islands_with_candidates() {
+		let converged = narrowed(found(&[0, 3]));
+
+		assert_eq!(converged.round.len(), 1);
+		assert_eq!(converged.round[0].island.len(), 2);
+		assert_eq!(converged.found.island.len(), 1);
 	}
 }

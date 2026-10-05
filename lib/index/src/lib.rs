@@ -43,6 +43,16 @@ pub fn ready() -> bool {
 	index::dir().is_ok_and(|dir| index::built(&dir))
 }
 
+pub fn standing() -> hmerr::Result<Option<Index>> {
+	let dir = index::dir()?;
+
+	if !index::readable(&dir) {
+		return Ok(None);
+	}
+
+	index::open(&dir).map(Some)
+}
+
 pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
 	let dir = index::dir()?;
 

@@ -3,16 +3,22 @@ mod fetch;
 mod payload;
 mod rank;
 mod render;
+mod report;
 
 use crate::{args::RecommendSort, declaration::Source};
 
-use super::queue::Queue;
+use super::{
+	feed::{self, Fed},
+	queue::Queue,
+};
 
 use catalogue::catalogue;
 use payload::popularity;
 use rank::rank;
 
-pub(super) async fn feed(mbid: Source, sort: RecommendSort) -> hmerr::Result<Queue> {
+pub(super) use report::Report;
+
+pub(super) async fn feed(mbid: Source, sort: RecommendSort) -> hmerr::Result<Fed> {
 	let catalogue = catalogue(mbid).await?;
 
 	let mut found = Vec::new();
@@ -21,8 +27,16 @@ pub(super) async fn feed(mbid: Source, sort: RecommendSort) -> hmerr::Result<Que
 	}
 
 	let ranked = rank(sort, &catalogue, found);
+	let report = Report {
+		artist: catalogue.artist.clone(),
+		sort,
+		recording: catalogue.recording.len(),
+		dated: catalogue.released.len(),
+		ranked: ranked.len(),
+	};
 
-	println!("{}", render::header(sort, &catalogue, ranked.len()));
-
-	Ok(Queue::new(ranked))
+	Ok(Fed {
+		feed: Box::new(Queue::new(ranked)),
+		report: feed::Report::ListenCount(report),
+	})
 }

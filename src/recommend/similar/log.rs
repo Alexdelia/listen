@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use listen_cache::text;
 use serde::{Deserialize, Serialize};
 
 use crate::{cache, declaration::Source};
@@ -44,8 +43,4 @@ impl Entry {
 			shown_at: Utc::now(),
 		}
 	}
-}
-
-pub(super) fn append(path: &Path, entry: &Entry) -> hmerr::Result<()> {
-	text::append(path, &serde_json::to_string(entry)?)
 }

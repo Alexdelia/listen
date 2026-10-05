@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, path::PathBuf};
+use std::collections::VecDeque;
 
 use chrono::Utc;
 
@@ -6,6 +6,7 @@ use crate::prompt;
 
 use super::super::{
 	feed,
+	log::Log,
 	recommendation::{Origin, Recommendation},
 	skip::Skip,
 	turn,
@@ -29,7 +30,7 @@ pub(super) struct Stream {
 	ask: bool,
 	tuning: Tuning,
 	granularity: f64,
-	log: PathBuf,
+	log: Log,
 }
 
 pub(super) fn stream(
@@ -38,7 +39,7 @@ pub(super) fn stream(
 	ask: bool,
 	tuning: Tuning,
 	granularity: f64,
-	log: PathBuf,
+	log: Log,
 ) -> Stream {
 	Stream {
 		island,
@@ -75,23 +76,20 @@ impl feed::Feed for Stream {
 		let name = island.map(|island| island.name.clone()).unwrap_or_default();
 		let member = island.map_or(0, |island| island.member);
 
-		log::append(
-			&self.log,
-			&log::Entry {
-				mbid: candidate.mbid,
-				island: name.clone(),
-				member,
-				score: candidate.score,
-				backer: candidate.backer,
-				listener: candidate.listener,
-				plays: candidate.plays,
-				popularity_damp: self.tuning.damp,
-				allow_known_artist: self.tuning.allow_known_artist,
-				granularity: self.granularity,
-				stay: self.stay,
-				shown_at: Utc::now(),
-			},
-		)?;
+		self.log.append(&log::Entry {
+			mbid: candidate.mbid,
+			island: name.clone(),
+			member,
+			score: candidate.score,
+			backer: candidate.backer,
+			listener: candidate.listener,
+			plays: candidate.plays,
+			popularity_damp: self.tuning.damp,
+			allow_known_artist: self.tuning.allow_known_artist,
+			granularity: self.granularity,
+			stay: self.stay,
+			shown_at: Utc::now(),
+		})?;
 
 		let position = self.served;
 		self.served += 1;
@@ -106,6 +104,7 @@ impl feed::Feed for Stream {
 				listener: candidate.listener,
 				plays: candidate.plays,
 				position,
+				stay: self.stay,
 			},
 		}))
 	}
@@ -221,14 +220,14 @@ mod tests {
 	}
 
 	fn quiet(candidate: Vec<Vec<Candidate>>) -> Stream {
-		let island = island(candidate.len());
-		let log = std::env::temp_dir().join(format!(
-			"declarative_listen_select_{}.jsonl",
-			candidate.iter().map(Vec::len).sum::<usize>()
-		));
-		let _ = std::fs::remove_file(&log);
-
-		stream(island, candidate, false, TUNING, 1.0, log)
+		stream(
+			island(candidate.len()),
+			candidate,
+			false,
+			TUNING,
+			1.0,
+			Log::Off,
+		)
 	}
 
 	fn drain(stream: &mut Stream, take: usize) -> Vec<u8> {
@@ -320,7 +319,7 @@ mod tests {
 			false,
 			TUNING,
 			1.0,
-			log.clone(),
+			Log::File(log.clone()),
 		);
 		let mut skip = Skip::default();
 		let declined = Source::from_bytes({
@@ -372,5 +371,19 @@ mod tests {
 				format!("{B}{WHITE}island{D} {F}{WHITE}isl1{D}")
 			]
 		);
+	}
+
+	#[test]
+	fn every_pick_says_whether_it_stayed_on_its_island() {
+		let mut stream = quiet(vec![candidate(1, 2), candidate(2, 1)]);
+		let mut stay = Vec::new();
+
+		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
+			if let Origin::Island { stay: stayed, .. } = recommendation.origin {
+				stay.push(stayed);
+			}
+		}
+
+		assert_eq!(stay, vec![true, false, false]);
 	}
 }

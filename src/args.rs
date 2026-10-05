@@ -6,6 +6,7 @@ use crate::declaration::Source;
 
 pub(crate) const POPULARITY_DAMP: f32 = 1.0 / 3.0;
 pub(crate) const GRANULARITY: f64 = 1.5;
+pub(crate) const LIMIT: usize = 50;
 
 #[derive(Parser)]
 #[command(about)]
@@ -59,6 +60,12 @@ pub(crate) enum Command {
 		sort: RecommendSort,
 		#[command(flatten)]
 		island: IslandArg,
+		/// print the recommendations as json instead of walking them, write nothing, ask nothing
+		#[arg(long, conflicts_with_all = ["ask", "backtest"])]
+		json: bool,
+		/// how many recommendations --json lists
+		#[arg(long, requires = "json", default_value_t = LIMIT)]
+		limit: usize,
 	},
 	/// print the shell completion script for this command and its nix dev shell wrapper
 	Completion {
@@ -67,7 +74,7 @@ pub(crate) enum Command {
 	},
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, serde::Serialize)]
 pub(crate) struct IslandArg {
 	/// how hard to damp how many listeners already play it
 	#[arg(long, default_value_t = POPULARITY_DAMP)]
@@ -95,7 +102,8 @@ pub(crate) struct IslandArg {
 	pub backtest: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub(crate) enum RecommendSource {
 	/// alternate between every source that fits the target
 	All,
@@ -107,6 +115,7 @@ pub(crate) enum RecommendSource {
 	CollaborativeFiltering,
 	/// the most listened recording of an artist, needs an MBID
 	#[value(name = "listenbrainz")]
+	#[serde(rename = "listenbrainz")]
 	ListenBrainz,
 	/// both kept weekly exploration playlists, last week first
 	WeeklyExploration,
@@ -116,7 +125,8 @@ pub(crate) enum RecommendSource {
 	WeeklyExplorationCurrentWeek,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub(crate) enum RecommendSort {
 	/// the most listened recording first
 	Popularity,
@@ -126,4 +136,49 @@ pub(crate) enum RecommendSort {
 
 pub(crate) fn parse() -> Args {
 	Args::parse()
+}
+
+#[cfg(test)]
+mod tests {
+	use clap::error::ErrorKind;
+
+	use super::*;
+
+	fn parsed(arg: &[&str]) -> Result<Args, clap::Error> {
+		Args::try_parse_from(["declarative_listen", "recommend"].iter().chain(arg))
+	}
+
+	fn refused(arg: &[&str]) -> Option<ErrorKind> {
+		parsed(arg).err().map(|error| error.kind())
+	}
+
+	#[test]
+	fn json_refuses_ask() {
+		assert_eq!(
+			refused(&["--json", "--ask"]),
+			Some(ErrorKind::ArgumentConflict)
+		);
+	}
+
+	#[test]
+	fn json_refuses_backtest() {
+		assert_eq!(
+			refused(&["--json", "--backtest", "--source", "similar"]),
+			Some(ErrorKind::ArgumentConflict)
+		);
+	}
+
+	#[test]
+	fn limit_needs_json() {
+		assert_eq!(
+			refused(&["--limit", "3"]),
+			Some(ErrorKind::MissingRequiredArgument)
+		);
+		assert!(parsed(&["--json", "--limit", "3"]).is_ok());
+	}
+
+	#[test]
+	fn json_takes_every_island_arg() {
+		assert!(parsed(&["--json", "--source", "island", "--genre", "touhou"]).is_ok());
+	}
 }

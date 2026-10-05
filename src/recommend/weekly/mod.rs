@@ -7,17 +7,22 @@ mod jspf;
 mod track;
 
 use ansi::abbrev::{B, D, R, Y};
+use chrono::NaiveDate;
 use hmerr::ge;
 
 use crate::args::RecommendSource;
 
-use super::{queue::Queue, selection};
+use super::{
+	feed::{self, Fed},
+	queue::Queue,
+	selection,
+};
 
 use choose::choose;
 use exploration::explorations;
 use track::tracks;
 
-pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Option<Queue>> {
+pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Option<Fed>> {
 	if !selection::weekly(source) {
 		return Ok(None);
 	}
@@ -32,6 +37,8 @@ pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Opt
 		return missing(username, source);
 	}
 
+	let week: Vec<NaiveDate> = chosen.iter().map(|exploration| exploration.week).collect();
+
 	let mut recommendation = Vec::new();
 	for exploration in chosen {
 		let fetched =
@@ -42,7 +49,13 @@ pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Opt
 		}
 	}
 
-	Ok(Some(Queue::new(recommendation)))
+	Ok(Some(Fed {
+		feed: Box::new(Queue::new(recommendation)),
+		report: feed::Report::WeeklyExploration {
+			username: username.to_string(),
+			week,
+		},
+	}))
 }
 
 fn tolerated<T>(source: RecommendSource, fetched: hmerr::Result<T>) -> hmerr::Result<Option<T>> {
@@ -56,7 +69,7 @@ fn tolerated<T>(source: RecommendSource, fetched: hmerr::Result<T>) -> hmerr::Re
 	}
 }
 
-fn missing(username: &str, source: RecommendSource) -> hmerr::Result<Option<Queue>> {
+fn missing(username: &str, source: RecommendSource) -> hmerr::Result<Option<Fed>> {
 	if selection::tolerates_missing_weekly(source) {
 		eprintln!("{Y}no weekly-exploration playlist for {B}{username}{D}");
 

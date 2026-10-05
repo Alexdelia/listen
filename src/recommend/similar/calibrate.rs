@@ -1,10 +1,13 @@
 use std::fmt::{self, Display};
 
+use serde::Serialize;
+
 use crate::declaration::{Q, value};
 
 pub(super) const MIN_RATED: usize = 30;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(super) enum Calibration {
 	Fitted {
 		intercept: f32,

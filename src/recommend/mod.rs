@@ -6,8 +6,11 @@ mod declined;
 mod feed;
 pub(crate) mod island;
 mod known_artist;
+mod labelled;
 mod listen_count;
 mod local;
+mod log;
+mod mode;
 mod queue;
 mod recommendation;
 mod selection;
@@ -15,6 +18,7 @@ mod similar;
 mod skip;
 mod stream;
 mod target;
+mod trace;
 mod turn;
 mod weekly;
 
@@ -22,52 +26,75 @@ use std::path::Path;
 
 use crate::args::{IslandArg, RecommendSort, RecommendSource};
 
-use feed::Feed;
+use feed::{Fed, Feed};
+use local::Local;
+use mode::Mode;
 use skip::Skip;
 use stream::Stream;
 use target::Target;
 
-pub(crate) async fn run(
-	path: &Path,
-	target: Option<&str>,
-	unlistened: bool,
-	source: RecommendSource,
-	sort: RecommendSort,
-	arg: &IslandArg,
-) -> hmerr::Result<()> {
-	selection::ensure_arg(source, arg)?;
+#[derive(Clone, Copy)]
+pub(crate) struct Request<'a> {
+	pub target: Option<&'a str>,
+	pub unlistened: bool,
+	pub source: RecommendSource,
+	pub sort: RecommendSort,
+	pub arg: &'a IslandArg,
+	pub trace: Option<usize>,
+}
 
-	let feed: Vec<Box<dyn Feed>> = if selection::island_only(source) {
-		selection::ensure_local_target(source, sort, target)?;
+struct Built {
+	fed: Vec<Fed>,
+	local: Option<Local>,
+}
 
-		vec![island::feed(&local::open(path)?, arg)?]
-	} else if selection::similar_only(source) {
-		selection::ensure_local_target(source, sort, target)?;
+pub(crate) async fn run(path: &Path, request: Request<'_>) -> hmerr::Result<()> {
+	selection::ensure_arg(request.source, request.arg)?;
+	let mode = Mode::of(request.trace);
 
-		let local = local::open(path)?;
-		if arg.backtest {
-			return similar::backtest(&local);
-		}
-
-		vec![similar::feed(&local, arg)?]
-	} else {
-		let target = target::resolve(target)?;
-		selection::ensure(source, sort, &target)?;
-
-		let mut feed = remote(&target, source, sort).await?;
-
-		if matches!(target, Target::Username(_)) {
-			feed.extend(local_feed(path, source, arg)?);
-		}
-
-		feed
+	let Some(Built { fed, local }) = built(path, request, &mode).await? else {
+		return Ok(());
 	};
 
+	let (feed, report): (Vec<Box<dyn Feed>>, Vec<feed::Report>) =
+		fed.into_iter().map(|fed| (fed.feed, fed.report)).unzip();
 	let mut skip = Skip::load(path)?;
-	let mut stream = Stream::new(feed, unlistened);
+	let mut stream = Stream::new(feed, request.unlistened);
 
-	while let Some((index, recommendation)) = stream.next(&mut skip)? {
-		if consider::consider(path, index, &recommendation)
+	let Mode::Trace { limit } = mode else {
+		for report in &report {
+			report.print();
+		}
+
+		return interact(path, &mut stream, &mut skip).await;
+	};
+
+	let count = skip.count();
+	let mut recommendation = trace::collect(&mut stream, &mut skip, limit)?;
+	if let Some(local) = &local {
+		trace::attach_artist(&local.index.db, &mut recommendation)?;
+	}
+
+	trace::write(&trace::Document {
+		arg: trace::Arg {
+			target: request.target,
+			source: request.source,
+			sort: request.sort,
+			unlistened: request.unlistened,
+			limit,
+			island: request.arg,
+		},
+		index: local.as_ref().map(|local| &local.index.meta),
+		skip: count,
+		feed: report,
+		recommendation,
+		skipped: stream.skipped(),
+	})
+}
+
+async fn interact(path: &Path, stream: &mut Stream, skip: &mut Skip) -> hmerr::Result<()> {
+	while let Some(shown) = stream.next(skip)? {
+		if consider::consider(path, shown.index, &shown.recommendation)
 			.await?
 			.is_break()
 		{
@@ -78,57 +105,116 @@ pub(crate) async fn run(
 	Ok(())
 }
 
+async fn built(path: &Path, request: Request<'_>, mode: &Mode) -> hmerr::Result<Option<Built>> {
+	let Request {
+		target,
+		source,
+		sort,
+		arg,
+		..
+	} = request;
+
+	if selection::island_only(source) {
+		selection::ensure_local_target(source, sort, target)?;
+		let local = mode.open(path)?;
+		let fed = vec![island::feed(&local, arg, mode.log(island::log_path)?)?];
+
+		return Ok(Some(Built {
+			fed,
+			local: Some(local),
+		}));
+	}
+
+	if selection::similar_only(source) {
+		selection::ensure_local_target(source, sort, target)?;
+		let local = mode.open(path)?;
+
+		if arg.backtest {
+			similar::backtest(&local)?;
+			return Ok(None);
+		}
+
+		let fed = vec![similar::feed(&local, arg, mode.log(similar::log_path)?)?];
+
+		return Ok(Some(Built {
+			fed,
+			local: Some(local),
+		}));
+	}
+
+	let target = mode.target(target)?;
+	selection::ensure(source, sort, &target)?;
+
+	let mut fed = remote(&target, source, sort).await?;
+	let mut local = None;
+
+	if matches!(target, Target::Username(_))
+		&& let Some((opened, local_fed)) = local_feed(path, source, arg, mode)?
+	{
+		fed.extend(local_fed);
+		local = Some(opened);
+	}
+
+	Ok(Some(Built { fed, local }))
+}
+
 fn local_feed(
 	path: &Path,
 	source: RecommendSource,
 	arg: &IslandArg,
-) -> hmerr::Result<Vec<Box<dyn Feed>>> {
+	mode: &Mode,
+) -> hmerr::Result<Option<(Local, Vec<Fed>)>> {
 	let island = selection::island(source);
 	let similar = selection::similar(source);
 
 	if !island && !similar {
-		return Ok(Vec::new());
+		return Ok(None);
 	}
 
 	if !local::ready() {
 		island::absent();
-		return Ok(Vec::new());
+		return Ok(None);
 	}
 
-	let local = local::open(path)?;
-	let mut feed = Vec::new();
+	let local = mode.open(path)?;
+	let mut fed = Vec::new();
 
 	if island {
-		feed.push(island::feed(&local, arg)?);
+		fed.push(island::feed(&local, arg, mode.log(island::log_path)?)?);
 	}
 
 	if similar {
-		feed.push(similar::feed(&local, arg)?);
+		fed.push(similar::feed(&local, arg, mode.log(similar::log_path)?)?);
 	}
 
-	Ok(feed)
+	Ok(Some((local, fed)))
 }
 
 async fn remote(
 	target: &Target,
 	source: RecommendSource,
 	sort: RecommendSort,
-) -> hmerr::Result<Vec<Box<dyn Feed>>> {
-	let mut feed: Vec<Box<dyn Feed>> = Vec::new();
+) -> hmerr::Result<Vec<Fed>> {
+	let mut fed = Vec::new();
 
 	if let Target::Username(username) = target {
 		if let Some(weekly) = weekly::feed(username, source)? {
-			feed.push(Box::new(weekly));
+			fed.push(weekly);
 		}
 
 		if selection::collaborative_filtering(source) {
-			feed.push(Box::new(collaborative_filtering::feed(username.clone())));
+			fed.push(Fed {
+				feed: Box::new(collaborative_filtering::feed(username.clone())),
+				report: feed::Report::CollaborativeFiltering {
+					username: username.clone(),
+				},
+			});
 		}
 	}
 
 	if let Target::Artist(mbid) = target {
-		feed.push(Box::new(listen_count::feed(*mbid, sort).await?));
+		fed.push(listen_count::feed(*mbid, sort).await?);
 	}
 
-	Ok(feed)
+	Ok(fed)
 }

@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::declaration::Source;
 
 use super::{
@@ -8,9 +10,9 @@ use super::{
 
 pub(super) const MIN_BACKER: u32 = 5;
 
-const MIN_DISTINCT_BACKER: u32 = 3;
+pub(super) const MIN_DISTINCT_BACKER: u32 = 3;
 
-const PER_ISLAND: usize = 200;
+pub(super) const PER_ISLAND: usize = 200;
 
 #[derive(Clone, Copy)]
 pub(super) struct Tuning {
@@ -19,7 +21,8 @@ pub(super) struct Tuning {
 	pub backing: Backing,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(super) enum Backing {
 	Head,
 	Reach,

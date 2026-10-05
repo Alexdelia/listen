@@ -12,6 +12,7 @@ use crate::declaration::Source;
 use super::{recording, sparse};
 
 const ARTIST_SEPARATOR: &str = " & ";
+const PLAIN_SEPARATOR: &str = " - ";
 
 pub(crate) const ARTIST: &str = "TPE1";
 pub(crate) const TITLE: &str = "TIT2";
@@ -59,7 +60,17 @@ pub(crate) fn label(source: Source) -> String {
 	title_artist(source).map_or_else(String::new, |(title, artist)| join(&title, &artist))
 }
 
+pub(crate) fn plain_label(source: Source) -> String {
+	title_artist(source).map_or_else(String::new, |(title, artist)| {
+		separated(&title, &artist, PLAIN_SEPARATOR)
+	})
+}
+
 pub(crate) fn join(title: &str, artist: &str) -> String {
+	separated(title, artist, &format!(" {DIM}-{D} "))
+}
+
+fn separated(title: &str, artist: &str, separator: &str) -> String {
 	let title = title.trim();
 	let artist = artist.trim();
 
@@ -67,7 +78,7 @@ pub(crate) fn join(title: &str, artist: &str) -> String {
 		(true, true) => String::new(),
 		(false, true) => title.to_string(),
 		(true, false) => artist.to_string(),
-		(false, false) => format!("{title} {DIM}-{D} {artist}"),
+		(false, false) => format!("{title}{separator}{artist}"),
 	}
 }
 
@@ -250,5 +261,14 @@ mod tests {
 		list.sort();
 
 		assert_eq!(list, vec![of(&tag("a", "", "b", "")), untagged]);
+	}
+
+	#[test]
+	fn a_plain_label_carries_no_escape_code() {
+		assert_eq!(
+			separated("Mela!", "緑黄色社会", PLAIN_SEPARATOR),
+			"Mela! - 緑黄色社会"
+		);
+		assert_eq!(separated("", "K/DA", PLAIN_SEPARATOR), "K/DA");
 	}
 }

@@ -4,23 +4,28 @@ mod log;
 mod partition;
 mod rank;
 mod real;
+mod report;
 mod score;
 mod seed;
 mod select;
 
 use std::{collections::HashSet, path::PathBuf};
 
-use ansi::abbrev::{B, CYA, D, F, G, M, R, Y};
+use ansi::abbrev::{B, D, F, G, R};
 use hmerr::{GenericError, ge};
 
 use listen_index as index;
 
-use crate::{
-	args::IslandArg,
-	format::{self, genre_list, human_readable_number},
+use crate::args::IslandArg;
+
+use super::{
+	attraction,
+	feed::{self, Fed},
+	local::Local,
+	log::Log,
 };
 
-use super::{attraction, local::Local};
+pub(super) use report::Report;
 
 use partition::{Island, Request};
 use seed::Library;
@@ -30,15 +35,13 @@ pub(super) fn log_path() -> hmerr::Result<PathBuf> {
 }
 
 pub(super) fn absent() {
-	println!("{F}no island index, {G}run --source island{D}{F} to build it{D}");
+	eprintln!("{F}no island index, {G}run --source island{D}{F} to build it{D}");
 }
 
-pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn super::feed::Feed>> {
+pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fed> {
 	let index = &local.index;
 	attraction::declare(&index.db)?;
 	let library = seed::load(&local.entry, index)?;
-
-	report(&index.meta, &library);
 
 	let request = request(arg);
 	let tuning = score::Tuning {
@@ -50,8 +53,13 @@ pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn supe
 			score::Backing::Head
 		},
 	};
-	let found = if narrows(arg, &request) {
-		converge::raise(index, &library, narrowed(&library, arg, &request)?, tuning)?.live()
+	let converge::Converged { found, round } = if narrows(arg, &request) {
+		converge::narrowed(converge::raise(
+			index,
+			&library,
+			narrowed(&library, arg, &request)?,
+			tuning,
+		)?)
 	} else {
 		converge::of(
 			index,
@@ -62,23 +70,48 @@ pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn supe
 		)?
 	};
 
-	describe(&found.island, &found.cohort, &library);
+	let report = report::of(
+		&report::Run {
+			meta: &index.meta,
+			library: &library,
+			tuning,
+			granularity: arg.granularity,
+			mode: mode(arg, &request),
+		},
+		&found,
+		round,
+	);
 
-	Ok(Box::new(select::stream(
-		found
-			.island
-			.into_iter()
-			.map(|island| select::Island {
-				name: island.name,
-				member: island.member.len(),
-			})
-			.collect(),
-		found.candidate,
-		arg.ask,
-		tuning,
-		arg.granularity,
-		log::path()?,
-	)))
+	Ok(Fed {
+		feed: Box::new(select::stream(
+			found
+				.island
+				.into_iter()
+				.map(|island| select::Island {
+					name: island.name,
+					member: island.member.len(),
+				})
+				.collect(),
+			found.candidate,
+			arg.ask,
+			tuning,
+			arg.granularity,
+			log,
+		)),
+		report: feed::Report::Island(report),
+	})
+}
+
+const fn mode(arg: &IslandArg, request: &Request) -> report::Mode {
+	if request.asked() {
+		return report::Mode::Requested;
+	}
+
+	if arg.island.is_some() {
+		return report::Mode::Pinned;
+	}
+
+	report::Mode::Detected
 }
 
 const fn narrows(arg: &IslandArg, request: &Request) -> bool {
@@ -129,71 +162,4 @@ fn unknown(name: &str) -> GenericError {
 		format!("{R}no island named {B}{name}{D}"),
 		h: "islands are detected fresh every run, run without --island to see this run's names"
 	)
-}
-
-fn report(meta: &index::Meta, library: &Library) {
-	println!(
-		"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {M}{F}listen{D} {CYA}{user} {F}user{D}",
-		built = meta.built,
-		recording = human_readable_number::text(meta.recording),
-		listen = human_readable_number::text(meta.user_listen),
-		user = human_readable_number::text(meta.user),
-	);
-
-	if meta.absorbed > 0 {
-		println!(
-			"covered to {CYA}{covered}{D} {F}after{D} {CYA}{absorbed}{D} {F}incremental{D}",
-			covered = day(meta.covered()),
-			absorbed = meta.absorbed
-		);
-	}
-
-	for gap in &meta.gap {
-		println!(
-			"{Y}gap{D} {F}from{D} {CYA}{from}{D} {F}to{D} {CYA}{to}{D}",
-			from = day(&gap.from),
-			to = day(&gap.to)
-		);
-	}
-
-	let unsupported = library.unsupported();
-	if unsupported > 0 {
-		println!(
-			"{unsupported}{F}/{D}{declared} {F}declared recording have no listener in the index{D}",
-			declared = library.declared.len(),
-		);
-	}
-
-	println!();
-}
-
-fn day(timestamp: &str) -> &str {
-	timestamp.split(' ').next().unwrap_or(timestamp)
-}
-
-fn describe(island: &[Island], cohort: &[Vec<cohort::Member>], library: &Library) {
-	if island.is_empty() {
-		println!("{Y}no island has a candidate{D}");
-
-		return;
-	}
-
-	let width = island
-		.iter()
-		.map(|island| genre_list::width(&island.name))
-		.max()
-		.unwrap_or_default();
-
-	for (island, cohort) in island.iter().zip(cohort) {
-		let q = island.q(&library.seed);
-		println!(
-			"{name}{pad} {Y}{promise:.2} {F}promise  {q_color}{q:.2}{D} {CYA}{size:>4} {F}user{D} {G}{member:>4} {F}seed{D}",
-			name = genre_list::text(&island.name),
-			pad = genre_list::pad(&island.name, width),
-			promise = rank::promise(island, cohort.len(), library),
-			q_color = format::q_f32_color(q),
-			member = island.member.len(),
-			size = cohort.len(),
-		);
-	}
 }

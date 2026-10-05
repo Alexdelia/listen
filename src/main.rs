@@ -60,15 +60,20 @@ fn main() -> hmerr::Result<()> {
 		source,
 		sort,
 		island,
+		json,
+		limit,
 	}) = &args.command
 	{
 		return block_on(recommend::run(
 			&args.path,
-			target.as_deref(),
-			*unlistened,
-			*source,
-			*sort,
-			island,
+			recommend::Request {
+				target: target.as_deref(),
+				unlistened: *unlistened,
+				source: *source,
+				sort: *sort,
+				arg: island,
+				trace: json.then_some(*limit),
+			},
 		));
 	}
 

@@ -11,7 +11,7 @@ use layout::{
 	ARTIST_LINK, DIR, RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_LISTEN, USER_STAT,
 };
 
-pub(crate) use state::{built, predates_listener, predates_stat, scanned};
+pub(crate) use state::{built, predates_listener, predates_stat, readable, scanned};
 
 pub use meta::{Gap, Meta};
 

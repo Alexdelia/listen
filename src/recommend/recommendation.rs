@@ -5,11 +5,14 @@ use ansi::{
 	abbrev::{B, D, F},
 };
 use chrono::{DateTime, NaiveDate, Utc};
+use serde::Serialize;
 
 use crate::{
 	declaration::{Q, Source},
 	format::DATE_FORMAT,
 };
+
+use super::labelled::Labelled;
 
 const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
@@ -17,11 +20,14 @@ const LISTEN_BRAINZ: &str = "listenbrainz";
 const ISLAND: &str = "island";
 const SIMILAR: &str = "similar";
 
+#[derive(Serialize)]
 pub(super) struct Recommendation {
 	pub mbid: Source,
 	pub origin: Origin,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(super) enum Origin {
 	CollaborativeFiltering {
 		position: usize,
@@ -46,14 +52,24 @@ pub(super) enum Origin {
 		listener: u32,
 		plays: u64,
 		position: usize,
+		stay: bool,
 	},
 	Similar {
 		expected: f32,
 		raw: f32,
 		support: u32,
-		near: Vec<(String, Q)>,
+		near: Vec<Near>,
 		position: usize,
+		worth: f32,
+		redundancy: f32,
 	},
+}
+
+#[derive(Serialize)]
+pub(super) struct Near {
+	#[serde(flatten)]
+	pub recording: Labelled,
+	pub q: Q,
 }
 
 impl Origin {
@@ -167,10 +183,43 @@ mod tests {
 			support: 5,
 			near: Vec::new(),
 			position: 4,
+			worth: 60.0,
+			redundancy: 0.0,
 		};
 
 		assert_eq!(similar.source(), format!("{B}{WHITE}similar{D}"));
 		assert_eq!(similar.position(), 4);
 		assert_eq!(similar.latest_listened_at(), None);
+	}
+
+	#[test]
+	fn an_origin_serializes_under_its_source_name() {
+		let island = Origin::Island {
+			name: "touhou".to_string(),
+			member: 30,
+			score: 2.0,
+			backer: 5,
+			listener: 10,
+			plays: 40,
+			position: 0,
+			stay: true,
+		};
+		let value = serde_json::to_value(&island).unwrap_or_default();
+
+		assert_eq!(value["island"]["name"], "touhou");
+		assert_eq!(value["island"]["stay"], true);
+	}
+
+	#[test]
+	fn a_near_recording_serializes_as_its_mbid_label_and_q() {
+		let near = Near {
+			recording: Labelled(Source::from_bytes([7; 16])),
+			q: 3,
+		};
+		let value = serde_json::to_value(&near).unwrap_or_default();
+
+		assert_eq!(value["mbid"], "07070707-0707-0707-0707-070707070707");
+		assert!(value["label"].is_null());
+		assert_eq!(value["q"], 3);
 	}
 }

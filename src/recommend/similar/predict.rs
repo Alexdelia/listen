@@ -4,7 +4,7 @@ use super::preference::PREFERENCE;
 
 pub(super) const MIN_SUPPORT: u32 = 5;
 
-const NEUTRAL_PRIOR: f32 = 10.0;
+pub(super) const NEUTRAL_PRIOR: f32 = 10.0;
 
 #[derive(Clone, Copy)]
 pub(super) struct Scored {
@@ -12,6 +12,13 @@ pub(super) struct Scored {
 	pub mbid: Source,
 	pub raw: f32,
 	pub support: u32,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(super) struct Point {
+	pub mbid: Source,
+	pub q: Q,
+	pub raw: f32,
 }
 
 pub(super) fn weight_list() -> String {
@@ -122,10 +129,7 @@ from best
 	Ok(scored)
 }
 
-pub(super) fn rated(
-	db: &duckdb::Connection,
-	rated: &[(Source, Q)],
-) -> hmerr::Result<Vec<(Q, f32)>> {
+pub(super) fn rated(db: &duckdb::Connection, rated: &[(Source, Q)]) -> hmerr::Result<Vec<Point>> {
 	db.execute_batch("create or replace temp table similar_rated (mbid varchar, q utinyint);")?;
 	{
 		let mut appender = db.appender("similar_rated")?;
@@ -139,11 +143,11 @@ pub(super) fn rated(
 	let mut statement = db.prepare(&format!(
 		r"
 with rated as (
-	select r.recording_id, sr.q
+	select r.recording_id, sr.mbid, sr.q
 	from similar_rated sr join recording r on r.mbid = sr.mbid::uuid
 ),
 listen as (
-	select rt.recording_id, rt.q, {PREFERENCE}(ul.plays, s.center) as preference,
+	select rt.recording_id, rt.mbid, rt.q, {PREFERENCE}(ul.plays, s.center) as preference,
 		l.taste, l.taste_scale, p.spread
 	from user_listen ul
 	join rated rt using (recording_id)
@@ -152,18 +156,18 @@ listen as (
 	join similar_spread p using (recording_id)
 ),
 left_out as (
-	select recording_id, q, preference,
+	select recording_id, mbid, q, preference,
 		taste - greatest(preference, 0) * {weight}[q + 1] / spread as taste,
 		taste_scale - greatest(preference, 0) / spread as taste_scale
 	from listen
 ),
 judged as (
-	select any_value(q) as q,
+	select any_value(mbid) as mbid, any_value(q) as q,
 		sum(preference * taste) / (sum(abs(preference) * taste_scale) + {NEUTRAL_PRIOR}) as predicted
 	from left_out
 	group by recording_id
 )
-select q::utinyint, ({neutral} + {neutral} * predicted)::float
+select mbid, q::utinyint, ({neutral} + {neutral} * predicted)::float
 from judged
 where predicted is not null and not isnan(predicted)
 ",
@@ -174,7 +178,16 @@ where predicted is not null and not isnan(predicted)
 	let mut point = Vec::new();
 
 	while let Some(row) = row.next()? {
-		point.push((row.get(0)?, row.get(1)?));
+		let mbid: String = row.get(0)?;
+		let Ok(mbid) = mbid.parse() else {
+			continue;
+		};
+
+		point.push(Point {
+			mbid,
+			q: row.get(1)?,
+			raw: row.get(2)?,
+		});
 	}
 
 	Ok(point)
@@ -363,9 +376,14 @@ mod tests {
 		let point = rated(&db, &[(mbid(NEAR_LIKED), 0)]).unwrap();
 
 		assert_eq!(point.len(), 1);
-		let (q, raw) = point.first().copied().unwrap_or_default();
-		assert_eq!(q, 0);
-		assert!((raw - shrunk(value::weight(3), 5)).abs() < 1e-3, "{raw}");
+		let judged = point.first().copied().unwrap_or_default();
+		assert_eq!(judged.mbid, mbid(NEAR_LIKED));
+		assert_eq!(judged.q, 0);
+		assert!(
+			(judged.raw - shrunk(value::weight(3), 5)).abs() < 1e-3,
+			"{}",
+			judged.raw
+		);
 	}
 
 	#[test]

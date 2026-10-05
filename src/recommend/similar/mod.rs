@@ -8,32 +8,41 @@ mod predict;
 mod preference;
 mod profile;
 mod rated;
+mod report;
 
-use ansi::abbrev::{B, D, F, Y};
+use std::path::PathBuf;
 
 use crate::{
 	args::IslandArg,
 	declaration::{Entry, Q, value},
-	format::human_readable_number,
 };
 
-use super::{declared, feed::Feed, island, known_artist, local::Local};
+use super::{
+	declared,
+	feed::{self, Fed},
+	island, known_artist,
+	local::Local,
+	log::Log,
+};
 
 use calibrate::Calibration;
 use diversify::Pick;
-use predict::Scored;
+use predict::{Point, Scored};
+
+pub(super) use report::Report;
 
 const POOL: usize = 2000;
 
-pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn Feed>> {
+pub(super) fn log_path() -> hmerr::Result<PathBuf> {
+	log::path()
+}
+
+pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fed> {
 	let db = &local.index.db;
 	prepare(db, &local.entry, arg.allow_known_artist)?;
-	let (calibration, _) = calibrated(db, &local.entry)?;
+	let (calibration, point) = calibrated(db, &local.entry)?;
 
-	let candidate = predict::candidates(db)?;
-	let total = candidate.len();
-
-	let mut judged: Vec<(f32, Scored)> = candidate
+	let mut judged: Vec<(f32, Scored)> = predict::candidates(db)?
 		.into_iter()
 		.map(|scored| (calibration.expected(scored.raw), scored))
 		.collect();
@@ -45,25 +54,32 @@ pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn Feed
 		.take_while(|(expected, _)| *expected >= gate)
 		.count();
 
-	if passing == 0 {
-		nothing(judged.first());
-		return Ok(Box::new(diversify::stream(
-			Vec::new(),
-			arg.allow_known_artist,
-			log::path()?,
-		)));
-	}
-
-	println!(
-		"{B}similar{D} {Y}{passing}{D} {F}of{D} {total} {F}candidates reach q1 ({calibration}){D}",
-		total = human_readable_number::text(u64::try_from(total).unwrap_or(u64::MAX)),
+	let report = report::of(
+		calibration,
+		&point,
+		arg.allow_known_artist,
+		&judged,
+		passing,
 	);
 
 	judged.truncate(passing.min(POOL));
+	let pick = picked(db, judged)?;
+
+	Ok(Fed {
+		feed: Box::new(diversify::stream(pick, arg.allow_known_artist, log)),
+		report: feed::Report::Similar(report),
+	})
+}
+
+fn picked(db: &duckdb::Connection, judged: Vec<(f32, Scored)>) -> hmerr::Result<Vec<Pick>> {
+	if judged.is_empty() {
+		return Ok(Vec::new());
+	}
+
 	let pool: Vec<Scored> = judged.iter().map(|(_, scored)| *scored).collect();
 	let mut shape = profile::of(db, &pool)?;
 
-	let pick = judged
+	Ok(judged
 		.into_iter()
 		.map(|(expected, scored)| {
 			let shape = shape
@@ -82,13 +98,7 @@ pub(super) fn feed(local: &Local, arg: &IslandArg) -> hmerr::Result<Box<dyn Feed
 				near: shape.near,
 			}
 		})
-		.collect();
-
-	Ok(Box::new(diversify::stream(
-		pick,
-		arg.allow_known_artist,
-		log::path()?,
-	)))
+		.collect())
 }
 
 pub(super) fn backtest(local: &Local) -> hmerr::Result<()> {
@@ -96,7 +106,7 @@ pub(super) fn backtest(local: &Local) -> hmerr::Result<()> {
 	prepare(db, &local.entry, false)?;
 	let (calibration, point) = calibrated(db, &local.entry)?;
 
-	backtest::print(&point, calibration);
+	backtest::print(&paired(&point), calibration);
 
 	Ok(())
 }
@@ -117,19 +127,25 @@ fn prepare(
 fn calibrated(
 	db: &duckdb::Connection,
 	entry: &[Entry],
-) -> hmerr::Result<(Calibration, Vec<(Q, f32)>)> {
+) -> hmerr::Result<(Calibration, Vec<Point>)> {
 	let rated = rated::of(entry, &[island::log_path()?, log::path()?])?;
 	let point = predict::rated(db, &rated)?;
 
-	Ok((Calibration::fit(&point), point))
+	Ok((Calibration::fit(&paired(&point)), point))
 }
 
-fn nothing(best: Option<&(f32, Scored)>) {
-	match best {
-		Some((expected, scored)) => println!(
-			"{Y}no candidate reaches q1{D}{F}, best{D} {expected:.0} {B}{mbid}{D}",
-			mbid = scored.mbid
-		),
-		None => println!("{Y}no candidate at all{D}"),
+fn paired(point: &[Point]) -> Vec<(Q, f32)> {
+	point.iter().map(|point| (point.q, point.raw)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn an_empty_pool_asks_the_index_nothing() {
+		let db = duckdb::Connection::open_in_memory().unwrap();
+
+		assert!(picked(&db, Vec::new()).is_ok_and(|pick| pick.is_empty()));
 	}
 }

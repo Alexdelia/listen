@@ -30,7 +30,7 @@ pub(crate) fn ended(bar: &ProgressBar) {
 pub(crate) fn say(line: impl AsRef<str>) {
 	let line = line.as_ref();
 
-	suspended(|| println!("{line}"));
+	suspended(|| eprintln!("{line}"));
 }
 
 pub(super) fn suspended<T>(work: impl FnOnce() -> T) -> T {

@@ -1,10 +1,34 @@
-use super::{feed::Feed, recommendation::Recommendation, skip::Skip, turn};
+use serde::Serialize;
+
+use crate::declaration::Source;
+
+use super::{
+	feed::Feed,
+	recommendation::Recommendation,
+	skip::{Reason, Skip},
+	turn,
+};
+
+pub(super) struct Shown {
+	pub index: usize,
+	pub turn: usize,
+	pub recommendation: Recommendation,
+}
+
+#[derive(Serialize)]
+pub(super) struct Skipped {
+	pub index: usize,
+	pub turn: usize,
+	pub mbid: Source,
+	pub reason: Reason,
+}
 
 pub(super) struct Stream {
 	feed: Vec<Option<Box<dyn Feed>>>,
 	turn: usize,
 	unlistened: bool,
 	read: usize,
+	skipped: Vec<Skipped>,
 }
 
 impl Stream {
@@ -14,13 +38,15 @@ impl Stream {
 			turn: 0,
 			unlistened,
 			read: 0,
+			skipped: Vec::new(),
 		}
 	}
 
-	pub(super) fn next(
-		&mut self,
-		skip: &mut Skip,
-	) -> hmerr::Result<Option<(usize, Recommendation)>> {
+	pub(super) fn skipped(&self) -> &[Skipped] {
+		&self.skipped
+	}
+
+	pub(super) fn next(&mut self, skip: &mut Skip) -> hmerr::Result<Option<Shown>> {
 		while let Some(turn) = self.living() {
 			let Some(recommendation) = self.pull(turn, skip)? else {
 				self.retire(turn);
@@ -30,16 +56,29 @@ impl Stream {
 			let index = self.read;
 			self.read += 1;
 			self.turn = turn + 1;
+			let mbid = recommendation.mbid;
 
-			if self.unlistened && recommendation.origin.latest_listened_at().is_some() {
+			let listened = self.unlistened && recommendation.origin.latest_listened_at().is_some();
+			if let Some(reason) = listened
+				.then_some(Reason::Listened)
+				.or_else(|| skip.stale(mbid))
+			{
+				self.skipped.push(Skipped {
+					index,
+					turn,
+					mbid,
+					reason,
+				});
 				continue;
 			}
 
-			if !skip.fresh(recommendation.mbid) {
-				continue;
-			}
+			skip.fresh(mbid);
 
-			return Ok(Some((index, recommendation)));
+			return Ok(Some(Shown {
+				index,
+				turn,
+				recommendation,
+			}));
 		}
 
 		Ok(None)
@@ -67,20 +106,15 @@ impl Stream {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::VecDeque;
+	use std::collections::HashSet;
 
 	use chrono::{NaiveDate, Utc};
 
-	use super::{super::recommendation::Origin, *};
+	use super::{
+		super::{feed::canned, recommendation::Origin},
+		*,
+	};
 	use crate::declaration::Source;
-
-	struct Canned(VecDeque<Recommendation>);
-
-	impl Feed for Canned {
-		fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
-			Ok(self.0.pop_front())
-		}
-	}
 
 	fn week() -> NaiveDate {
 		NaiveDate::from_ymd_opt(2026, 7, 12).unwrap_or_default()
@@ -122,15 +156,11 @@ mod tests {
 		}
 	}
 
-	fn canned(recommendation: Vec<Recommendation>) -> Box<dyn Feed> {
-		Box::new(Canned(recommendation.into()))
-	}
-
 	fn drain(stream: &mut Stream, skip: &mut Skip) -> Vec<u8> {
 		let mut seen = Vec::new();
 
-		while let Ok(Some((_, recommendation))) = stream.next(skip) {
-			seen.push(recommendation.mbid.as_bytes()[0]);
+		while let Ok(Some(shown)) = stream.next(skip) {
+			seen.push(shown.recommendation.mbid.as_bytes()[0]);
 		}
 
 		seen
@@ -139,8 +169,8 @@ mod tests {
 	fn drain_index(stream: &mut Stream, skip: &mut Skip) -> Vec<usize> {
 		let mut seen = Vec::new();
 
-		while let Ok(Some((index, _))) = stream.next(skip) {
-			seen.push(index);
+		while let Ok(Some(shown)) = stream.next(skip) {
+			seen.push(shown.index);
 		}
 
 		seen
@@ -266,5 +296,63 @@ mod tests {
 		let mut stream = Stream::new(Vec::new(), false);
 
 		assert!(drain(&mut stream, &mut Skip::default()).is_empty());
+	}
+
+	#[test]
+	fn every_shown_entry_carries_the_turn_of_its_feed() {
+		let mut stream = Stream::new(
+			vec![canned(vec![weekly(1), weekly(2)]), canned(vec![cf(4)])],
+			false,
+		);
+		let mut turn = Vec::new();
+
+		while let Ok(Some(shown)) = stream.next(&mut Skip::default()) {
+			turn.push(shown.turn);
+		}
+
+		assert_eq!(turn, vec![0, 1, 0]);
+	}
+
+	#[test]
+	fn a_duplicate_is_traced_as_skipped() {
+		let mut stream = Stream::new(
+			vec![canned(vec![weekly(1)]), canned(vec![cf(1), cf(5)])],
+			false,
+		);
+		drain(&mut stream, &mut Skip::default());
+
+		let skipped: Vec<(usize, usize, Reason)> = stream
+			.skipped()
+			.iter()
+			.map(|skipped| (skipped.index, skipped.turn, skipped.reason))
+			.collect();
+
+		assert_eq!(skipped, vec![(1, 1, Reason::Duplicate)]);
+	}
+
+	#[test]
+	fn a_declared_entry_is_traced_as_declared() {
+		let mut skip = Skip::new(HashSet::from([mbid(4)]), HashSet::new());
+		let mut stream = Stream::new(vec![canned(vec![cf(4), cf(5)])], false);
+		drain(&mut stream, &mut skip);
+
+		assert_eq!(
+			stream
+				.skipped()
+				.first()
+				.map(|skipped| (skipped.mbid, skipped.reason)),
+			Some((mbid(4), Reason::Declared))
+		);
+	}
+
+	#[test]
+	fn a_listened_entry_is_traced_as_listened_when_unlistened() {
+		let mut stream = Stream::new(vec![canned(vec![listened_cf(4), cf(5)])], true);
+		drain(&mut stream, &mut Skip::default());
+
+		assert_eq!(
+			stream.skipped().first().map(|skipped| skipped.reason),
+			Some(Reason::Listened)
+		);
 	}
 }

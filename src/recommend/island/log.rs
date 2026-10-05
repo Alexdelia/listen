@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use listen_cache::text;
 use serde::{Deserialize, Serialize};
 
 use crate::{cache, declaration::Source};
@@ -29,14 +28,8 @@ pub(super) struct Entry {
 	pub shown_at: DateTime<Utc>,
 }
 
-pub(super) fn append(path: &Path, entry: &Entry) -> hmerr::Result<()> {
-	text::append(path, &serde_json::to_string(entry)?)
-}
-
 #[cfg(test)]
 mod tests {
-	use std::fs;
-
 	use super::*;
 
 	fn entry() -> Entry {
@@ -80,41 +73,5 @@ mod tests {
 		let line = serde_json::to_string(&entry()).unwrap_or_default();
 
 		assert!(line.contains("touhou / speedcore"), "{line}");
-	}
-
-	fn read(path: &Path) -> Vec<Entry> {
-		fs::read_to_string(path)
-			.unwrap_or_default()
-			.lines()
-			.filter_map(|line| serde_json::from_str(line).ok())
-			.collect()
-	}
-
-	#[test]
-	fn an_appended_recommendation_lands_as_one_json_line() {
-		let path = std::env::temp_dir().join("declarative_listen_log_append.jsonl");
-		let _ = fs::remove_file(&path);
-
-		let _ = append(&path, &entry());
-		let _ = append(&path, &entry());
-
-		let logged = read(&path);
-
-		assert_eq!(logged.len(), 2);
-		assert_eq!(logged[0].mbid, entry().mbid);
-		let _ = fs::remove_file(&path);
-	}
-
-	#[test]
-	fn the_log_is_only_ever_appended_to() {
-		let path = std::env::temp_dir().join("declarative_listen_log_keep.jsonl");
-		let _ = fs::write(&path, "already here\n");
-
-		let _ = append(&path, &entry());
-		let content = fs::read_to_string(&path).unwrap_or_default();
-
-		assert!(content.starts_with("already here"), "{content}");
-		assert_eq!(read(&path).len(), 1);
-		let _ = fs::remove_file(&path);
 	}
 }

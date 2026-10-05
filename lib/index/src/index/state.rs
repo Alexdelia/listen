@@ -32,6 +32,10 @@ pub(crate) fn built(dir: &Path) -> bool {
 	indexed(dir) && dir.join(ARTIST_LINK).exists()
 }
 
+pub(crate) fn readable(dir: &Path) -> bool {
+	built(dir) && !predates_listener(dir)
+}
+
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -138,6 +142,36 @@ mod tests {
 		let _ = fs::write(dir.join(ARTIST_LINK), b"built");
 
 		assert!(built(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_with_every_part_is_readable_as_it_stands() {
+		let dir = crate::scratch::of("index", "readable");
+		lay_out(&dir, BUCKET);
+		let _ = fs::write(dir.join(ARTIST_LINK), b"built");
+
+		assert!(readable(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_missing_its_listener_count_is_not_readable_as_it_stands() {
+		let dir = crate::scratch::of("index", "unreadable_listener");
+		lay_out(&dir, BUCKET);
+		let _ = fs::write(dir.join(ARTIST_LINK), b"built");
+		let _ = fs::remove_file(dir.join(RECORDING_LISTENER));
+
+		assert!(!readable(&dir));
+		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn an_index_missing_its_artist_links_is_not_readable_as_it_stands() {
+		let dir = crate::scratch::of("index", "unreadable_link");
+		lay_out(&dir, BUCKET);
+
+		assert!(!readable(&dir));
 		let _ = fs::remove_dir_all(&dir);
 	}
 }

@@ -3,8 +3,9 @@ use chrono::{DateTime, Months, Utc};
 
 use super::super::recommendation::{Origin, Recommendation};
 use crate::{
-	declaration::Q,
+	declaration::{Q, Source},
 	format::{DATE_FORMAT, TIME_FORMAT, q_color},
+	library,
 };
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
@@ -60,9 +61,24 @@ fn label(origin: &Origin) -> String {
 			..
 		} => format!(
 			" {Y}{expected:.0} {F}expected{D} {F}raw {raw:.0}{D} {CYA}{support} {F}support{D}{near}",
-			near = near_line(near),
+			near = near_line(
+				&near
+					.iter()
+					.map(|near| (labelled(near.recording.0), near.q))
+					.collect::<Vec<_>>()
+			),
 		),
 	}
+}
+
+fn labelled(mbid: Source) -> String {
+	let label = library::tag::label(mbid);
+
+	if label.is_empty() {
+		return mbid.to_string();
+	}
+
+	label
 }
 
 fn near_line(near: &[(String, Q)]) -> String {
@@ -167,6 +183,7 @@ mod tests {
 			listener: 671,
 			plays: 7083,
 			position: 0,
+			stay: true,
 		});
 
 		let at = |of: &str| {
@@ -255,19 +272,21 @@ mod tests {
 		assert!(shown.is_empty(), "{shown}");
 	}
 
-	fn similar(near: Vec<(String, u8)>) -> Origin {
+	fn similar() -> Origin {
 		Origin::Similar {
 			expected: 61.4,
 			raw: 57.2,
 			support: 23,
-			near,
+			near: Vec::new(),
 			position: 0,
+			worth: 61.4,
+			redundancy: 0.0,
 		}
 	}
 
 	#[test]
 	fn a_similar_recommendation_shows_its_expected_rating_raw_and_support() {
-		let shown = label(&similar(Vec::new()));
+		let shown = label(&similar());
 
 		assert!(shown.contains("61"), "{shown}");
 		assert!(shown.contains("raw 57"), "{shown}");
@@ -277,11 +296,10 @@ mod tests {
 
 	#[test]
 	fn a_similar_recommendation_lists_what_it_is_near_with_their_q() {
-		let shown = label(&similar(vec![
+		let near = near_line(&[
 			("Mela! - 緑黄色社会".to_string(), 3),
 			("POP/STARS - K/DA".to_string(), 0),
-		]));
-		let near = shown.lines().nth(1).unwrap_or_default();
+		]);
 
 		assert!(near.contains("Mela!") && near.contains("q3"), "{near}");
 		assert!(near.contains("POP/STARS") && near.contains("q0"), "{near}");
