@@ -15,12 +15,12 @@ pub(super) const fn island_only(source: RecommendSource) -> bool {
 	matches!(source, RecommendSource::Island)
 }
 
-pub(super) const fn similar(source: RecommendSource) -> bool {
-	matches!(source, RecommendSource::All | RecommendSource::Similar)
+pub(super) const fn forecast(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::All | RecommendSource::Forecast)
 }
 
-pub(super) const fn similar_only(source: RecommendSource) -> bool {
-	matches!(source, RecommendSource::Similar)
+pub(super) const fn forecast_only(source: RecommendSource) -> bool {
+	matches!(source, RecommendSource::Forecast)
 }
 
 pub(super) fn ensure_local_target(
@@ -52,12 +52,12 @@ pub(super) fn ensure_local_target(
 }
 
 pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
-	if arg.backtest && !similar_only(source) {
-		return Err(needs("--backtest", RecommendSource::Similar, source).into());
+	if arg.backtest && !forecast_only(source) {
+		return Err(needs("--backtest", RecommendSource::Forecast, source).into());
 	}
 
-	if similar_only(source) {
-		return ensure_similar_arg(arg);
+	if forecast_only(source) {
+		return ensure_forecast_arg(arg);
 	}
 
 	if island(source) {
@@ -138,12 +138,12 @@ fn island_only_flag(arg: &IslandArg) -> [(&'static str, bool); 6] {
 	]
 }
 
-fn ensure_similar_arg(arg: &IslandArg) -> hmerr::Result<()> {
+fn ensure_forecast_arg(arg: &IslandArg) -> hmerr::Result<()> {
 	let Some((flag, _)) = island_only_flag(arg).into_iter().find(|(_, given)| *given) else {
 		return Ok(());
 	};
 
-	Err(needs(flag, RecommendSource::Island, RecommendSource::Similar).into())
+	Err(needs(flag, RecommendSource::Island, RecommendSource::Forecast).into())
 }
 
 fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
@@ -573,9 +573,9 @@ mod tests {
 	}
 
 	#[test]
-	fn similar_takes_no_target() {
+	fn forecast_takes_no_target() {
 		let said = ensure_local_target(
-			RecommendSource::Similar,
+			RecommendSource::Forecast,
 			RecommendSort::Popularity,
 			Some("alexdelia"),
 		)
@@ -583,11 +583,11 @@ mod tests {
 		.map(|e| e.to_string())
 		.unwrap_or_default();
 
-		assert!(said.contains("similar"), "{said}");
+		assert!(said.contains("forecast"), "{said}");
 	}
 
 	#[test]
-	fn similar_refuses_the_flags_that_only_shape_islands() {
+	fn forecast_refuses_the_flags_that_only_shape_islands() {
 		for arg in [
 			IslandArg {
 				ask: true,
@@ -602,15 +602,15 @@ mod tests {
 				..no_arg()
 			},
 		] {
-			assert!(ensure_arg(RecommendSource::Similar, &arg).is_err());
+			assert!(ensure_arg(RecommendSource::Forecast, &arg).is_err());
 		}
 	}
 
 	#[test]
-	fn similar_takes_known_artists_and_the_backtest() {
+	fn forecast_takes_known_artists_and_the_backtest() {
 		assert!(
 			ensure_arg(
-				RecommendSource::Similar,
+				RecommendSource::Forecast,
 				&IslandArg {
 					allow_known_artist: true,
 					backtest: true,
@@ -622,7 +622,7 @@ mod tests {
 	}
 
 	#[test]
-	fn the_backtest_needs_source_similar() {
+	fn the_backtest_needs_source_forecast() {
 		for source in [
 			RecommendSource::All,
 			RecommendSource::Island,
@@ -642,11 +642,11 @@ mod tests {
 	}
 
 	#[test]
-	fn all_walks_similar_too() {
-		assert!(similar(RecommendSource::All));
-		assert!(similar(RecommendSource::Similar));
-		assert!(!similar(RecommendSource::Island));
-		assert!(similar_only(RecommendSource::Similar));
-		assert!(!similar_only(RecommendSource::All));
+	fn all_walks_forecast_too() {
+		assert!(forecast(RecommendSource::All));
+		assert!(forecast(RecommendSource::Forecast));
+		assert!(!forecast(RecommendSource::Island));
+		assert!(forecast_only(RecommendSource::Forecast));
+		assert!(!forecast_only(RecommendSource::All));
 	}
 }

@@ -10,7 +10,7 @@ use super::{
 	preference::ONE_PLAY,
 };
 
-const FILE: &str = "similar.jsonl";
+const FILE: &str = "forecast.jsonl";
 
 pub(super) fn path() -> hmerr::Result<PathBuf> {
 	Ok(cache::root()?.join(FILE))

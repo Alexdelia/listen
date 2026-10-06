@@ -7,7 +7,7 @@ pub(super) fn choose(found: &[Exploration], source: RecommendSource) -> Vec<&Exp
 		RecommendSource::CollaborativeFiltering
 		| RecommendSource::ListenBrainz
 		| RecommendSource::Island
-		| RecommendSource::Similar => Vec::new(),
+		| RecommendSource::Forecast => Vec::new(),
 		RecommendSource::All | RecommendSource::WeeklyExploration => found.iter().rev().collect(),
 		RecommendSource::WeeklyExplorationLastWeek => found.get(LAST_WEEK).into_iter().collect(),
 		RecommendSource::WeeklyExplorationCurrentWeek => {

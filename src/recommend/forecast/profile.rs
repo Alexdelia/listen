@@ -56,9 +56,9 @@ struct Link {
 }
 
 pub(super) fn of(db: &duckdb::Connection, pool: &[Scored]) -> hmerr::Result<HashMap<u32, Shape>> {
-	db.execute_batch("create or replace temp table similar_pool (recording_id uinteger);")?;
+	db.execute_batch("create or replace temp table forecast_pool (recording_id uinteger);")?;
 	{
-		let mut appender = db.appender("similar_pool")?;
+		let mut appender = db.appender("forecast_pool")?;
 		for scored in pool {
 			appender.append_row(duckdb::params![scored.recording_id])?;
 		}
@@ -71,13 +71,13 @@ with pool_listen as (
 	select ul.user_id, ul.recording_id, {PREFERENCE}(ul.plays, s.center) as preference
 	from user_listen ul
 	join user_stat s using (user_id)
-	semi join similar_pool p using (recording_id)
+	semi join forecast_pool p using (recording_id)
 )
 select c.recording_id::bigint, d.recording_id::bigint, r.mbid::varchar, any_value(d.q)::utinyint,
 	sum(c.preference * d.preference / p.spread)::float
 from pool_listen c
-join similar_declared_listen d using (user_id)
-join similar_spread p on p.recording_id = d.recording_id
+join forecast_declared_listen d using (user_id)
+join forecast_spread p on p.recording_id = d.recording_id
 join recording r on r.recording_id = d.recording_id
 where c.preference > 0 and d.preference > 0
 group by c.recording_id, d.recording_id, r.mbid

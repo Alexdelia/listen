@@ -30,24 +30,24 @@ pub(super) fn weight_list() -> String {
 pub(super) fn prepare(db: &duckdb::Connection) -> hmerr::Result<()> {
 	db.execute_batch(&format!(
 		r"
-create or replace temp table similar_declared as
+create or replace temp table forecast_declared as
 	select r.recording_id, d.q
 	from declared d join recording r on r.mbid = d.mbid::uuid;
-create or replace temp table similar_declared_listen as
+create or replace temp table forecast_declared_listen as
 	select ul.user_id, sd.recording_id, sd.q, {PREFERENCE}(ul.plays, s.center) as preference
 	from user_listen ul
 	join user_stat s using (user_id)
-	join similar_declared sd using (recording_id);
-create or replace temp table similar_spread as
+	join forecast_declared sd using (recording_id);
+create or replace temp table forecast_spread as
 	select recording_id, sqrt(sum(preference * preference)) as spread
-	from similar_declared_listen
+	from forecast_declared_listen
 	group by 1;
-create or replace temp table similar_listener as
+create or replace temp table forecast_listener as
 	select l.user_id,
 		sum(l.preference * {weight}[l.q + 1] / p.spread) as taste,
 		sum(l.preference / p.spread) as taste_scale
-	from similar_declared_listen l
-	join similar_spread p using (recording_id)
+	from forecast_declared_listen l
+	join forecast_spread p using (recording_id)
 	where l.preference > 0
 	group by 1;
 ",
@@ -65,7 +65,7 @@ with listen as (
 	select ul.recording_id, {PREFERENCE}(ul.plays, s.center) as preference, l.taste, l.taste_scale
 	from user_listen ul
 	join user_stat s using (user_id)
-	join similar_listener l using (user_id)
+	join forecast_listener l using (user_id)
 ),
 scored as (
 	select recording_id,
@@ -81,7 +81,7 @@ eligible as (
 	join recording r using (recording_id)
 	where s.predicted is not null
 		and not isnan(s.predicted)
-		and not exists (select 1 from similar_declared d where d.recording_id = s.recording_id)
+		and not exists (select 1 from forecast_declared d where d.recording_id = s.recording_id)
 		and not exists (
 			select 1 from recording_artist ra
 			semi join known_artist k on k.artist_mbid = ra.artist_mbid
@@ -130,9 +130,9 @@ from best
 }
 
 pub(super) fn rated(db: &duckdb::Connection, rated: &[(Source, Q)]) -> hmerr::Result<Vec<Point>> {
-	db.execute_batch("create or replace temp table similar_rated (mbid varchar, q utinyint);")?;
+	db.execute_batch("create or replace temp table forecast_rated (mbid varchar, q utinyint);")?;
 	{
-		let mut appender = db.appender("similar_rated")?;
+		let mut appender = db.appender("forecast_rated")?;
 		for (mbid, q) in rated {
 			appender.append_row(duckdb::params![mbid.to_string(), q])?;
 		}
@@ -144,7 +144,7 @@ pub(super) fn rated(db: &duckdb::Connection, rated: &[(Source, Q)]) -> hmerr::Re
 		r"
 with rated as (
 	select r.recording_id, sr.mbid, sr.q
-	from similar_rated sr join recording r on r.mbid = sr.mbid::uuid
+	from forecast_rated sr join recording r on r.mbid = sr.mbid::uuid
 ),
 listen as (
 	select rt.recording_id, rt.mbid, rt.q, {PREFERENCE}(ul.plays, s.center) as preference,
@@ -152,8 +152,8 @@ listen as (
 	from user_listen ul
 	join rated rt using (recording_id)
 	join user_stat s using (user_id)
-	join similar_listener l using (user_id)
-	join similar_spread p using (recording_id)
+	join forecast_listener l using (user_id)
+	join forecast_spread p using (recording_id)
 ),
 left_out as (
 	select recording_id, mbid, q, preference,

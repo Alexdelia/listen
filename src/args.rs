@@ -97,7 +97,7 @@ pub(crate) struct IslandArg {
 	/// disable the block of known artists already declared, or related to one
 	#[arg(long)]
 	pub allow_known_artist: bool,
-	/// print how well source similar predicts the q of past recommendations, recommend nothing
+	/// print how well source forecast predicts the q of past recommendations, recommend nothing
 	#[arg(long)]
 	pub backtest: bool,
 }
@@ -109,8 +109,8 @@ pub(crate) enum RecommendSource {
 	All,
 	/// taste islands from the local listenbrainz index, needs a built index
 	Island,
-	/// what the listeners of your declaration love, judged against every declared q, needs a built index
-	Similar,
+	/// the q you would give each recording, forecast from every declared q and calibrated on past picks, needs a built index
+	Forecast,
 	/// the raw collaborative filtering recording list
 	CollaborativeFiltering,
 	/// the most listened recording of an artist, needs an MBID
@@ -163,7 +163,7 @@ mod tests {
 	#[test]
 	fn json_refuses_backtest() {
 		assert_eq!(
-			refused(&["--json", "--backtest", "--source", "similar"]),
+			refused(&["--json", "--backtest", "--source", "forecast"]),
 			Some(ErrorKind::ArgumentConflict)
 		);
 	}

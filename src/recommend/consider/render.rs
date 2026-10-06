@@ -53,7 +53,7 @@ fn label(origin: &Origin) -> String {
 			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
 			{BLU}{backer} {F}backer{D} {G}{member} {F}seed{D}"
 		),
-		Origin::Similar {
+		Origin::Forecast {
 			expected,
 			raw,
 			support,
@@ -272,8 +272,8 @@ mod tests {
 		assert!(shown.is_empty(), "{shown}");
 	}
 
-	fn similar() -> Origin {
-		Origin::Similar {
+	fn forecast() -> Origin {
+		Origin::Forecast {
 			expected: 61.4,
 			raw: 57.2,
 			support: 23,
@@ -285,8 +285,8 @@ mod tests {
 	}
 
 	#[test]
-	fn a_similar_recommendation_shows_its_expected_rating_raw_and_support() {
-		let shown = label(&similar());
+	fn a_forecast_recommendation_shows_its_expected_rating_raw_and_support() {
+		let shown = label(&forecast());
 
 		assert!(shown.contains("61"), "{shown}");
 		assert!(shown.contains("raw 57"), "{shown}");
@@ -295,7 +295,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_similar_recommendation_lists_what_it_is_near_with_their_q() {
+	fn a_forecast_recommendation_lists_what_it_is_near_with_their_q() {
 		let near = near_line(&[
 			("Mela! - 緑黄色社会".to_string(), 3),
 			("POP/STARS - K/DA".to_string(), 0),

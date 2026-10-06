@@ -67,7 +67,7 @@ pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fe
 
 	Ok(Fed {
 		feed: Box::new(diversify::stream(pick, arg.allow_known_artist, log)),
-		report: feed::Report::Similar(report),
+		report: feed::Report::Forecast(report),
 	})
 }
 

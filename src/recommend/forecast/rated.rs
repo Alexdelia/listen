@@ -63,11 +63,11 @@ mod tests {
 	#[test]
 	fn a_shown_pick_now_declared_is_rated_at_its_declared_q() {
 		let island = log("island", &[shown(1), shown(2)]);
-		let similar = log("similar", &[shown(3)]);
+		let forecast = log("forecast", &[shown(3)]);
 
 		let rated = of(
 			&[entry(1, 3), entry(3, 0), entry(9, 4)],
-			&[island.clone(), similar.clone()],
+			&[island.clone(), forecast.clone()],
 		)
 		.unwrap_or_default();
 
@@ -79,7 +79,7 @@ mod tests {
 			]
 		);
 		let _ = fs::remove_file(island);
-		let _ = fs::remove_file(similar);
+		let _ = fs::remove_file(forecast);
 	}
 
 	#[test]

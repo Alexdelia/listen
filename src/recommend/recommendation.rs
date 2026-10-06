@@ -18,7 +18,7 @@ const COLLABORATIVE_FILTERING: &str = "collaborative-filtering";
 const WEEKLY_EXPLORATION: &str = "weekly-exploration";
 const LISTEN_BRAINZ: &str = "listenbrainz";
 const ISLAND: &str = "island";
-const SIMILAR: &str = "similar";
+const FORECAST: &str = "forecast";
 
 #[derive(Serialize)]
 pub(super) struct Recommendation {
@@ -54,7 +54,7 @@ pub(super) enum Origin {
 		position: usize,
 		stay: bool,
 	},
-	Similar {
+	Forecast {
 		expected: f32,
 		raw: f32,
 		support: u32,
@@ -81,7 +81,7 @@ impl Origin {
 			}
 			Self::ListenCount { .. } => text(LISTEN_BRAINZ),
 			Self::Island { name, .. } => precise(ISLAND, name),
-			Self::Similar { .. } => text(SIMILAR),
+			Self::Forecast { .. } => text(FORECAST),
 		}
 	}
 
@@ -91,7 +91,7 @@ impl Origin {
 			| Self::WeeklyExploration { position, .. }
 			| Self::ListenCount { position, .. }
 			| Self::Island { position, .. }
-			| Self::Similar { position, .. } => *position,
+			| Self::Forecast { position, .. } => *position,
 		}
 	}
 
@@ -103,7 +103,7 @@ impl Origin {
 			Self::WeeklyExploration { .. }
 			| Self::ListenCount { .. }
 			| Self::Island { .. }
-			| Self::Similar { .. } => None,
+			| Self::Forecast { .. } => None,
 		}
 	}
 }
@@ -176,8 +176,8 @@ mod tests {
 	}
 
 	#[test]
-	fn the_similar_source_is_just_similar() {
-		let similar = Origin::Similar {
+	fn the_forecast_source_is_just_forecast() {
+		let forecast = Origin::Forecast {
 			expected: 60.0,
 			raw: 55.0,
 			support: 5,
@@ -187,9 +187,9 @@ mod tests {
 			redundancy: 0.0,
 		};
 
-		assert_eq!(similar.source(), format!("{B}{WHITE}similar{D}"));
-		assert_eq!(similar.position(), 4);
-		assert_eq!(similar.latest_listened_at(), None);
+		assert_eq!(forecast.source(), format!("{B}{WHITE}forecast{D}"));
+		assert_eq!(forecast.position(), 4);
+		assert_eq!(forecast.latest_listened_at(), None);
 	}
 
 	#[test]

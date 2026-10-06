@@ -58,7 +58,7 @@ impl feed::Feed for Stream {
 
 		let recommendation = Recommendation {
 			mbid: pick.mbid,
-			origin: Origin::Similar {
+			origin: Origin::Forecast {
 				expected: pick.expected,
 				raw: pick.raw,
 				support: pick.support,
@@ -130,7 +130,7 @@ mod tests {
 	}
 
 	fn log(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("declarative_listen_similar_{name}.jsonl"));
+		let path = std::env::temp_dir().join(format!("declarative_listen_forecast_{name}.jsonl"));
 		let _ = fs::remove_file(&path);
 		path
 	}
@@ -210,7 +210,7 @@ mod tests {
 
 	fn redundancy(recommendation: &Recommendation) -> Option<(f32, f32)> {
 		match recommendation.origin {
-			Origin::Similar {
+			Origin::Forecast {
 				worth, redundancy, ..
 			} => Some((worth, redundancy)),
 			_ => None,

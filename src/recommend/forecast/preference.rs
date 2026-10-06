@@ -2,9 +2,9 @@ use crate::declaration::{Q_MAX, value};
 
 pub(super) const ONE_PLAY: f32 = 45.0;
 
-pub(super) const PREFERENCE: &str = "similar_preference";
+pub(super) const PREFERENCE: &str = "forecast_preference";
 
-const VALUE: &str = "similar_value";
+const VALUE: &str = "forecast_value";
 
 pub(super) fn declare(db: &duckdb::Connection) -> hmerr::Result<()> {
 	let neutral = f32::from(value::NEUTRAL);

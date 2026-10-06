@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use super::{island, listen_count, recommendation::Recommendation, similar, skip::Skip};
+use super::{forecast, island, listen_count, recommendation::Recommendation, skip::Skip};
 
 pub(super) trait Feed {
 	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>>;
@@ -16,7 +16,7 @@ pub(super) struct Fed {
 #[serde(rename_all = "snake_case")]
 pub(super) enum Report {
 	Island(island::Report),
-	Similar(similar::Report),
+	Forecast(forecast::Report),
 	CollaborativeFiltering {
 		username: String,
 	},
@@ -31,7 +31,7 @@ impl Report {
 	pub(super) fn print(&self) {
 		match self {
 			Self::Island(report) => report.print(),
-			Self::Similar(report) => report.print(),
+			Self::Forecast(report) => report.print(),
 			Self::ListenCount(report) => report.print(),
 			Self::CollaborativeFiltering { .. } | Self::WeeklyExploration { .. } => {}
 		}

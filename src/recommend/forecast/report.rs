@@ -93,7 +93,7 @@ impl Report {
 	pub(in crate::recommend) fn print(&self) {
 		if self.passing > 0 {
 			println!(
-				"{B}similar{D} {Y}{passing}{D} {F}of{D} {total} {F}candidates reach q1 ({calibration}){D}",
+				"{B}forecast{D} {Y}{passing}{D} {F}of{D} {total} {F}candidates reach q1 ({calibration}){D}",
 				passing = self.passing,
 				total =
 					human_readable_number::text(u64::try_from(self.candidate).unwrap_or(u64::MAX)),

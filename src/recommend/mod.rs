@@ -4,6 +4,7 @@ mod consider;
 mod declared;
 mod declined;
 mod feed;
+mod forecast;
 pub(crate) mod island;
 mod known_artist;
 mod labelled;
@@ -14,7 +15,6 @@ mod mode;
 mod queue;
 mod recommendation;
 mod selection;
-mod similar;
 mod skip;
 mod stream;
 mod target;
@@ -125,16 +125,16 @@ async fn built(path: &Path, request: Request<'_>, mode: &Mode) -> hmerr::Result<
 		}));
 	}
 
-	if selection::similar_only(source) {
+	if selection::forecast_only(source) {
 		selection::ensure_local_target(source, sort, target)?;
 		let local = mode.open(path)?;
 
 		if arg.backtest {
-			similar::backtest(&local)?;
+			forecast::backtest(&local)?;
 			return Ok(None);
 		}
 
-		let fed = vec![similar::feed(&local, arg, mode.log(similar::log_path)?)?];
+		let fed = vec![forecast::feed(&local, arg, mode.log(forecast::log_path)?)?];
 
 		return Ok(Some(Built {
 			fed,
@@ -165,9 +165,9 @@ fn local_feed(
 	mode: &Mode,
 ) -> hmerr::Result<Option<(Local, Vec<Fed>)>> {
 	let island = selection::island(source);
-	let similar = selection::similar(source);
+	let forecast = selection::forecast(source);
 
-	if !island && !similar {
+	if !island && !forecast {
 		return Ok(None);
 	}
 
@@ -183,8 +183,8 @@ fn local_feed(
 		fed.push(island::feed(&local, arg, mode.log(island::log_path)?)?);
 	}
 
-	if similar {
-		fed.push(similar::feed(&local, arg, mode.log(similar::log_path)?)?);
+	if forecast {
+		fed.push(forecast::feed(&local, arg, mode.log(forecast::log_path)?)?);
 	}
 
 	Ok(Some((local, fed)))
