@@ -131,7 +131,7 @@ mod tests {
 			Ok(page(&[], 100))
 		});
 
-		assert!(drain(&mut cursor).is_empty());
+		assert_eq!(drain(&mut cursor), [] as [u8; 0]);
 		assert_eq!(*asked.borrow(), vec![0]);
 	}
 }

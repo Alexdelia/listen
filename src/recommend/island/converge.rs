@@ -271,7 +271,7 @@ mod tests {
 
 	#[test]
 	fn an_island_serving_everything_leaves_nothing_barren() {
-		assert!(found(&[1, 2, 3]).barren().is_empty());
+		assert_eq!(found(&[1, 2, 3]).barren(), [] as [usize; 0]);
 	}
 
 	#[test]

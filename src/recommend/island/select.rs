@@ -298,7 +298,7 @@ mod tests {
 	fn no_candidate_yields_nothing() {
 		let mut stream = quiet(vec![Vec::new(), Vec::new()]);
 
-		assert!(drain(&mut stream, 3).is_empty());
+		assert_eq!(drain(&mut stream, 3), [] as [u8; 0]);
 	}
 
 	#[test]

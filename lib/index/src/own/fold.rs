@@ -164,6 +164,7 @@ mod tests {
 	}
 
 	const NUMBER: u32 = 2636;
+	const NO_WINDOW: [(String, String); 0] = [];
 
 	fn take(reached: &str, incremental: &Incremental) -> Fold {
 		let db = duckdb::Connection::open_in_memory().unwrap_or_else(|_| unreachable!());
@@ -195,7 +196,7 @@ mod tests {
 		assert_eq!(taken.play.len(), 1);
 		assert_eq!(taken.reached, "2026-08-22 00:00:02.641933+00:00");
 		assert_eq!(taken.through, NUMBER);
-		assert!(window(&taken).is_empty());
+		assert_eq!(window(&taken), NO_WINDOW);
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -215,7 +216,7 @@ mod tests {
 
 		assert!(taken.play.is_empty());
 		assert_eq!(taken.reached, "2026-09-22 00:00:02.910209+00:00");
-		assert!(window(&taken).is_empty());
+		assert_eq!(window(&taken), NO_WINDOW);
 		let _ = fs::remove_dir_all(&dir);
 	}
 
@@ -236,7 +237,7 @@ mod tests {
 		assert!(taken.play.is_empty());
 		assert_eq!(taken.reached, "2026-07-12 00:00:04.001868+00:00");
 		assert_eq!(taken.through, NUMBER);
-		assert!(window(&taken).is_empty());
+		assert_eq!(window(&taken), NO_WINDOW);
 		let _ = fs::remove_dir_all(&dir);
 	}
 

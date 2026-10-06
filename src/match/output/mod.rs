@@ -110,8 +110,8 @@ mod tests {
 
 	#[test]
 	fn an_aside_is_skipped_when_blank() {
-		assert!(aside(None).is_empty());
-		assert!(aside(Some("  ")).is_empty());
+		assert_eq!(aside(None), "");
+		assert_eq!(aside(Some("  ")), "");
 		assert!(aside(Some("live")).contains("(live)"));
 	}
 

@@ -295,7 +295,7 @@ mod tests {
 	fn no_feed_yields_nothing() {
 		let mut stream = Stream::new(Vec::new(), false);
 
-		assert!(drain(&mut stream, &mut Skip::default()).is_empty());
+		assert_eq!(drain(&mut stream, &mut Skip::default()), [] as [u8; 0]);
 	}
 
 	#[test]
