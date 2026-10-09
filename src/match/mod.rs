@@ -3,6 +3,7 @@ mod duration;
 mod find;
 mod keep;
 mod link;
+mod linked;
 mod no_link;
 mod output;
 mod record;
@@ -10,7 +11,7 @@ mod redirect;
 mod upgrade;
 mod verify;
 
-use std::{collections::HashSet, path::Path};
+use std::path::Path;
 
 use ansi::abbrev::{B, D, R};
 use hmerr::ge;
@@ -66,45 +67,23 @@ pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Resu
 			);
 			keep::run(path, mbid, None, length, recommend)
 		}
-		Some(link::Streaming::YouTubeMusic(mut id)) => {
-			let mut dead = HashSet::new();
-
-			loop {
-				match verify::verify(&id)? {
-					Some(info) if info.is_song() => {
-						break if dead.is_empty() {
-							let url = verify::watch(&id);
-							keep::run(path, mbid, Some((&info, &url)), length, recommend)
-						} else {
-							let found = find::Found {
-								url: verify::watch(&id),
-								info,
-							};
-							record::run(path, mbid, &found, length, recommend)
-						};
-					}
-					Some(_video) => {
-						break upgrade::run(
-							&client, &recording, &title, length, path, mbid, recommend,
-						)
-						.await;
-					}
-					None => {
-						let replacement = redirect::resolve(&id)?;
-						dead.insert(id);
-
-						match replacement {
-							Some(replacement) if !dead.contains(&replacement) => id = replacement,
-							_ => {
-								break no_link::run(
-									&client, &recording, &title, length, path, mbid, recommend,
-								)
-								.await;
-							}
-						}
-					}
-				}
+		Some(link::Streaming::YouTubeMusic(ids)) => match linked::resolve(ids)? {
+			linked::Linked::Song(found) => keep::run(
+				path,
+				mbid,
+				Some((&found.info, &found.url)),
+				length,
+				recommend,
+			),
+			linked::Linked::Replacement(found) => {
+				record::run(path, mbid, &found, length, recommend)
 			}
-		}
+			linked::Linked::Video => {
+				upgrade::run(&client, &recording, &title, length, path, mbid, recommend).await
+			}
+			linked::Linked::Dead => {
+				no_link::run(&client, &recording, &title, length, path, mbid, recommend).await
+			}
+		},
 	}
 }

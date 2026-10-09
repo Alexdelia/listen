@@ -5,7 +5,7 @@ use crate::streaming_source::{self, StreamingSource};
 pub(super) enum Streaming {
 	SoundCloud,
 	Bandcamp,
-	YouTubeMusic(String),
+	YouTubeMusic(Vec<String>),
 }
 
 impl Streaming {
@@ -29,14 +29,29 @@ impl Streaming {
 pub(super) fn streaming(recording: &Recording) -> Option<Streaming> {
 	streaming_source::streaming_url(recording)
 		.filter_map(classify)
-		.min_by_key(Streaming::priority)
+		.reduce(prefer)
+}
+
+fn prefer(kept: Streaming, next: Streaming) -> Streaming {
+	match (kept, next) {
+		(Streaming::YouTubeMusic(mut ids), Streaming::YouTubeMusic(more)) => {
+			for id in more {
+				if !ids.contains(&id) {
+					ids.push(id);
+				}
+			}
+			Streaming::YouTubeMusic(ids)
+		}
+		(kept, next) if next.priority() < kept.priority() => next,
+		(kept, _) => kept,
+	}
 }
 
 fn classify(url: &str) -> Option<Streaming> {
 	match StreamingSource::try_from(url).ok()? {
 		StreamingSource::SoundCloud => Some(Streaming::SoundCloud),
 		StreamingSource::Bandcamp => Some(Streaming::Bandcamp),
-		StreamingSource::YouTubeMusic => video_id(url).map(Streaming::YouTubeMusic),
+		StreamingSource::YouTubeMusic => video_id(url).map(|id| Streaming::YouTubeMusic(vec![id])),
 		StreamingSource::YouTube => None,
 	}
 }
@@ -99,7 +114,7 @@ mod tests {
 
 		assert!(matches!(
 			streaming(&recording),
-			Some(Streaming::YouTubeMusic(id)) if id == "YiMJM0Bthv4"
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["YiMJM0Bthv4"]
 		));
 	}
 
@@ -112,7 +127,7 @@ mod tests {
 
 		assert!(matches!(
 			streaming(&recording),
-			Some(Streaming::YouTubeMusic(id)) if id == "YiMJM0Bthv4"
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["YiMJM0Bthv4"]
 		));
 	}
 
@@ -174,7 +189,7 @@ mod tests {
 
 		assert!(matches!(
 			streaming(&recording),
-			Some(Streaming::YouTubeMusic(id)) if id == "LaZIDFaobMU"
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["LaZIDFaobMU"]
 		));
 	}
 
@@ -214,7 +229,7 @@ mod tests {
 
 		assert!(matches!(
 			streaming(&recording),
-			Some(Streaming::YouTubeMusic(id)) if id == "YiMJM0Bthv4"
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["YiMJM0Bthv4"]
 		));
 	}
 
@@ -244,6 +259,61 @@ mod tests {
 				"https://music.youtube.com/watch?v=YiMJM0Bthv4"
 			),
 			soundcloud = url_relation("streaming", "https://soundcloud.com/artist/track"),
+		));
+
+		assert!(matches!(streaming(&recording), Some(Streaming::SoundCloud)));
+	}
+
+	#[test]
+	fn every_youtube_music_link_is_kept_in_musicbrainz_order() {
+		let recording = recording(&format!(
+			"{video},{song}",
+			video = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=QKdZDgHOmog"
+			),
+			song = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=C6NOCEYCv3M"
+			),
+		));
+
+		assert!(matches!(
+			streaming(&recording),
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["QKdZDgHOmog", "C6NOCEYCv3M"]
+		));
+	}
+
+	#[test]
+	fn a_youtube_music_link_listed_twice_is_tried_once() {
+		let recording = recording(&format!(
+			"{free},{paid}",
+			free = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=C6NOCEYCv3M"
+			),
+			paid = url_relation("streaming", "https://music.youtube.com/watch?v=C6NOCEYCv3M"),
+		));
+
+		assert!(matches!(
+			streaming(&recording),
+			Some(Streaming::YouTubeMusic(ids)) if ids == ["C6NOCEYCv3M"]
+		));
+	}
+
+	#[test]
+	fn soundcloud_still_wins_over_several_youtube_music_links() {
+		let recording = recording(&format!(
+			"{video},{soundcloud},{song}",
+			video = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=QKdZDgHOmog"
+			),
+			soundcloud = url_relation("streaming", "https://soundcloud.com/artist/track"),
+			song = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=C6NOCEYCv3M"
+			),
 		));
 
 		assert!(matches!(streaming(&recording), Some(Streaming::SoundCloud)));
