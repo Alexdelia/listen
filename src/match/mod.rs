@@ -22,6 +22,14 @@ pub(crate) fn declare(path: &Path, mbid: &str) -> hmerr::Result<bool> {
 	declare::run(path, mbid, true)
 }
 
+pub(crate) fn is_song(url: &str) -> hmerr::Result<bool> {
+	let Some(id) = link::video_id(url) else {
+		return Ok(false);
+	};
+
+	Ok(verify::verify(&id)?.is_some_and(|info| info.is_song()))
+}
+
 pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Result<bool> {
 	let client = music_brainz::client();
 

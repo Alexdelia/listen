@@ -1,4 +1,5 @@
 mod channel;
+mod download_order;
 mod fetch;
 mod filter;
 mod playlist;

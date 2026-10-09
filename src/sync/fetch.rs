@@ -7,13 +7,13 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{
 	declaration::Source,
-	library, music_brainz,
+	library, r#match, music_brainz,
 	streaming_source::{self, StreamingSource},
 };
 
 use super::{
 	channel::{Action, Status, report},
-	tag,
+	download_order, tag,
 };
 
 pub(super) async fn fetch(sync: &[Source], tx: Sender<Status>) {
@@ -100,7 +100,7 @@ async fn fetch_recording(
 	let path = library::recording::path(*entry);
 	let mut err: Option<String> = None;
 
-	urls.sort_by_key(|a| a.0.priority());
+	download_order::sort(&mut urls, |url| r#match::is_song(url).unwrap_or(false));
 
 	for url in urls {
 		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
