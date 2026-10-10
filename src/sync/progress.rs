@@ -1,5 +1,7 @@
 use async_std::channel::Receiver;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar};
+
+use crate::bar::template;
 
 use super::channel::{Action, Status};
 
@@ -85,19 +87,4 @@ fn finished(bar: &ProgressBar) {
 	if bar.length().is_some_and(|total| total > 0) {
 		bar.finish();
 	}
-}
-
-pub(super) fn template(title: &str, color: &str) -> hmerr::Result<ProgressStyle> {
-	let title = format!("{title:>8}");
-
-	ProgressStyle::with_template(
-		&[
-			&title,
-			" {wide_bar:.",
-			color,
-			"/white} {pos:>4.bold.green}/{len:4.bold} {percent:>3.bold.green}% {elapsed:>3.bold.blue}|{eta:3.bold.magenta}",
-		]
-		.join(""),
-	)
-	.map_err(|e| format!("failed to create progress style\n{e}").into())
 }

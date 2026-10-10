@@ -2,7 +2,7 @@ use std::path::Path;
 
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
-use super::{find, record};
+use super::{find, outcome::Outcome, record};
 
 pub(super) async fn run(
 	client: &MusicBrainzClient,
@@ -12,8 +12,11 @@ pub(super) async fn run(
 	path: &Path,
 	mbid: &str,
 	recommend: bool,
-) -> hmerr::Result<bool> {
+) -> hmerr::Result<Outcome> {
 	let found = find::song(client, recording, title, length, mbid).await?;
 
-	record::run(path, mbid, &found, length, recommend)
+	Ok(Outcome::of(
+		record::run(path, mbid, &found, length, recommend)?,
+		Some(&found.url),
+	))
 }

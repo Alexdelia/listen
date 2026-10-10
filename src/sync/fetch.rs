@@ -8,6 +8,7 @@ use musicbrainz_rs::{Fetch, entity::recording::Recording};
 use crate::{
 	declaration::Source,
 	library, r#match, music_brainz,
+	prefetch::Prefetch,
 	streaming_source::{self, StreamingSource},
 };
 
@@ -68,6 +69,16 @@ async fn fetch_recording(
 	tx: &Sender<Status>,
 ) -> Option<PathBuf> {
 	let title = &recording.title;
+	let path = library::recording::path(*entry);
+
+	let adopted = Prefetch::cached()
+		.and_then(|prefetch| prefetch.adopt(*entry, &path))
+		.map_err(|e| e.to_string());
+	if matches!(adopted, Ok(true)) {
+		report(tx, Action::FetchStreaming, Ok(())).await;
+
+		return Some(path);
+	}
 
 	let Some(relations) = &recording.relations else {
 		report(
@@ -97,7 +108,9 @@ async fn fetch_recording(
 		return None;
 	}
 
-	let path = library::recording::path(*entry);
+	let unadopted = adopted.err().map_or_else(String::default, |e| {
+		format!("\n{R}failed to adopt the prefetched file{D}\n{e}")
+	});
 	let mut err: Option<String> = None;
 
 	download_order::sort(&mut urls, |url| r#match::is_song(url).unwrap_or(false));
@@ -120,7 +133,7 @@ async fn fetch_recording(
 			tx,
 			Action::FetchStreaming,
 			Err(format!(
-				"{R}failed to download {B}{entry} ({title}){D}\n{e}"
+				"{R}failed to download {B}{entry} ({title}){D}\n{e}{unadopted}"
 			)),
 		)
 		.await;

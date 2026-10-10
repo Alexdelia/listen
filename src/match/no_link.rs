@@ -4,7 +4,7 @@ use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
 use crate::prompt;
 
-use super::{declare, find, open, output};
+use super::{declare, find, open, outcome::Outcome, output};
 
 pub(super) async fn run(
 	client: &MusicBrainzClient,
@@ -14,7 +14,7 @@ pub(super) async fn run(
 	path: &Path,
 	mbid: &str,
 	recommend: bool,
-) -> hmerr::Result<bool> {
+) -> hmerr::Result<Outcome> {
 	let found = find::song(client, recording, title, length, mbid).await?;
 
 	output::found(&found.info, length);
@@ -22,9 +22,12 @@ pub(super) async fn run(
 	open::open(&found.url)?;
 
 	if !prompt::confirm("song match", true)? {
-		return Ok(false);
+		return Ok(Outcome::Declined);
 	}
 	output::musicbrainz(mbid, &found.url)?;
 
-	declare::run(path, mbid, recommend)
+	Ok(Outcome::of(
+		declare::run(path, mbid, recommend)?,
+		Some(&found.url),
+	))
 }

@@ -1,0 +1,7 @@
+@nix {"action":"start","id":604486582140928,"level":5,"parent":0,"text":"copying '/nix/store/0r7xswpqa49y26bl05lydybpw86sywmq-source/pkgs/stdenv/generic/source-stdenv.sh' to the store","type":0}
+@nix {"action":"stop","id":604486582140928}
+@nix {"action":"start","id":604486582140929,"level":5,"parent":0,"text":"copying '/nix/store/0r7xswpqa49y26bl05lydybpw86sywmq-source/pkgs/stdenv/generic/default-builder.sh' to the store","type":0}
+@nix {"action":"stop","id":604486582140929}
+@nix {"action":"msg","level":0,"msg":"these 2 derivations will be built:"}
+@nix {"action":"msg","level":0,"msg":"  /nix/store/24ihn57pkpnahsx9xw4qpk1il55wl71n-sample-first.drv"}
+@nix {"action":"msg","level":0,"msg":"  /nix/store/5j2gqjg2phw1n6jjyqahlnxwfd5cq6vi-sample-second.drv"}

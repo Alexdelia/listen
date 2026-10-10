@@ -1,3 +1,5 @@
+use std::mem;
+
 use musicbrainz_rs::entity::recording::Recording;
 
 use crate::streaming_source::{self, StreamingSource};
@@ -30,6 +32,13 @@ pub(super) fn streaming(recording: &Recording) -> Option<Streaming> {
 	streaming_source::streaming_url(recording)
 		.filter_map(classify)
 		.reduce(prefer)
+}
+
+pub(super) fn url<'a>(recording: &'a Recording, streaming: &Streaming) -> Option<&'a str> {
+	streaming_source::streaming_url(recording).find(|url| {
+		classify(url)
+			.is_some_and(|linked| mem::discriminant(&linked) == mem::discriminant(streaming))
+	})
 }
 
 fn prefer(kept: Streaming, next: Streaming) -> Streaming {
@@ -201,6 +210,24 @@ mod tests {
 		));
 
 		assert!(matches!(streaming(&recording), Some(Streaming::Bandcamp)));
+	}
+
+	#[test]
+	fn the_url_of_the_linked_source_is_the_one_handed_on() {
+		let recording = recording(&format!(
+			"{youtube},{soundcloud}",
+			youtube = url_relation(
+				"free streaming",
+				"https://music.youtube.com/watch?v=YiMJM0Bthv4"
+			),
+			soundcloud = url_relation("streaming", "https://soundcloud.com/artist/track"),
+		));
+
+		assert_eq!(
+			url(&recording, &Streaming::SoundCloud),
+			Some("https://soundcloud.com/artist/track")
+		);
+		assert_eq!(url(&recording, &Streaming::Bandcamp), None);
 	}
 
 	#[test]
