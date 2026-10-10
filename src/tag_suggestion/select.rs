@@ -1,19 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
-pub(super) const MIN_SCORE: f32 = 0.2;
 const LIMIT: usize = 8;
 
 #[derive(Debug, PartialEq)]
 pub(super) struct Suggestion {
 	pub(super) name: String,
 	pub(super) score: f32,
+	pub(super) carried: bool,
 }
 
 pub(super) fn select(genres: HashMap<String, f32>, carried: &HashSet<String>) -> Vec<Suggestion> {
 	let mut suggestions = genres
 		.into_iter()
-		.filter(|(name, score)| *score >= MIN_SCORE && !carried.contains(name))
-		.map(|(name, score)| Suggestion { name, score })
+		.map(|(name, score)| Suggestion {
+			carried: carried.contains(&name),
+			name,
+			score,
+		})
 		.collect::<Vec<_>>();
 
 	suggestions.sort_by(|a, b| {
@@ -42,11 +45,8 @@ mod tests {
 	}
 
 	#[test]
-	fn a_genre_under_the_threshold_is_left_out() {
-		let selected = select(
-			genres(&[("vaporwave", 0.2), ("city pop", 0.19)]),
-			&HashSet::new(),
-		);
+	fn even_a_barely_scored_genre_is_suggested() {
+		let selected = select(genres(&[("vaporwave", 0.01)]), &HashSet::new());
 
 		assert_eq!(names(&selected), ["vaporwave"]);
 	}
@@ -75,7 +75,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_genre_the_recording_already_carries_on_musicbrainz_is_not_suggested_again() {
+	fn a_genre_the_recording_already_carries_on_musicbrainz_is_kept_and_marked() {
 		let carried = HashSet::from(["vaporwave".to_string()]);
 
 		let selected = select(
@@ -83,6 +83,8 @@ mod tests {
 			&carried,
 		);
 
-		assert_eq!(names(&selected), ["future funk"]);
+		assert_eq!(names(&selected), ["vaporwave", "future funk"]);
+		assert!(selected[0].carried);
+		assert!(!selected[1].carried);
 	}
 }

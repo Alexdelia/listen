@@ -62,8 +62,11 @@ fn run(recording: &Recording, url: Option<&str>) -> hmerr::Result<()> {
 	let genres = mapping::genres(&scores, &vocabulary::load()?);
 	let suggestions = select::select(genres, &carried(recording));
 
-	// TODO: checkbox selection of these genres (needs a checkbox prompt added to yahmrslib), then submit the chosen ones as MusicBrainz user tags (POST /ws/2/tag, OAuth scope "tag" next to "rating" in src/sync/rate/auth/login.rs)
-	println!("{}", output::line(&suggestions));
+	// TODO: turn these rows into a checkbox list (needs a checkbox prompt added to yahmrslib) where each genre is upvoted, downvoted or left alone, then submit the votes as MusicBrainz user tags (POST /ws/2/tag with vote="upvote"/"downvote", OAuth scope "tag" next to "rating" in src/sync/rate/auth/login.rs)
+	// TODO: in yahmrslib, make ux::ask_yn always end its line: it prints a newline after "y" but not after Enter on the default, so after the declare prompt in recommend this line lands on the prompt line
+	for row in output::rows(&suggestions) {
+		println!("{row}");
+	}
 
 	Ok(())
 }
