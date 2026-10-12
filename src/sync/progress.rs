@@ -14,12 +14,12 @@ pub(super) struct Count {
 pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	let mp = MultiProgress::new();
 
-	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
 	let pb_rating = bar(&mp, total.rating, "rating", "yellow")?;
 	let pb_remove = bar(&mp, total.remove, "remove", "red")?;
 	let pb_fetch = bar(&mp, total.fetch, "fetch", "blue")?;
 	let pb_download = bar(&mp, total.fetch, "download", "cyan")?;
 	let pb_metadata = bar(&mp, total.fetch, "metadata", "green")?;
+	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
 
 	let mut err = vec![];
 
@@ -52,12 +52,12 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 		}
 	}
 
+	finished(&pb_rating);
+	finished(&pb_remove);
 	finished(&pb_fetch);
 	finished(&pb_download);
 	finished(&pb_metadata);
-	finished(&pb_remove);
 	finished(&pb_playlist);
-	finished(&pb_rating);
 
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
