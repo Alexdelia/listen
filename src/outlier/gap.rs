@@ -199,6 +199,6 @@ mod tests {
 		let covered = covered(0, &gap).unwrap_or_else(|_| unreachable!());
 
 		assert_eq!(covered.gap.len(), 1);
-		assert_eq!(covered.days(100), 100 - 11);
+		assert_eq!(covered.gap[0].days(), 11);
 	}
 }
