@@ -31,11 +31,6 @@ pub(crate) fn suggest(recording: &Recording, url: Option<&str>) {
 }
 
 fn run(recording: &Recording, url: Option<&str>) -> hmerr::Result<()> {
-	let prefetch = Prefetch::cached()?;
-	if let Err(e) = prefetch.prune() {
-		eprintln!("{e}");
-	}
-
 	let Some(url) = url else {
 		println!(
 			"{B}{label}{D}  {DIM}no streaming url to listen to{D}",
@@ -52,7 +47,7 @@ fn run(recording: &Recording, url: Option<&str>) -> hmerr::Result<()> {
 	})?;
 
 	let spinner = bar::spinner("prefetch", "blue")?;
-	let audio = prefetch.fetch(source, url);
+	let audio = Prefetch::cached()?.fetch(source, url);
 	spinner.finish_and_clear();
 
 	let Some(scores) = model::scores(&audio?)? else {
