@@ -2,9 +2,9 @@ use ansi::abbrev::{B, D, R};
 use indicatif::ProgressBar;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
-use crate::{declaration::Entry, library, music_brainz};
+use crate::{bar, declaration::Entry, library, music_brainz};
 
-use super::super::{progress, tag};
+use super::super::tag;
 
 pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	let client = music_brainz::client();
@@ -15,7 +15,7 @@ pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 		.collect::<Vec<_>>();
 
 	let pb = ProgressBar::new(existing.len() as u64);
-	pb.set_style(progress::template("metadata", "green")?);
+	pb.set_style(bar::template("metadata", "green")?);
 	pb.tick();
 
 	let mut err = vec![];

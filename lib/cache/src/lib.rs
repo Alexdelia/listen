@@ -1,3 +1,4 @@
+pub mod flag;
 pub mod json;
 pub mod text;
 pub mod username;

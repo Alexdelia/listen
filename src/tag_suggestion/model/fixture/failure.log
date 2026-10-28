@@ -1,0 +1,32 @@
+@nix {"action":"start","id":586013927800832,"level":6,"parent":0,"text":"querying info about missing paths","type":0}
+@nix {"action":"stop","id":586013927800832}
+@nix {"action":"msg","level":3,"msg":"this derivation will be built:"}
+@nix {"action":"msg","level":3,"msg":"  /nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv"}
+@nix {"action":"start","id":586013927800835,"level":0,"parent":0,"text":"","type":102}
+@nix {"action":"start","id":586013927800836,"level":0,"parent":0,"text":"","type":104}
+@nix {"action":"start","id":586013927800837,"level":0,"parent":0,"text":"","type":103}
+@nix {"action":"result","fields":[0,0,0,0],"id":586013927800836,"type":105}
+@nix {"action":"result","fields":[0,0,0,0],"id":586013927800837,"type":105}
+@nix {"action":"result","fields":[101,0],"id":586013927800835,"type":106}
+@nix {"action":"result","fields":[100,0],"id":586013927800835,"type":106}
+@nix {"action":"start","id":586013927800838,"level":6,"parent":0,"text":"querying info about missing paths","type":0}
+@nix {"action":"stop","id":586013927800838}
+@nix {"action":"result","fields":[0,1,0,0],"id":586013927800836,"type":105}
+@nix {"action":"result","fields":[0,0,0,0],"id":586013927800837,"type":105}
+@nix {"action":"result","fields":[101,0],"id":586013927800835,"type":106}
+@nix {"action":"result","fields":[100,0],"id":586013927800835,"type":106}
+@nix {"action":"start","fields":["/nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv","",1,1],"id":586013927800839,"level":3,"parent":0,"text":"building '/nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv'","type":105}
+@nix {"action":"result","fields":[0,1,1,0],"id":586013927800836,"type":105}
+@nix {"action":"result","fields":[0,0,0,0],"id":586013927800837,"type":105}
+@nix {"action":"result","fields":[101,0],"id":586013927800835,"type":106}
+@nix {"action":"result","fields":[100,0],"id":586013927800835,"type":106}
+@nix {"action":"result","fields":["about to fail 1791634042"],"id":586013927800839,"type":101}
+@nix {"action":"result","fields":[0,1,0,1],"id":586013927800836,"type":105}
+@nix {"action":"result","fields":[0,0,0,0],"id":586013927800837,"type":105}
+@nix {"action":"result","fields":[101,0],"id":586013927800835,"type":106}
+@nix {"action":"result","fields":[100,0],"id":586013927800835,"type":106}
+@nix {"action":"stop","id":586013927800839}
+@nix {"action":"stop","id":586013927800837}
+@nix {"action":"stop","id":586013927800836}
+@nix {"action":"stop","id":586013927800835}
+@nix {"action":"msg","column":null,"file":null,"level":0,"line":null,"msg":"\u001b[31;1merror:\u001b[0m Cannot build '\u001b[35;1m/nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv\u001b[0m'.\n       Reason: \u001b[31;1mbuilder failed with exit code 3\u001b[0m.\n       Output paths:\n         \u001b[35;1m/nix/store/2iijvdb0hqx32qq60ry36qyprgirdg45-sample-fail\u001b[0m\n       Last 1 log lines:\n       > about to fail 1791634042\n       For full logs, run:\n         \u001b[1mnix log /nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv\u001b[0m","raw_msg":"Cannot build '\u001b[35;1m/nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv\u001b[0m'.\nReason: \u001b[31;1mbuilder failed with exit code 3\u001b[0m.\nOutput paths:\n  \u001b[35;1m/nix/store/2iijvdb0hqx32qq60ry36qyprgirdg45-sample-fail\u001b[0m\nLast 1 log lines:\n> about to fail 1791634042\nFor full logs, run:\n  \u001b[1mnix log /nix/store/1wmdq0j07pgsphbzry7bcf6ai96i065f-sample-fail.drv\u001b[0m"}

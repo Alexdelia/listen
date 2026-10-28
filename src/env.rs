@@ -12,6 +12,7 @@ pub(crate) enum Var {
 	SoundcloudClientId,
 	MusicBrainzClientId,
 	MusicBrainzClientSecret,
+	ComputeTagSuggestion,
 }
 
 impl Var {
@@ -20,6 +21,7 @@ impl Var {
 			Self::SoundcloudClientId => "SOUNDCLOUD_CLIENT_ID",
 			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",
 			Self::MusicBrainzClientSecret => "MUSICBRAINZ_CLIENT_SECRET",
+			Self::ComputeTagSuggestion => "DECLARATIVE_LISTEN_COMPUTE_TAG_SUGGESTION",
 		}
 	}
 }
@@ -49,6 +51,12 @@ pub(crate) fn get_opt(key: Var) -> Option<String> {
 	read();
 
 	std::env::var(key.key()).ok().filter(|v| !v.is_empty())
+}
+
+pub(crate) fn enabled(key: Var) -> bool {
+	read();
+
+	listen_cache::flag::enabled(key.key())
 }
 
 pub(crate) fn get(key: Var) -> hmerr::Result<String> {

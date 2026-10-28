@@ -5,6 +5,7 @@ mod keep;
 mod link;
 mod linked;
 mod no_link;
+mod outcome;
 mod output;
 mod record;
 mod redirect;
@@ -17,7 +18,9 @@ use ansi::abbrev::{B, D, R};
 use hmerr::ge;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
-use crate::{music_brainz, open};
+use crate::{music_brainz, open, tag_suggestion};
+
+use outcome::Outcome;
 
 pub(crate) fn declare(path: &Path, mbid: &str) -> hmerr::Result<bool> {
 	declare::run(path, mbid, true)
@@ -38,6 +41,8 @@ pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Resu
 		.id(mbid)
 		.with_artists()
 		.with_aliases()
+		.with_genres()
+		.with_tags()
 		.with_url_relations()
 		.execute_with_client_async(&client)
 		.await
@@ -58,32 +63,47 @@ pub(crate) async fn run(path: &Path, mbid: &str, recommend: bool) -> hmerr::Resu
 
 	output::recording(&recording, &title, length);
 
-	match link::streaming(&recording) {
-		None => no_link::run(&client, &recording, &title, length, path, mbid, recommend).await,
+	let outcome = match link::streaming(&recording) {
+		None => no_link::run(&client, &recording, &title, length, path, mbid, recommend).await?,
 		Some(already @ (link::Streaming::SoundCloud | link::Streaming::Bandcamp)) => {
 			println!(
 				"{B}{name}{D} link already on musicbrainz",
 				name = already.name()
 			);
-			keep::run(path, mbid, None, length, recommend)
+			Outcome::of(
+				keep::run(path, mbid, None, length, recommend)?,
+				link::url(&recording, &already),
+			)
 		}
 		Some(link::Streaming::YouTubeMusic(ids)) => match linked::resolve(ids)? {
-			linked::Linked::Song(found) => keep::run(
-				path,
-				mbid,
-				Some((&found.info, &found.url)),
-				length,
-				recommend,
+			linked::Linked::Song(found) => Outcome::of(
+				keep::run(
+					path,
+					mbid,
+					Some((&found.info, &found.url)),
+					length,
+					recommend,
+				)?,
+				Some(&found.url),
 			),
-			linked::Linked::Replacement(found) => {
-				record::run(path, mbid, &found, length, recommend)
-			}
+			linked::Linked::Replacement(found) => Outcome::of(
+				record::run(path, mbid, &found, length, recommend)?,
+				Some(&found.url),
+			),
 			linked::Linked::Video => {
-				upgrade::run(&client, &recording, &title, length, path, mbid, recommend).await
+				upgrade::run(&client, &recording, &title, length, path, mbid, recommend).await?
 			}
 			linked::Linked::Dead => {
-				no_link::run(&client, &recording, &title, length, path, mbid, recommend).await
+				no_link::run(&client, &recording, &title, length, path, mbid, recommend).await?
 			}
 		},
-	}
+	};
+
+	let Outcome::Declared { url } = outcome else {
+		return Ok(false);
+	};
+
+	tag_suggestion::suggest(&recording, url.as_deref());
+
+	Ok(true)
 }

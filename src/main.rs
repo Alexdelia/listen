@@ -1,6 +1,7 @@
 mod alias;
 mod args;
 mod ask;
+mod bar;
 mod cache;
 mod completion;
 mod declaration;
@@ -13,11 +14,13 @@ mod meta_brainz;
 mod music_brainz;
 mod open;
 mod outlier;
+mod prefetch;
 mod prompt;
 mod recommend;
 mod romaji;
 mod streaming_source;
 mod sync;
+mod tag_suggestion;
 
 use async_std::task::block_on;
 

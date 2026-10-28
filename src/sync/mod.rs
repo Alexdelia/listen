@@ -14,7 +14,7 @@ use std::{path::Path, thread};
 
 use async_std::{channel::Sender, task::block_on};
 
-use crate::{declaration::parse, env, prompt};
+use crate::{declaration::parse, env, prefetch::Prefetch, prompt};
 
 use channel::{Action, Status};
 use filter::{GroupedEntry, SyncEntry};
@@ -29,6 +29,10 @@ pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	env::load()?;
 
 	let list = parse::parse(path)?;
+
+	if let Err(e) = Prefetch::cached().and_then(|prefetch| prefetch.prune()) {
+		eprintln!("{e}");
+	}
 
 	let pending = rate::pending(&list)?;
 
