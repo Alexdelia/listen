@@ -24,6 +24,7 @@ const RUNTIME: &str = "runtime";
 const STAMP: &str = "runtime.hash";
 const PROGRAM: &str = "bin/maest";
 const NAMED: usize = 8;
+const NCCL: &str = "nccl";
 
 pub(super) fn ensure(dir: &Path) -> hmerr::Result<Option<PathBuf>> {
 	let runtime = dir.join(RUNTIME);
@@ -110,9 +111,18 @@ fn announce(planned: &Log) {
 		println!("  {B}{more}{D} more", more = names.len() - NAMED);
 	}
 
-	println!(
-		"{G}a cold build compiles NCCL for CUDA from source, about {B}75 min{D}{G} on 8 cores{D}"
-	);
+	if compiles_nccl(planned) {
+		println!(
+			"{G}a cold build compiles NCCL for CUDA from source, about {B}75 min{D}{G} on 8 cores{D}"
+		);
+	}
+}
+
+fn compiles_nccl(planned: &Log) -> bool {
+	planned
+		.build
+		.iter()
+		.any(|name| name.split('-').any(|part| part == NCCL))
 }
 
 fn build(runtime: &Path) -> hmerr::Result<()> {
@@ -178,6 +188,27 @@ mod tests {
 	fn the_fingerprint_is_the_same_for_the_same_expression() {
 		assert_eq!(fingerprint(), fingerprint());
 		assert_eq!(fingerprint().len(), 16);
+	}
+
+	fn planning(build: &[&str]) -> Log {
+		let mut planned = Log::default();
+		planned.build = build.iter().map(ToString::to_string).collect();
+
+		planned
+	}
+
+	#[test]
+	fn only_a_plan_building_nccl_is_announced_as_the_long_build() {
+		assert!(compiles_nccl(&planning(&[
+			"maest",
+			"cuda13.4-nccl-2.32.3-1"
+		])));
+		assert!(compiles_nccl(&planning(&["nccl-2.27"])));
+		assert!(!compiles_nccl(&planning(&[
+			"maest",
+			"cuda13.4-libcublas-13.1"
+		])));
+		assert!(!compiles_nccl(&planning(&[])));
 	}
 
 	#[test]
