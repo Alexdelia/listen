@@ -7,17 +7,12 @@ use super::progress;
 
 const KEEP: &str = "DECLARATIVE_LISTEN_KEEP";
 
-const FALSE: [&str; 4] = ["0", "false", "no", "off"];
-
 pub(super) fn requested() -> bool {
 	if cfg!(test) {
 		return by_test();
 	}
 
-	std::env::var(KEEP)
-		.ok()
-		.filter(|value| !value.is_empty())
-		.is_some_and(|value| !FALSE.contains(&value.trim().to_lowercase().as_str()))
+	listen_cache::flag::enabled(KEEP)
 }
 
 #[cfg(not(test))]
