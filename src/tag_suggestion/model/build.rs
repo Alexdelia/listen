@@ -1,6 +1,6 @@
 use std::{
 	hash::{DefaultHasher, Hash, Hasher},
-	io::{BufRead, BufReader},
+	io::{self, BufRead, BufReader},
 	path::{Path, PathBuf},
 	process::{Command, Stdio},
 };
@@ -130,22 +130,30 @@ fn build(runtime: &Path) -> hmerr::Result<()> {
 	let bar = bar::ticking(ProgressBar::new(0).with_style(bar::message_template("model", "cyan")?));
 	let mut log = Log::default();
 
-	for line in BufReader::new(stderr).lines() {
-		let line = line.map_err(|e| ioe!(format!("{NIX} stderr"), e))?;
-		log.feed(&line);
+	let followed = follow(BufReader::new(stderr), &mut log, &bar);
+	if followed.is_err() {
+		let _ = child.kill();
+	}
+	let waited = child.wait();
+	bar.finish_and_clear();
+
+	followed.map_err(|e| ioe!(format!("{NIX} stderr"), e))?;
+	let status = waited.map_err(|e| ioe!(format!("failed to wait for {NIX}"), e))?;
+
+	if !status.success() {
+		return Err(failed("build", &log));
+	}
+
+	Ok(())
+}
+
+fn follow(stderr: impl BufRead, log: &mut Log, bar: &ProgressBar) -> io::Result<()> {
+	for line in stderr.split(b'\n') {
+		log.feed(&String::from_utf8_lossy(&line?));
 
 		bar.set_length(log.expected());
 		bar.set_position(log.done());
 		bar.set_message(log.current().unwrap_or_default().to_string());
-	}
-
-	let status = child
-		.wait()
-		.map_err(|e| ioe!(format!("failed to wait for {NIX}"), e))?;
-	bar.finish_and_clear();
-
-	if !status.success() {
-		return Err(failed("build", &log));
 	}
 
 	Ok(())
@@ -170,5 +178,16 @@ mod tests {
 	fn the_fingerprint_is_the_same_for_the_same_expression() {
 		assert_eq!(fingerprint(), fingerprint());
 		assert_eq!(fingerprint().len(), 16);
+	}
+
+	#[test]
+	fn a_line_that_is_not_utf8_does_not_stop_the_build_log_from_being_followed() {
+		let mut stderr = b"\xff\xfe broken\n".to_vec();
+		stderr.extend_from_slice(br#"@nix {"action":"msg","msg":"after the broken line"}"#);
+		let mut log = Log::default();
+
+		follow(stderr.as_slice(), &mut log, &ProgressBar::hidden()).unwrap();
+
+		assert_eq!(log.said, ["after the broken line"]);
 	}
 }

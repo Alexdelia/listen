@@ -71,8 +71,9 @@ async fn fetch_recording(
 	let title = &recording.title;
 	let path = library::recording::path(*entry);
 
+	let carried = streaming_source::streaming_url(recording).collect::<Vec<_>>();
 	let adopted = Prefetch::cached()
-		.and_then(|prefetch| prefetch.adopt(*entry, &path))
+		.and_then(|prefetch| prefetch.adopt(*entry, &path, &carried))
 		.map_err(|e| e.to_string());
 	if matches!(adopted, Ok(true)) {
 		report(tx, Action::FetchStreaming, Ok(())).await;

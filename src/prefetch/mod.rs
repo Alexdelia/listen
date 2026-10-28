@@ -8,6 +8,7 @@ use crate::{declaration::Source, library};
 
 const DIR: &str = "prefetch";
 const PARTIAL: &str = "partial";
+const ORIGIN: &str = "url";
 
 pub(crate) struct Prefetch {
 	dir: PathBuf,
@@ -28,6 +29,10 @@ impl Prefetch {
 
 	fn partial(&self, source: Source) -> PathBuf {
 		recording_in(&self.dir.join(PARTIAL), source)
+	}
+
+	fn origin(&self, source: Source) -> PathBuf {
+		self.dir.join(source.to_string()).with_extension(ORIGIN)
 	}
 }
 
