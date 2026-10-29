@@ -1311,4 +1311,7 @@
 	(s: "77c6fb53-dc60-496b-a6a0-218b7c377487", q: 2, playlist: ["normie"]),
 	(s: "87389cd6-85df-4b47-8de8-a8f5913629eb", q: 1, playlist: []),
 	(s: "b8e332d7-b037-4939-8e04-a652d36d917d", q: 2, playlist: []),
+	(s: "dbada53f-4fe6-438f-b926-10dc34b4a97a", q: 1, playlist: []),
+	(s: "43447d9e-e0a0-4817-880a-c3444d015554", q: 2, playlist: []),
+	(s: "57bafa88-b2ac-4d72-b420-0fe08d8a5ee9", q: 0, playlist: []),
 ]
