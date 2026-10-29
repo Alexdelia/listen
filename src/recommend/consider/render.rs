@@ -10,7 +10,8 @@ use crate::{
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
-		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n{B}{mbid}{D}{label}",
+		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n\
+		{CYA}https://musicbrainz.org/recording/{B}{mbid}{D}{label}",
 		source = recommendation.origin.source(),
 		position = recommendation.origin.position(),
 		mbid = recommendation.mbid,
@@ -151,7 +152,9 @@ mod tests {
 		let body = line.next().unwrap_or_default();
 
 		assert!(
-			body.contains("07070707-0707-0707-0707-070707070707"),
+			body.contains(&format!(
+				"{CYA}https://musicbrainz.org/recording/{B}07070707-0707-0707-0707-070707070707{D}"
+			)),
 			"{body}"
 		);
 		assert_eq!(line.next(), None);
