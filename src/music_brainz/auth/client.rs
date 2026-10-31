@@ -2,7 +2,7 @@ use console::style;
 
 use crate::env::{self, Var};
 
-pub(in crate::sync::rate) struct Client {
+pub(crate) struct Client {
 	pub id: String,
 	pub secret: String,
 }
@@ -24,7 +24,7 @@ fn credential(key: Var) -> Option<String> {
 			"{}{}{}",
 			style("invalid ").yellow(),
 			style(&key.key()).bold().yellow(),
-			style(", rating sync skipped").yellow()
+			style(", nothing is submitted to musicbrainz").yellow()
 		);
 		return None;
 	}

@@ -1,5 +1,5 @@
 use console::{Key, Style, Term, style};
-use dialoguer::{Confirm, Input};
+use dialoguer::{Confirm, Input, MultiSelect};
 use miette::{IntoDiagnostic, WrapErr, bail};
 
 pub struct Choice {
@@ -33,6 +33,17 @@ pub fn confirm(asked: &str, default: bool) -> miette::Result<bool> {
 		.with_prompt(asked)
 		.default(default)
 		.interact()
+		.into_diagnostic()
+		.wrap_err("cannot read stdin")
+}
+
+pub fn check(asked: &str, items: &[String]) -> miette::Result<Vec<usize>> {
+	MultiSelect::new()
+		.with_prompt(asked)
+		.items(items)
+		.report(false)
+		.interact_opt()
+		.map(Option::unwrap_or_default)
 		.into_diagnostic()
 		.wrap_err("cannot read stdin")
 }

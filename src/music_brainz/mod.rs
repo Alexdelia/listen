@@ -1,3 +1,5 @@
+pub(crate) mod auth;
+
 use musicbrainz_rs::{MusicBrainzClient, api_bindium::ApiClient};
 use ureq::{Body, RequestBuilder, http::Response, typestate::WithBody};
 

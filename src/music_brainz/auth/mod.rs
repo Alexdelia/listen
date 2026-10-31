@@ -4,13 +4,13 @@ mod token;
 
 use console::style;
 
-pub(in crate::sync::rate) use client::Client;
+pub(crate) use client::Client;
 
-pub(super) fn client() -> Option<Client> {
+pub(crate) fn client() -> Option<Client> {
 	Client::from_env()
 }
 
-pub(super) fn acquire(client: &Client) -> miette::Result<Option<String>> {
+pub(crate) fn acquire(client: &Client) -> miette::Result<Option<String>> {
 	if let Some(stored) = token::stored()? {
 		match token::refresh(client, &stored)? {
 			token::Refresh::Token(token) => {

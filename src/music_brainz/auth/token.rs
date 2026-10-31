@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use listen_cache::text;
+use listen_cache::json;
 use miette::miette;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{cache, meta_brainz::Sent, music_brainz};
 
-use super::Client;
+use super::{Client, login::SCOPE};
 
 const ENDPOINT: &str = "https://musicbrainz.org/oauth2/token";
 pub(super) const REDIRECT_URI: &str = "urn:ietf:wg:oauth:2.0:oob";
@@ -102,14 +102,28 @@ struct ErrorPayload {
 	error: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Stored {
+	scope: String,
+	refresh: String,
+}
+
 pub(super) fn stored() -> miette::Result<Option<String>> {
-	text::read(&path()?)
+	Ok(json::read::<Stored>(&path()?)?
+		.filter(|stored| stored.scope == SCOPE)
+		.map(|stored| stored.refresh))
 }
 
 pub(super) fn store(refresh_token: &str) -> miette::Result<()> {
-	text::write(&path()?, refresh_token)
+	json::write(
+		&path()?,
+		&Stored {
+			scope: SCOPE.to_owned(),
+			refresh: refresh_token.to_owned(),
+		},
+	)
 }
 
 fn path() -> miette::Result<PathBuf> {
-	Ok(cache::root()?.join(FILE))
+	Ok(cache::root()?.join(FILE).with_extension(json::EXT))
 }

@@ -2,6 +2,7 @@ mod mapping;
 mod model;
 mod output;
 mod select;
+mod upvote;
 mod vocabulary;
 
 use std::collections::HashSet;
@@ -53,12 +54,7 @@ fn run(recording: &Recording, url: Option<&str>) -> miette::Result<()> {
 	let genres = mapping::genres(&scores, &vocabulary::load()?);
 	let suggestions = select::select(genres, &carried(recording));
 
-	// TODO: turn these rows into a checkbox list (dialoguer has no tri-state checkbox: a `Select` per genre, or a custom prompt on `console::Term`) where each genre is upvoted, downvoted or left alone, then submit the votes as MusicBrainz user tags (POST /ws/2/tag with vote="upvote"/"downvote", OAuth scope "tag" next to "rating" in src/sync/rate/auth/login.rs)
-	for row in output::rows(&suggestions) {
-		println!("{row}");
-	}
-
-	Ok(())
+	upvote::offer(source, &suggestions)
 }
 
 fn carried(recording: &Recording) -> HashSet<String> {

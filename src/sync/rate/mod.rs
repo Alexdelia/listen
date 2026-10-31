@@ -1,4 +1,3 @@
-pub(super) mod auth;
 mod cache;
 mod submit;
 
@@ -10,6 +9,7 @@ use crate::{
 		value::{self, Value},
 	},
 	meta_brainz,
+	music_brainz::auth,
 };
 
 use super::channel::{Action, Status, report};

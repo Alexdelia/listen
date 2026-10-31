@@ -16,28 +16,37 @@ pub(super) fn rows(suggestions: &[Suggestion]) -> Vec<String> {
 		)];
 	}
 
+	iter::once(style(&LABEL).bold().to_string())
+		.chain(
+			items(suggestions)
+				.into_iter()
+				.map(|item| format!("  {item}")),
+		)
+		.collect()
+}
+
+pub(super) fn items(suggestions: &[Suggestion]) -> Vec<String> {
 	let width = suggestions
 		.iter()
 		.map(|s| s.name.chars().count())
 		.max()
 		.unwrap_or_default();
 
-	let listed = suggestions.iter().map(|s| {
-		let carried = if s.carried {
-			format!("  {}", style(&CARRIED).green())
-		} else {
-			String::new()
-		};
+	suggestions
+		.iter()
+		.map(|s| {
+			let carried = if s.carried {
+				format!("  {}", style(&CARRIED).green())
+			} else {
+				String::new()
+			};
 
-		format!(
-			"  {name:<width$} {}{carried}",
-			style(format!("{p:>3}%", p = percent(s.score))).dim(),
-			name = s.name
-		)
-	});
-
-	iter::once(style(&LABEL).bold().to_string())
-		.chain(listed)
+			format!(
+				"{name:<width$} {}{carried}",
+				style(format!("{p:>3}%", p = percent(s.score))).dim(),
+				name = s.name
+			)
+		})
 		.collect()
 }
 
@@ -96,6 +105,16 @@ mod tests {
 
 		assert!(rows[1].contains(CARRIED));
 		assert!(!rows[2].contains(CARRIED));
+	}
+
+	#[test]
+	fn an_item_to_check_is_the_row_without_its_indent() {
+		let suggestions = [suggestion("vaporwave", 0.72, true)];
+
+		assert_eq!(
+			rows(&suggestions)[1],
+			format!("  {}", items(&suggestions)[0])
+		);
 	}
 
 	#[test]
