@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use listen_cache::text;
+use miette::IntoDiagnostic;
 use serde::Serialize;
 
 pub(super) enum Log {
@@ -9,9 +10,11 @@ pub(super) enum Log {
 }
 
 impl Log {
-	pub(super) fn append(&self, entry: &impl Serialize) -> hmerr::Result<()> {
+	pub(super) fn append(&self, entry: &impl Serialize) -> miette::Result<()> {
 		match self {
-			Self::File(path) => text::append(path, &serde_json::to_string(entry)?),
+			Self::File(path) => {
+				text::append(path, &serde_json::to_string(entry).into_diagnostic()?)
+			}
 			Self::Off => Ok(()),
 		}
 	}

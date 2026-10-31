@@ -1,10 +1,7 @@
 use std::fmt::Display;
 
-use ansi::{
-	WHITE,
-	abbrev::{B, D, F},
-};
 use chrono::{DateTime, NaiveDate, Utc};
+use console::style;
 use serde::Serialize;
 
 use crate::{
@@ -109,15 +106,21 @@ impl Origin {
 }
 
 fn text(origin: &str) -> String {
-	format!("{B}{WHITE}{origin}{D}")
+	style(&origin).bold().white().to_string()
 }
 
 fn precise(origin: &str, precision: impl Display) -> String {
-	format!("{origin} {F}{WHITE}{precision}{D}", origin = text(origin))
+	format!(
+		"{origin} {}",
+		style(&precision).dim().white(),
+		origin = text(origin)
+	)
 }
 
 #[cfg(test)]
 mod tests {
+	use console::strip_ansi_codes;
+
 	use super::*;
 
 	fn collaborative_filtering(position: usize) -> Origin {
@@ -147,25 +150,22 @@ mod tests {
 	#[test]
 	fn a_weekly_source_is_named_after_its_week() {
 		assert_eq!(
-			weekly(0).source(),
-			format!("{B}{WHITE}weekly-exploration{D} {F}{WHITE}2026-07-13{D}")
+			strip_ansi_codes(&weekly(0).source()),
+			"weekly-exploration 2026-07-13"
 		);
 	}
 
 	#[test]
 	fn the_collaborative_filtering_source_has_no_date() {
 		assert_eq!(
-			collaborative_filtering(0).source(),
-			format!("{B}{WHITE}collaborative-filtering{D}")
+			strip_ansi_codes(&collaborative_filtering(0).source()),
+			"collaborative-filtering"
 		);
 	}
 
 	#[test]
 	fn a_listen_count_source_is_just_listenbrainz() {
-		assert_eq!(
-			listen_count(0).source(),
-			format!("{B}{WHITE}listenbrainz{D}")
-		);
+		assert_eq!(strip_ansi_codes(&listen_count(0).source()), "listenbrainz");
 	}
 
 	#[test]
@@ -187,7 +187,7 @@ mod tests {
 			redundancy: 0.0,
 		};
 
-		assert_eq!(forecast.source(), format!("{B}{WHITE}forecast{D}"));
+		assert_eq!(strip_ansi_codes(&forecast.source()), "forecast");
 		assert_eq!(forecast.position(), 4);
 		assert_eq!(forecast.latest_listened_at(), None);
 	}

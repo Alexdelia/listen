@@ -5,8 +5,7 @@ mod query;
 mod search;
 mod text;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::miette;
 use musicbrainz_rs::{MusicBrainzClient, entity::recording::Recording};
 
 use crate::streaming_source::StreamingSource;
@@ -25,7 +24,7 @@ pub(super) async fn song(
 	title: &str,
 	length: i64,
 	mbid: &str,
-) -> hmerr::Result<Found> {
+) -> miette::Result<Found> {
 	let title_form = form::title(recording, title);
 	let artist = form::artist(client, recording).await;
 	let accepted = form::accepted_title(&title_form);
@@ -51,11 +50,11 @@ pub(super) async fn song(
 		}
 	}
 
-	Err(ge!(format!(
-		"{R}no exact {host} match for {B}{title}{D}\nhttps://musicbrainz.org/recording/{mbid}{block}",
+	Err(miette!(
+		"no exact {host} match for {title}\nhttps://musicbrainz.org/recording/{mbid}{block}",
 		host = StreamingSource::YouTubeMusic.host(),
-		block = miss::block(miss),
-	)))?
+		block = miss::block(miss)
+	))?
 }
 
 fn push_unique(out: &mut Vec<String>, s: String) {

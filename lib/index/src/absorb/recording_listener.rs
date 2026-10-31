@@ -8,7 +8,7 @@ pub(super) fn of(
 	db: &duckdb::Connection,
 	board: &Board<Stage>,
 	merge: &Merge,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	part::step(
 		db,
 		board,

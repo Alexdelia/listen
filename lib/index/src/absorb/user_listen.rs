@@ -18,7 +18,7 @@ pub(super) fn of(
 	board: &Board<Stage>,
 	merge: &Merge,
 	recording: &Path,
-) -> hmerr::Result<u64> {
+) -> miette::Result<u64> {
 	let into = merge.into.join(USER_LISTEN);
 
 	part::bucketed(db, board, Stage::Listen, &into, &|bucket| {

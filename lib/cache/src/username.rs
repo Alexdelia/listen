@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use ansi::abbrev::{B, D, F};
+use console::style;
 use listen_prompt::{confirm, line};
 
 use crate::{root, text};
 
 const FILE: &str = "username";
 
-pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
+pub fn resolve(username: Option<&str>) -> miette::Result<String> {
 	if let Some(username) = username {
 		remember(username)?;
 		return Ok(username.to_string());
@@ -23,15 +23,15 @@ pub fn resolve(username: Option<&str>) -> hmerr::Result<String> {
 	Ok(username)
 }
 
-fn path() -> hmerr::Result<PathBuf> {
+fn path() -> miette::Result<PathBuf> {
 	Ok(root()?.join(FILE))
 }
 
-pub fn read() -> hmerr::Result<Option<String>> {
+pub fn read() -> miette::Result<Option<String>> {
 	text::read(&path()?)
 }
 
-fn remember(username: &str) -> hmerr::Result<()> {
+fn remember(username: &str) -> miette::Result<()> {
 	let Some(remembered) = read()? else {
 		return store(username);
 	};
@@ -43,16 +43,24 @@ fn remember(username: &str) -> hmerr::Result<()> {
 	store(username)
 }
 
-fn instead(remembered: &str, username: &str) -> hmerr::Result<bool> {
+fn instead(remembered: &str, username: &str) -> miette::Result<bool> {
 	println!(
-		"\n{B}{remembered}{D}{F} is the name remembered, \
+		"\n{}{}",
+		style(remembered).bold(),
+		style(
+			" is the name remembered, \
 		which is the listener an index build calls its own \
-		and leaves out of what it recommends{D}"
+		and leaves out of what it recommends"
+		)
+		.dim()
 	);
 
-	confirm(&format!("remember {B}{username}{D} instead"), false)
+	confirm(
+		&format!("remember {} instead", style(username).bold()),
+		false,
+	)
 }
 
-fn store(username: &str) -> hmerr::Result<()> {
+fn store(username: &str) -> miette::Result<()> {
 	text::write(&path()?, username)
 }

@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::Path};
 
-use ansi::abbrev::{B, D, R};
 use id3::{Tag, TagLike, Version, frame::ExtendedText};
+use miette::{IntoDiagnostic, WrapErr};
 use musicbrainz_rs::entity::recording::Recording;
 
 use crate::{
@@ -14,7 +14,7 @@ const RECORDING_MBID: &str = "MusicBrainz Track Id";
 const SUBTITLE: &str = "TIT3";
 const GENRE: &str = "TCON";
 
-pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
+pub(super) fn write(path: &Path, recording: &Recording) -> miette::Result<()> {
 	let mut tag = Tag::read_from_path(path).unwrap_or_default();
 
 	if !recording.title.is_empty() {
@@ -59,12 +59,9 @@ pub(super) fn write(path: &Path, recording: &Recording) -> Result<(), String> {
 		value: recording.id.clone(),
 	});
 
-	tag.write_to_path(path, Version::default()).map_err(|e| {
-		format!(
-			"{R}failed to write metadata to {B}{path}{D}\n{e}",
-			path = path.to_string_lossy(),
-		)
-	})
+	tag.write_to_path(path, Version::default())
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to write metadata to {}", path.display()))
 }
 
 fn title_sort(recording: &Recording) -> Option<String> {

@@ -29,7 +29,7 @@ pub(super) struct Skip {
 }
 
 impl Skip {
-	pub(super) fn load(path: &Path) -> hmerr::Result<Self> {
+	pub(super) fn load(path: &Path) -> miette::Result<Self> {
 		Ok(Self::new(declared::sources(path)?, declined::load()?))
 	}
 

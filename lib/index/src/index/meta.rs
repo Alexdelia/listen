@@ -1,7 +1,6 @@
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use miette::{IntoDiagnostic, WrapErr, miette};
 use serde::{Deserialize, Serialize};
 
 use super::layout::META;
@@ -42,36 +41,42 @@ pub(crate) fn own(dir: &Path) -> Option<u32> {
 	read(dir).ok().and_then(|meta| meta.own)
 }
 
-pub(crate) fn forget(dir: &Path) -> hmerr::Result<()> {
+pub(crate) fn forget(dir: &Path) -> miette::Result<()> {
 	let path = dir.join(META);
 
 	if !path.exists() {
 		return Ok(());
 	}
 
-	fs::remove_file(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::remove_file(&path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot remove {}", path.display()))?;
 
 	Ok(())
 }
 
-pub(crate) fn write(dir: &Path, meta: &Meta) -> hmerr::Result<()> {
+pub(crate) fn write(dir: &Path, meta: &Meta) -> miette::Result<()> {
 	let path = dir.join(META);
-	let content = serde_json::to_string(meta)?;
+	let content = serde_json::to_string(meta).into_diagnostic()?;
 
-	fs::write(&path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(&path, content)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
 
-pub(crate) fn read(dir: &Path) -> hmerr::Result<Meta> {
+pub(crate) fn read(dir: &Path) -> miette::Result<Meta> {
 	let path = dir.join(META);
-	let content = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	let content = fs::read_to_string(&path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 
 	serde_json::from_str(&content).map_err(|e| {
-		ge!(
-			format!("{R}cannot read {B}{}{D}{R}\n{e}{D}", path.display()),
-			h: "delete it to rebuild the index"
+		miette!(
+			help = "delete it to rebuild the index",
+			"cannot read {}\n{e}",
+			path.display()
 		)
-		.into()
 	})
 }

@@ -3,9 +3,9 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use ansi::abbrev::{B, D, F, R, Y};
-use hmerr::{ge, ioe};
+use console::style;
 use indicatif::ProgressBar;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use super::{
 	super::{
@@ -24,9 +24,8 @@ pub(crate) fn fetch(
 	root: &Path,
 	offer: &Offer,
 	decide: &dyn Decide,
-) -> hmerr::Result<Option<Listen>> {
-	let dump =
-		newest()?.ok_or_else(|| ge!(format!("{R}nothing published under {B}{MODULE}{D}")))?;
+) -> miette::Result<Option<Listen>> {
+	let dump = newest()?.ok_or_else(|| miette!("nothing published under {MODULE}"))?;
 
 	fetch_named(root, &dump, offer, decide)
 }
@@ -36,18 +35,30 @@ pub(crate) fn fetch_named(
 	dump: &str,
 	offer: &Offer,
 	decide: &dyn Decide,
-) -> hmerr::Result<Option<Listen>> {
+) -> miette::Result<Option<Listen>> {
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::biggest(&url, EXT)?;
 	let tar = root.join(&archive.name);
 
 	progress::say(format!(
-		"\n{F}listen dump {B}{dump}{D}{F}: {B}{Y}{size}{D}{F}, {B}{Y}+{size}{D}{F} unpacked, \
-		deleted once index built{D}",
-		size = progress::bytes(archive.size)
+		"\n{}{}{}{}{}{}{}",
+		style("listen dump ").dim(),
+		style(dump).dim().bold(),
+		style(": ").dim(),
+		style(progress::bytes(archive.size)).dim().bold().yellow(),
+		style(", ").dim(),
+		style(format!("+{size}", size = progress::bytes(archive.size)))
+			.dim()
+			.bold()
+			.yellow(),
+		style(
+			" unpacked, \
+		deleted once index built"
+		)
+		.dim()
 	));
 
-	progress::say(format!("{F}{reason}{D}", reason = offer.reason));
+	progress::say(style(offer.reason).dim().to_string());
 
 	if !progress::confirm(decide, "download", offer.default)? {
 		return Ok(None);
@@ -73,28 +84,36 @@ pub(crate) fn fetch_named(
 	}))
 }
 
-fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
-	let file = fs::File::open(tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+fn unpack(tar: &Path, root: &Path, bar: &ProgressBar) -> miette::Result<PathBuf> {
+	let file = fs::File::open(tar)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot open {}", tar.display()))?;
 
 	tar::Archive::new(bar.wrap_read(file))
 		.unpack(root)
-		.map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot unpack {}", tar.display()))?;
 
 	let dir = root.join(LISTEN);
 	let inner = fs::read_dir(root)
-		.map_err(|e| ioe!(root.to_string_lossy(), e))?
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot list {}", root.display()))?
 		.filter_map(Result::ok)
 		.map(|entry| entry.path())
 		.filter(|path| path.is_dir() && *path != dir)
 		.filter_map(|path| Some((timestamp(&path)?, path)))
 		.max()
 		.map(|(_, path)| path)
-		.ok_or_else(|| ge!(format!("{R}the listen archive held no dump directory{D}")))?;
+		.ok_or_else(|| miette!("the listen archive held no dump directory"))?;
 
 	if dir.exists() {
-		fs::remove_dir_all(&dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+		fs::remove_dir_all(&dir)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", dir.display()))?;
 	}
-	fs::rename(&inner, &dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+	fs::rename(&inner, &dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot move into {}", dir.display()))?;
 
 	Ok(dir)
 }

@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F, G};
 use chrono::Utc;
+use console::style;
 
 use super::{
 	super::{board::Board, index::Meta, progress, query},
@@ -18,7 +18,7 @@ pub(super) fn merge(
 	work: &Path,
 	held: &Meta,
 	reach: Reach,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	announce(&reach);
 
 	let merge = work::merging(dir, work, &reach.covered)?;
@@ -46,8 +46,9 @@ pub(super) fn merge(
 	work::release(work);
 
 	progress::say(format!(
-		"{G}index absorbed up to {B}{to}{D}",
-		to = meta.covered()
+		"{}{}",
+		style("index absorbed up to ").green(),
+		style(meta.covered()).bold().green()
 	));
 
 	Ok(())
@@ -55,8 +56,10 @@ pub(super) fn merge(
 
 fn announce(reach: &Reach) {
 	progress::say(format!(
-		"\n{F}merging {B}{absorbed}{D}{F} absorbed dump into the index{D}\n",
-		absorbed = reach.absorbed
+		"\n{}{}{}\n",
+		style("merging ").dim(),
+		style(reach.absorbed).dim().bold(),
+		style(" absorbed dump into the index").dim()
 	));
 }
 

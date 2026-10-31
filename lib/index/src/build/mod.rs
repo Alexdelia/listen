@@ -12,9 +12,9 @@ mod work;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, D, F, G};
 use chrono::Utc;
 
+use console::style;
 use listen_cache as cache;
 
 use crate::Seed;
@@ -23,7 +23,7 @@ use super::{dump::Listen, index, listener, parallel, progress};
 
 use scan::Scan;
 
-pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
+pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> miette::Result<()> {
 	let listener = pool::Listener {
 		named: named()?,
 		known: index::meta::own(dir),
@@ -69,12 +69,12 @@ pub(super) fn run(dir: &Path, dump: &Listen, declared: &[Seed]) -> hmerr::Result
 	work::publish(&work, dir, &meta)?;
 	work::release(&work);
 
-	progress::say(format!("{G}index built{D}"));
+	progress::say(style("index built").green().to_string());
 
 	Ok(())
 }
 
-fn named() -> hmerr::Result<Option<u32>> {
+fn named() -> miette::Result<Option<u32>> {
 	let Some(username) = cache::username::read()? else {
 		return Ok(None);
 	};
@@ -84,8 +84,14 @@ fn named() -> hmerr::Result<Option<u32>> {
 
 fn announce(declared: usize) {
 	progress::say(format!(
-		"\n{F}building index from {B}{declared}{D}{F} declared recording, \
-		may be long, once per dump{D}\n"
+		"\n{}{}{}\n",
+		style("building index from ").dim(),
+		style(declared).dim().bold(),
+		style(
+			" declared recording, \
+		may be long, once per dump"
+		)
+		.dim()
 	));
 }
 

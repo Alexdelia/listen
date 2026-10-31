@@ -1,8 +1,10 @@
 use std::{collections::HashSet, path::Path};
 
+use miette::IntoDiagnostic;
+
 use crate::declaration::{Entry, Source, parse};
 
-pub(super) fn sources(path: &Path) -> hmerr::Result<HashSet<Source>> {
+pub(super) fn sources(path: &Path) -> miette::Result<HashSet<Source>> {
 	Ok(parse::parse(path)?
 		.into_iter()
 		.map(|entry| entry.s)
@@ -19,14 +21,17 @@ pub(super) fn seed(entry: &[Entry]) -> Vec<listen_index::Seed> {
 		.collect()
 }
 
-pub(super) fn table(db: &duckdb::Connection, entry: &[Entry]) -> hmerr::Result<()> {
-	db.execute_batch("create or replace temp table declared (mbid varchar, q utinyint);")?;
+pub(super) fn table(db: &duckdb::Connection, entry: &[Entry]) -> miette::Result<()> {
+	db.execute_batch("create or replace temp table declared (mbid varchar, q utinyint);")
+		.into_diagnostic()?;
 
-	let mut appender = db.appender("declared")?;
+	let mut appender = db.appender("declared").into_diagnostic()?;
 	for entry in entry {
-		appender.append_row(duckdb::params![entry.s.to_string(), entry.q])?;
+		appender
+			.append_row(duckdb::params![entry.s.to_string(), entry.q])
+			.into_diagnostic()?;
 	}
-	appender.flush()?;
+	appender.flush().into_diagnostic()?;
 
 	Ok(())
 }

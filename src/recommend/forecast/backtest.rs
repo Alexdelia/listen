@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D, F, Y};
+use console::style;
 
 use crate::declaration::Q;
 
@@ -16,11 +16,16 @@ struct Band {
 
 pub(super) fn print(point: &[(Q, f32)], calibration: Calibration) {
 	println!(
-		"{B}{rated}{D} {F}rated picks{D}  {F}spearman{D} {Y}{rho:.2}{D}  {calibration}",
-		rated = point.len(),
-		rho = spearman(point),
+		"{} {}  {} {:.2}  {calibration}",
+		style(&point.len()).bold(),
+		style("rated picks").dim(),
+		style("spearman").dim(),
+		style(&spearman(point)).yellow()
 	);
-	println!("{F}band    n  raw  expected  actual   q0  q2+{D}");
+	println!(
+		"{}",
+		style("band    n  raw  expected  actual   q0  q2+").dim()
+	);
 
 	for (number, band) in band(point).iter().enumerate() {
 		println!(

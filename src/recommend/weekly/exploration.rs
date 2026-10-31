@@ -1,8 +1,7 @@
 use std::cmp::Reverse;
 
-use ansi::abbrev::{D, R};
 use chrono::NaiveDate;
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::declaration::Source;
 
@@ -20,9 +19,10 @@ pub(super) struct Exploration {
 	pub week: NaiveDate,
 }
 
-pub(super) fn explorations(body: &str) -> hmerr::Result<Vec<Exploration>> {
+pub(super) fn explorations(body: &str) -> miette::Result<Vec<Exploration>> {
 	let page = serde_json::from_str::<CreatedFor>(body)
-		.map_err(|e| ge!(format!("{R}failed to parse created for playlists{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err("failed to parse created for playlists")?;
 
 	let mut found = page
 		.playlists

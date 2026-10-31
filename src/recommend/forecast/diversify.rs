@@ -42,7 +42,7 @@ pub(super) const fn stream(pick: Vec<Pick>, allow_known_artist: bool, log: Log) 
 }
 
 impl feed::Feed for Stream {
-	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		self.pick.retain(|pick| !skip.seen(pick.mbid));
 
 		let Some(judged) = self.choose() else {

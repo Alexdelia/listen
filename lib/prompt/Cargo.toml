@@ -6,9 +6,9 @@ authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "what declarative_listen puts to the terminal and reads back"
 
 [dependencies]
-hmerr.workspace = true
-ansi.workspace = true
-ux.workspace = true
+miette.workspace = true
+console.workspace = true
+dialoguer.workspace = true
 
 [lints]
 workspace = true

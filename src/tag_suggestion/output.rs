@@ -1,9 +1,6 @@
 use std::iter;
 
-use ansi::{
-	DIM,
-	abbrev::{B, D, G},
-};
+use console::style;
 
 use super::select::Suggestion;
 
@@ -12,7 +9,11 @@ const CARRIED: &str = "on musicbrainz";
 
 pub(super) fn rows(suggestions: &[Suggestion]) -> Vec<String> {
 	if suggestions.is_empty() {
-		return vec![format!("{B}{LABEL}{D}  {DIM}nothing to suggest{D}")];
+		return vec![format!(
+			"{}  {}",
+			style(&LABEL).bold(),
+			style("nothing to suggest").dim()
+		)];
 	}
 
 	let width = suggestions
@@ -23,19 +24,21 @@ pub(super) fn rows(suggestions: &[Suggestion]) -> Vec<String> {
 
 	let listed = suggestions.iter().map(|s| {
 		let carried = if s.carried {
-			format!("  {G}{CARRIED}{D}")
+			format!("  {}", style(&CARRIED).green())
 		} else {
 			String::new()
 		};
 
 		format!(
-			"  {name:<width$} {DIM}{p:>3}%{D}{carried}",
-			name = s.name,
-			p = percent(s.score)
+			"  {name:<width$} {}{carried}",
+			style(format!("{p:>3}%", p = percent(s.score))).dim(),
+			name = s.name
 		)
 	});
 
-	iter::once(format!("{B}{LABEL}{D}")).chain(listed).collect()
+	iter::once(style(&LABEL).bold().to_string())
+		.chain(listed)
+		.collect()
 }
 
 fn percent(score: f32) -> String {

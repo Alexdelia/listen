@@ -1,8 +1,6 @@
 use std::fmt::Write;
 
-use ansi::abbrev::{B, D, R};
-use const_format::concatcp;
-use hmerr::ge;
+use miette::miette;
 
 use crate::{meta_brainz::Sent, music_brainz};
 
@@ -14,9 +12,9 @@ const ENDPOINT: &str = "https://musicbrainz.org/ws/2/rating";
 
 const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 
-const FAILURE: &str = concatcp!(R, "failed to submit rating", D);
+const FAILURE: &str = "failed to submit rating";
 
-pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
+pub(super) fn submit(bearer: &str, rating: &[Rating]) -> miette::Result<()> {
 	let Sent {
 		status,
 		body: detail,
@@ -32,10 +30,9 @@ pub(super) fn submit(bearer: &str, rating: &[Rating]) -> hmerr::Result<()> {
 	)?;
 
 	if !status.is_success() {
-		return Err(ge!(format!(
-			"{R}musicbrainz refused rating submission{D} ({B}{status}{D})\n{detail}"
-		))
-		.into());
+		return Err(miette!(
+			"musicbrainz refused rating submission ({status})\n{detail}"
+		));
 	}
 
 	Ok(())

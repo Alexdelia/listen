@@ -11,7 +11,7 @@ impl Queue {
 }
 
 impl Feed for Queue {
-	fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, _skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		Ok(self.0.pop_front())
 	}
 }

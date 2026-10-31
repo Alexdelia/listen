@@ -4,7 +4,7 @@ use super::{
 	super::index::layout::USER_STAT, library, pool::Pool, scan::Scan, stage::Stage, work::STAT,
 };
 
-pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> hmerr::Result<()> {
+pub(super) fn of(scan: &Scan, dir: &Path, library: &Path, pool: &Pool) -> miette::Result<()> {
 	let partial = scan.work.join(STAT);
 
 	scan.bucketed(&partial, Stage::Stat, &|bucket| {

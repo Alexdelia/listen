@@ -1,4 +1,4 @@
-use ansi::abbrev::{D, F};
+use console::style;
 
 const GROUP: usize = 3;
 const SEPARATOR: char = ' ';
@@ -26,7 +26,7 @@ pub(crate) fn text(n: u64) -> String {
 		return value;
 	}
 
-	format!("{value}{F}{unit}{D}")
+	format!("{value}{}", style(&unit).dim())
 }
 
 fn scaled(n: u64, scale: u64) -> String {
@@ -57,6 +57,8 @@ fn grouped(n: u64) -> String {
 
 #[cfg(test)]
 mod tests {
+	use console::strip_ansi_codes;
+
 	use super::*;
 
 	#[test]
@@ -94,8 +96,8 @@ mod tests {
 	}
 
 	#[test]
-	fn the_unit_is_faint_and_the_grouped_number_has_none() {
-		assert_eq!(text(1_000_000), format!("1{F}M{D}"));
+	fn the_unit_follows_the_number_and_the_grouped_number_has_none() {
+		assert_eq!(strip_ansi_codes(&text(1_000_000)), "1M");
 		assert_eq!(text(1_000), "1 000".to_string());
 	}
 }

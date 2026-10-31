@@ -8,7 +8,7 @@ pub(super) fn of(
 	library: &Path,
 	pool: &Pool,
 	recording: &Path,
-) -> hmerr::Result<u64> {
+) -> miette::Result<u64> {
 	let into = dir.join(USER_LISTEN);
 
 	scan.bucketed(&into, Stage::Listen, &|bucket| {

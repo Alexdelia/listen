@@ -1,23 +1,21 @@
-use ansi::abbrev::{B, D, R};
-
 use crate::{declaration::Source, listen_brainz};
 
 const COUNT: usize = 1000;
 
-pub(super) fn created_for(username: &str) -> hmerr::Result<String> {
+pub(super) fn created_for(username: &str) -> miette::Result<String> {
 	body(
 		&format!("user/{username}/playlists/createdfor?count={COUNT}"),
-		&format!("{R}failed to fetch the playlists created for {B}{username}{D}"),
+		&format!("failed to fetch the playlists created for {username}"),
 	)
 }
 
-pub(super) fn playlist(mbid: Source) -> hmerr::Result<String> {
+pub(super) fn playlist(mbid: Source) -> miette::Result<String> {
 	body(
 		&format!("playlist/{mbid}"),
-		&format!("{R}failed to fetch playlist {B}{mbid}{D}"),
+		&format!("failed to fetch playlist {mbid}"),
 	)
 }
 
-fn body(path: &str, failure: &str) -> hmerr::Result<String> {
+fn body(path: &str, failure: &str) -> miette::Result<String> {
 	Ok(listen_brainz::get(path, failure)?.body)
 }

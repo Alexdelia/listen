@@ -7,6 +7,7 @@ use std::path::Path;
 
 use musicbrainz_rs::entity::{recording::Recording, relations::RelationContent, url::Url};
 
+use miette::miette;
 use run::run;
 
 pub(crate) use yt_dlp::PROGRAM as YT_DLP;
@@ -61,7 +62,7 @@ impl StreamingSource {
 		}
 	}
 
-	pub(crate) fn download<P>(&self, url: &str, path: P) -> hmerr::Result<()>
+	pub(crate) fn download<P>(&self, url: &str, path: P) -> miette::Result<()>
 	where
 		P: AsRef<Path>,
 	{
@@ -74,12 +75,11 @@ impl StreamingSource {
 		run(&mut command, url)?;
 
 		if !path.exists() {
-			return Err(format!(
+			return Err(miette!(
 				"{downloader} exited successfully without downloading {url} to {path}",
 				downloader = command.get_program().to_string_lossy(),
-				path = path.to_string_lossy(),
-			)
-			.into());
+				path = path.to_string_lossy()
+			));
 		}
 
 		Ok(())

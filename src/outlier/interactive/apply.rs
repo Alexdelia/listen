@@ -1,13 +1,14 @@
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use miette::{IntoDiagnostic, WrapErr, miette};
 use ron::ser::PrettyConfig;
 
 use crate::declaration::{Entry, Q, Source};
 
-pub(super) fn set_q(path: &Path, mbid: Source, q: Q) -> hmerr::Result<()> {
-	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+pub(super) fn set_q(path: &Path, mbid: Source, q: Q) -> miette::Result<()> {
+	let content = fs::read_to_string(path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 
 	let mut out = Vec::new();
 	let mut set = false;
@@ -23,11 +24,10 @@ pub(super) fn set_q(path: &Path, mbid: Source, q: Q) -> hmerr::Result<()> {
 	}
 
 	if !set {
-		return Err(ge!(format!(
-			"{R}cannot set q: {B}{mbid}{D} not found in {B}{path}{D}",
-			path = path.to_string_lossy(),
-		))
-		.into());
+		return Err(miette!(
+			"cannot set q: {mbid} not found in {path}",
+			path = path.to_string_lossy()
+		));
 	}
 
 	let mut updated = out.join("\n");
@@ -35,12 +35,14 @@ pub(super) fn set_q(path: &Path, mbid: Source, q: Q) -> hmerr::Result<()> {
 		updated.push('\n');
 	}
 
-	fs::write(path, updated).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(path, updated)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
 
-fn rewrite(line: &str, mbid: Source, q: Q) -> hmerr::Result<Option<String>> {
+fn rewrite(line: &str, mbid: Source, q: Q) -> miette::Result<Option<String>> {
 	let trimmed = line.trim();
 	let payload = trimmed.strip_suffix(',').unwrap_or(trimmed);
 
@@ -56,7 +58,8 @@ fn rewrite(line: &str, mbid: Source, q: Q) -> hmerr::Result<Option<String>> {
 
 	let indent = &line[..line.len() - line.trim_start().len()];
 	let body = ron::ser::to_string_pretty(&entry, config())
-		.map_err(|e| ge!(format!("{R}failed to serialize {B}{mbid}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to serialize {mbid}"))?;
 
 	Ok(Some(format!("{indent}{body},")))
 }

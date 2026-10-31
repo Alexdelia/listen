@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use miette::IntoDiagnostic;
 use uuid::Uuid;
 
 use super::super::{play, shard};
@@ -16,7 +17,7 @@ pub(super) struct Scanned {
 	pub covered: i64,
 }
 
-pub(super) fn of(db: &duckdb::Connection, dump: &Path, own: u32) -> hmerr::Result<Scanned> {
+pub(super) fn of(db: &duckdb::Connection, dump: &Path, own: u32) -> miette::Result<Scanned> {
 	let Some(held) = shard::held(dump)? else {
 		return Ok(Scanned {
 			play: Vec::new(),
@@ -24,8 +25,9 @@ pub(super) fn of(db: &duckdb::Connection, dump: &Path, own: u32) -> hmerr::Resul
 		});
 	};
 
-	let mut statement = db.prepare(&format!(
-		r"
+	let mut statement = db
+		.prepare(&format!(
+			r"
 select
 	l.recording_mbid,
 	arg_max(l.recording_name, l.listened_at),
@@ -36,26 +38,33 @@ from read_parquet({shard}) l
 where l.user_id = {own} and l.recording_mbid is not null
 group by 1
 ",
-		ceiling = play::CEILING,
-		shard = shard::quoted(&held.path)
-	))?;
+			ceiling = play::CEILING,
+			shard = shard::quoted(&held.path)
+		))
+		.into_diagnostic()?;
 
-	let mut row = statement.query([])?;
+	let mut row = statement.query([]).into_diagnostic()?;
 	let mut play = Vec::new();
 	let mut covered = 0;
 
-	while let Some(row) = row.next()? {
-		covered = covered.max(row.get::<_, i64>(4)?);
+	while let Some(row) = row.next().into_diagnostic()? {
+		covered = covered.max(row.get::<_, i64>(4).into_diagnostic()?);
 
-		let Ok(mbid) = row.get::<_, String>(0)?.parse() else {
+		let Ok(mbid) = row.get::<_, String>(0).into_diagnostic()?.parse() else {
 			continue;
 		};
 
 		play.push(Play {
 			mbid,
-			plays: row.get(3)?,
-			track: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-			artist: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+			plays: row.get(3).into_diagnostic()?,
+			track: row
+				.get::<_, Option<String>>(1)
+				.into_diagnostic()?
+				.unwrap_or_default(),
+			artist: row
+				.get::<_, Option<String>>(2)
+				.into_diagnostic()?
+				.unwrap_or_default(),
 		});
 	}
 

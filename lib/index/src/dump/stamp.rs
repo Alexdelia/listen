@@ -1,5 +1,4 @@
-use ansi::abbrev::{B, D, R};
-use hmerr::{GenericError, ge};
+use miette::miette;
 
 const SUB_SECOND: char = '.';
 const FIELD: char = '-';
@@ -10,14 +9,14 @@ pub(super) struct Published {
 	pub reach: u64,
 }
 
-pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
-	key(timestamp).ok_or_else(|| unreadable(timestamp).into())
+pub(super) fn reach(timestamp: &str) -> miette::Result<u64> {
+	key(timestamp).ok_or_else(|| unreadable(timestamp))
 }
 
-fn unreadable(timestamp: &str) -> GenericError {
-	ge!(
-		format!("{R}cannot read the timestamp {B}{timestamp}{D}"),
-		h: "delete the index to build it again from a dump"
+fn unreadable(timestamp: &str) -> miette::Report {
+	miette!(
+		help = "delete the index to build it again from a dump",
+		"cannot read the timestamp {timestamp}"
 	)
 }
 

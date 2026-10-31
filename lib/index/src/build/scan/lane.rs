@@ -5,6 +5,7 @@ use std::{
 };
 
 use indicatif::ProgressBar;
+use miette::IntoDiagnostic;
 
 use super::super::super::parallel;
 
@@ -19,10 +20,10 @@ pub(crate) struct Held<'a> {
 }
 
 impl Lane {
-	pub(super) fn of(db: duckdb::Connection, width: usize) -> hmerr::Result<Self> {
+	pub(super) fn of(db: duckdb::Connection, width: usize) -> miette::Result<Self> {
 		let mut free = Vec::with_capacity(width.max(1));
 		for _ in 1..width {
-			free.push(db.try_clone()?);
+			free.push(db.try_clone().into_diagnostic()?);
 		}
 		free.push(db);
 
@@ -54,14 +55,14 @@ impl Lane {
 		&self,
 		unit: &[T],
 		bar: &ProgressBar,
-		run: impl Fn(&duckdb::Connection, &T) -> hmerr::Result<()> + Sync,
-	) -> hmerr::Result<()> {
+		run: impl Fn(&duckdb::Connection, &T) -> miette::Result<()> + Sync,
+	) -> miette::Result<()> {
 		thread::scope(|scope| {
 			let running: Vec<_> = unit
 				.iter()
 				.map(|unit| {
 					scope.spawn(|| {
-						let done = run(&self.take(), unit).map_err(|e| e.to_string());
+						let done = run(&self.take(), unit);
 						bar.inc(1);
 
 						done
@@ -72,7 +73,7 @@ impl Lane {
 			running
 				.into_iter()
 				.map(|running| parallel::joined(running.join()))
-				.collect::<hmerr::Result<Vec<()>>>()
+				.collect::<miette::Result<Vec<()>>>()
 		})?;
 
 		Ok(())
@@ -104,7 +105,7 @@ impl Drop for Held<'_> {
 mod tests {
 	use std::sync::atomic::{AtomicUsize, Ordering};
 
-	use hmerr::ge;
+	use miette::miette;
 
 	use super::*;
 
@@ -161,13 +162,13 @@ mod tests {
 		let said = lane
 			.spread(&unit, &bar(), |_, unit| {
 				if *unit == 5 {
-					return Err(ge!("unit 5 failed".to_string()).into());
+					return Err(miette!("unit 5 failed"));
 				}
 
 				Ok(())
 			})
 			.err()
-			.map(|e| format!("{e}"))
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default();
 
 		assert!(said.contains("unit 5 failed"), "{said}");

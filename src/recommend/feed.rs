@@ -4,7 +4,7 @@ use serde::Serialize;
 use super::{forecast, island, listen_count, recommendation::Recommendation, skip::Skip};
 
 pub(super) trait Feed {
-	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>>;
+	fn next(&mut self, skip: &Skip) -> miette::Result<Option<Recommendation>>;
 }
 
 pub(super) struct Fed {
@@ -43,7 +43,7 @@ pub(super) struct Canned(pub std::collections::VecDeque<Recommendation>);
 
 #[cfg(test)]
 impl Feed for Canned {
-	fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, _skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		Ok(self.0.pop_front())
 	}
 }

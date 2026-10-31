@@ -1,11 +1,10 @@
-use ansi::abbrev::{B, D};
-use hmerr::ge;
+use miette::miette;
 
 use crate::meta_brainz::{self, Sent};
 
 const API: &str = "https://api.listenbrainz.org/1";
 
-pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Sent> {
+pub(crate) fn get(path: &str, failure: &str) -> miette::Result<Sent> {
 	let url = url(path);
 
 	answered(
@@ -18,7 +17,7 @@ pub(crate) fn get(path: &str, failure: &str) -> hmerr::Result<Sent> {
 	)
 }
 
-pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> hmerr::Result<Sent> {
+pub(crate) fn post(path: &str, body: &serde_json::Value, failure: &str) -> miette::Result<Sent> {
 	let url = url(path);
 
 	answered(
@@ -35,11 +34,11 @@ fn url(path: &str) -> String {
 	format!("{API}/{path}")
 }
 
-fn answered(sent: Sent, failure: &str) -> hmerr::Result<Sent> {
+fn answered(sent: Sent, failure: &str) -> miette::Result<Sent> {
 	let Sent { status, body } = &sent;
 
 	if status.is_client_error() || status.is_server_error() {
-		return Err(ge!(format!("{failure}\n{B}{status}{D}\n{body}")).into());
+		return Err(miette!("{failure}\n{status}\n{body}"));
 	}
 
 	Ok(sent)

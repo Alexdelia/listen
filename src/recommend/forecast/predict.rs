@@ -1,3 +1,5 @@
+use miette::IntoDiagnostic;
+
 use crate::declaration::{Q, Q_MAX, Source, value};
 
 use super::preference::PREFERENCE;
@@ -27,7 +29,7 @@ pub(super) fn weight_list() -> String {
 	format!("[{}]", weight.join(", "))
 }
 
-pub(super) fn prepare(db: &duckdb::Connection) -> hmerr::Result<()> {
+pub(super) fn prepare(db: &duckdb::Connection) -> miette::Result<()> {
 	db.execute_batch(&format!(
 		r"
 create or replace temp table forecast_declared as
@@ -52,12 +54,13 @@ create or replace temp table forecast_listener as
 	group by 1;
 ",
 		weight = weight_list()
-	))?;
+	))
+	.into_diagnostic()?;
 
 	Ok(())
 }
 
-pub(super) fn candidates(db: &duckdb::Connection) -> hmerr::Result<Vec<Scored>> {
+pub(super) fn candidates(db: &duckdb::Connection) -> miette::Result<Vec<Scored>> {
 	let neutral = f32::from(value::NEUTRAL);
 	let mut statement = db.prepare(&format!(
 		r"
@@ -103,16 +106,18 @@ best as (
 select recording_id::bigint, mbid::varchar, ({neutral} + {neutral} * predicted)::float, support::bigint
 from best
 "
-	))?;
+	)).into_diagnostic()?;
 
-	let mut row = statement.query(duckdb::params![MIN_SUPPORT])?;
+	let mut row = statement
+		.query(duckdb::params![MIN_SUPPORT])
+		.into_diagnostic()?;
 	let mut scored = Vec::new();
 
-	while let Some(row) = row.next()? {
-		let recording_id: i64 = row.get(0)?;
-		let mbid: String = row.get(1)?;
-		let raw: f32 = row.get(2)?;
-		let support: i64 = row.get(3)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let recording_id: i64 = row.get(0).into_diagnostic()?;
+		let mbid: String = row.get(1).into_diagnostic()?;
+		let raw: f32 = row.get(2).into_diagnostic()?;
+		let support: i64 = row.get(3).into_diagnostic()?;
 
 		let (Ok(recording_id), Ok(mbid)) = (u32::try_from(recording_id), mbid.parse()) else {
 			continue;
@@ -129,19 +134,23 @@ from best
 	Ok(scored)
 }
 
-pub(super) fn rated(db: &duckdb::Connection, rated: &[(Source, Q)]) -> hmerr::Result<Vec<Point>> {
-	db.execute_batch("create or replace temp table forecast_rated (mbid varchar, q utinyint);")?;
+pub(super) fn rated(db: &duckdb::Connection, rated: &[(Source, Q)]) -> miette::Result<Vec<Point>> {
+	db.execute_batch("create or replace temp table forecast_rated (mbid varchar, q utinyint);")
+		.into_diagnostic()?;
 	{
-		let mut appender = db.appender("forecast_rated")?;
+		let mut appender = db.appender("forecast_rated").into_diagnostic()?;
 		for (mbid, q) in rated {
-			appender.append_row(duckdb::params![mbid.to_string(), q])?;
+			appender
+				.append_row(duckdb::params![mbid.to_string(), q])
+				.into_diagnostic()?;
 		}
-		appender.flush()?;
+		appender.flush().into_diagnostic()?;
 	}
 
 	let neutral = f32::from(value::NEUTRAL);
-	let mut statement = db.prepare(&format!(
-		r"
+	let mut statement = db
+		.prepare(&format!(
+			r"
 with rated as (
 	select r.recording_id, sr.mbid, sr.q
 	from forecast_rated sr join recording r on r.mbid = sr.mbid::uuid
@@ -171,22 +180,23 @@ select mbid, q::utinyint, ({neutral} + {neutral} * predicted)::float
 from judged
 where predicted is not null and not isnan(predicted)
 ",
-		weight = weight_list()
-	))?;
+			weight = weight_list()
+		))
+		.into_diagnostic()?;
 
-	let mut row = statement.query([])?;
+	let mut row = statement.query([]).into_diagnostic()?;
 	let mut point = Vec::new();
 
-	while let Some(row) = row.next()? {
-		let mbid: String = row.get(0)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let mbid: String = row.get(0).into_diagnostic()?;
 		let Ok(mbid) = mbid.parse() else {
 			continue;
 		};
 
 		point.push(Point {
 			mbid,
-			q: row.get(1)?,
-			raw: row.get(2)?,
+			q: row.get(1).into_diagnostic()?,
+			raw: row.get(2).into_diagnostic()?,
 		});
 	}
 

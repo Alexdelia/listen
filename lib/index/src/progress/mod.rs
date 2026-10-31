@@ -17,6 +17,6 @@ pub(super) fn bytes(size: u64) -> String {
 	HumanBytes(size).to_string()
 }
 
-pub(super) fn confirm(decide: &dyn Decide, question: &str, default: bool) -> hmerr::Result<bool> {
+pub(super) fn confirm(decide: &dyn Decide, question: &str, default: bool) -> miette::Result<bool> {
 	screen::suspended(|| decide.confirm(question, default))
 }

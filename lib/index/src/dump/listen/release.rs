@@ -1,21 +1,26 @@
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, F, Y};
+use console::style;
 
 use super::{
 	super::super::{keep, progress},
 	Listen,
 };
 
-pub(crate) fn discard(listen: &Listen) -> hmerr::Result<()> {
+pub(crate) fn discard(listen: &Listen) -> miette::Result<()> {
 	if !listen.dir.is_dir() {
 		return Ok(());
 	}
 
 	if !keep::requested() {
 		progress::say(format!(
-			"{F}index built, releasing its {B}{Y}{size}{D}{F} dump{D}",
-			size = progress::bytes(weight(&listen.dir))
+			"{}{}{}",
+			style("index built, releasing its ").dim(),
+			style(progress::bytes(weight(&listen.dir)))
+				.dim()
+				.bold()
+				.yellow(),
+			style(" dump").dim()
 		));
 	}
 

@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, F, Y};
-use hmerr::ioe;
+use console::style;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::progress;
 
@@ -48,7 +48,7 @@ pub(super) fn request() -> Requested {
 	Requested
 }
 
-pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
+pub(super) fn discard(path: &Path) -> miette::Result<()> {
 	if !path.exists() {
 		return Ok(());
 	}
@@ -61,11 +61,15 @@ pub(super) fn discard(path: &Path) -> hmerr::Result<()> {
 	removed(path)
 }
 
-pub(super) fn removed(path: &Path) -> hmerr::Result<()> {
+pub(super) fn removed(path: &Path) -> miette::Result<()> {
 	if path.is_dir() {
-		fs::remove_dir_all(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		fs::remove_dir_all(path)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display()))?;
 	} else if path.is_file() {
-		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		fs::remove_file(path)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display()))?;
 	}
 
 	Ok(())
@@ -73,9 +77,9 @@ pub(super) fn removed(path: &Path) -> hmerr::Result<()> {
 
 fn announce(path: &Path) {
 	progress::say(format!(
-		"{F}{key} is set, keeping {B}{Y}{path}{D}",
-		key = KEEP,
-		path = path.display()
+		"{}{}",
+		style(format!("{KEEP} is set, keeping ")).dim(),
+		style(path.display()).dim().bold().yellow()
 	));
 }
 

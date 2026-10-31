@@ -1,7 +1,6 @@
 use std::sync::OnceLock;
 
-use ansi::abbrev::{B, D, G, M, R, Y};
-use hmerr::ge;
+use miette::miette;
 
 const DOTENV_FILE: &str = ".env";
 
@@ -30,14 +29,14 @@ pub(crate) fn read() {
 	let _ = complaint();
 }
 
-pub(crate) fn load() -> hmerr::Result<()> {
+pub(crate) fn load() -> miette::Result<()> {
 	let Some(complaint) = complaint() else {
 		return Ok(());
 	};
 
-	Err(ge!(
-		format!("{B}{R}{DOTENV_FILE}{D}: {complaint}"),
-		h: format!("please {B}{G}copy {M}.env.example{D} to {B}{Y}{DOTENV_FILE}{D} and {B}{G}fill in the values{D}")
+	Err(miette!(
+		help = format!("please copy .env.example to {DOTENV_FILE} and fill in the values"),
+		"{DOTENV_FILE}: {complaint}"
 	))?
 }
 
@@ -59,17 +58,16 @@ pub(crate) fn enabled(key: Var) -> bool {
 	listen_cache::flag::enabled(key.key())
 }
 
-pub(crate) fn get(key: Var) -> hmerr::Result<String> {
+pub(crate) fn get(key: Var) -> miette::Result<String> {
 	read();
 
 	let key = key.key();
 
 	match std::env::var(key) {
 		Ok(val) => Ok(val),
-		Err(e) => Err(ge!(
-			format!("{B}{R}{key}{D} does not exist in {B}{M}{DOTENV_FILE}{D}"),
-			h: format!("add {B}{G}{key}=\"your value\"{D} to {B}{M}{DOTENV_FILE}{D}"),
-			s: e,
-		))?,
+		Err(e) => Err(miette!(
+			help = format!("add {key}=\"your value\" to {DOTENV_FILE}"),
+			"{key} does not exist in {DOTENV_FILE}: {e}"
+		)),
 	}
 }

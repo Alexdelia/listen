@@ -12,8 +12,8 @@ pub(super) fn each(
 	board: &Board<Stage>,
 	root: &Path,
 	pending: &[&Pending],
-	fold: impl FnMut(&Incremental) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	fold: impl FnMut(&Incremental) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let downloading = board.start(Stage::Download)?;
 	let verifying = board.start(Stage::Verify)?;
 	let unpacking = board.start(Stage::Unpack)?;

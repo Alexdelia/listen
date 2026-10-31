@@ -6,8 +6,8 @@ authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "a local index of the listenbrainz listen dump"
 
 [dependencies]
-hmerr.workspace = true
-ansi.workspace = true
+miette.workspace = true
+console.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true

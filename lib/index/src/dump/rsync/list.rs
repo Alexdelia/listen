@@ -1,5 +1,4 @@
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::miette;
 
 use super::ran;
 
@@ -8,11 +7,11 @@ pub(crate) struct Entry {
 	pub size: u64,
 }
 
-pub(crate) fn list(url: &str) -> hmerr::Result<Vec<Entry>> {
+pub(crate) fn list(url: &str) -> miette::Result<Vec<Entry>> {
 	listed(&["--list-only", url], url)
 }
 
-pub(crate) fn beneath(url: &str, pattern: &str) -> hmerr::Result<Vec<Entry>> {
+pub(crate) fn beneath(url: &str, pattern: &str) -> miette::Result<Vec<Entry>> {
 	listed(
 		&[
 			"--list-only",
@@ -26,15 +25,15 @@ pub(crate) fn beneath(url: &str, pattern: &str) -> hmerr::Result<Vec<Entry>> {
 	)
 }
 
-pub(crate) fn biggest(url: &str, ext: &str) -> hmerr::Result<Entry> {
+pub(crate) fn biggest(url: &str, ext: &str) -> miette::Result<Entry> {
 	list(url)?
 		.into_iter()
 		.filter(|entry| entry.name.ends_with(ext))
 		.max_by_key(|entry| entry.size)
-		.ok_or_else(|| ge!(format!("{R}no {B}{ext}{D}{R} inside {B}{url}{D}")).into())
+		.ok_or_else(|| miette!("no {ext} inside {url}"))
 }
 
-fn listed(argument: &[&str], url: &str) -> hmerr::Result<Vec<Entry>> {
+fn listed(argument: &[&str], url: &str) -> miette::Result<Vec<Entry>> {
 	let out = ran(argument, "list", url)?;
 
 	Ok(String::from_utf8_lossy(&out)

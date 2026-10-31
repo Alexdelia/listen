@@ -1,15 +1,18 @@
 use std::path::Path;
 
+use miette::IntoDiagnostic;
+
 use super::partial;
 
-pub(super) fn copy(db: &duckdb::Connection, into: &Path, select: &str) -> hmerr::Result<()> {
+pub(super) fn copy(db: &duckdb::Connection, into: &Path, select: &str) -> miette::Result<()> {
 	partial::write(into, |partial| {
 		db.execute_batch(&format!(
 			r"
 copy ({select}) to '{partial}' (format parquet, compression zstd);
 ",
 			partial = partial.display()
-		))?;
+		))
+		.into_diagnostic()?;
 
 		Ok(())
 	})
@@ -19,15 +22,17 @@ pub(super) fn done(db: &duckdb::Connection, of: &Path) -> bool {
 	of.exists() && count(db, of).is_ok()
 }
 
-pub(super) fn count(db: &duckdb::Connection, of: &Path) -> hmerr::Result<u64> {
-	let count: i64 = db.query_row(
-		&format!(
-			r"select count(*)::bigint from read_parquet('{of}')",
-			of = of.display()
-		),
-		[],
-		|row| row.get(0),
-	)?;
+pub(super) fn count(db: &duckdb::Connection, of: &Path) -> miette::Result<u64> {
+	let count: i64 = db
+		.query_row(
+			&format!(
+				r"select count(*)::bigint from read_parquet('{of}')",
+				of = of.display()
+			),
+			[],
+			|row| row.get(0),
+		)
+		.into_diagnostic()?;
 
 	Ok(u64::try_from(count).unwrap_or_default())
 }

@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D, F};
+use console::style;
 
 use crate::args::RecommendSort;
 
@@ -18,7 +18,7 @@ pub(super) fn header(report: &Report) -> String {
 		),
 	};
 
-	format!("{B}{artist}{D} {F}{scope}{D}", artist = report.artist)
+	format!("{} {}", style(&report.artist).bold(), style(&scope).dim())
 }
 
 #[cfg(test)]

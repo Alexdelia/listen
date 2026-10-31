@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::keep;
 
@@ -8,8 +8,8 @@ const EXT: &str = "writing";
 
 pub(super) fn write(
 	into: &Path,
-	produce: impl FnOnce(&Path) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	produce: impl FnOnce(&Path) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let partial = into.with_extension(EXT);
 
 	if let Err(e) = produce(&partial) {
@@ -17,14 +17,16 @@ pub(super) fn write(
 		return Err(e);
 	}
 
-	fs::rename(&partial, into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+	fs::rename(&partial, into)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot move into {}", into.display()))?;
 
 	Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-	use hmerr::ge;
+	use miette::miette;
 
 	use super::*;
 
@@ -34,7 +36,9 @@ mod tests {
 		let into = dir.join("out.parquet");
 
 		let done = write(&into, |partial| {
-			fs::write(partial, b"content").map_err(|e| ioe!("partial", e))?;
+			fs::write(partial, b"content")
+				.into_diagnostic()
+				.wrap_err("cannot write partial")?;
 
 			Ok(())
 		});
@@ -51,9 +55,11 @@ mod tests {
 		let into = dir.join("out.parquet");
 
 		let done = write(&into, |partial| {
-			fs::write(partial, b"half").map_err(|e| ioe!("partial", e))?;
+			fs::write(partial, b"half")
+				.into_diagnostic()
+				.wrap_err("cannot write partial")?;
 
-			Err(ge!("interrupted".to_string()).into())
+			Err(miette!("interrupted"))
 		});
 
 		assert!(done.is_err());

@@ -5,8 +5,7 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::declaration::Source;
 
@@ -16,7 +15,7 @@ const SECOND_PER_DAY: u64 = 60 * 60 * 24;
 
 pub(super) type Age = HashMap<Source, u64>;
 
-pub(super) fn days_since_added(path: &Path) -> hmerr::Result<Age> {
+pub(super) fn days_since_added(path: &Path) -> miette::Result<Age> {
 	let output = Command::new("git")
 		.arg("log")
 		.arg("--reverse")
@@ -25,31 +24,32 @@ pub(super) fn days_since_added(path: &Path) -> hmerr::Result<Age> {
 		.arg("--")
 		.arg(path)
 		.output()
-		.map_err(|e| ioe!("git log", e))?;
+		.into_diagnostic()
+		.wrap_err("failed to execute git log")?;
 
 	if !output.status.success() {
-		return Err(ge!(format!(
-			"{R}git log failed for {B}{path}{D}\n{err}",
+		return Err(miette!(
+			"git log failed for {path}\n{err}",
 			path = path.to_string_lossy(),
-			err = String::from_utf8_lossy(&output.stderr),
-		))
-		.into());
+			err = String::from_utf8_lossy(&output.stderr)
+		));
 	}
 
 	Ok(parse_log(&String::from_utf8_lossy(&output.stdout), now()?))
 }
 
-pub(super) fn days_since(timestamp: i64) -> hmerr::Result<u64> {
+pub(super) fn days_since(timestamp: i64) -> miette::Result<u64> {
 	let timestamp = u64::try_from(timestamp).unwrap_or_default();
 
 	Ok(now()?.saturating_sub(timestamp) / SECOND_PER_DAY)
 }
 
-fn now() -> hmerr::Result<u64> {
+fn now() -> miette::Result<u64> {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.map(|d| d.as_secs())
-		.map_err(|e| ge!(format!("{R}system clock is before the unix epoch\n{e}")).into())
+		.into_diagnostic()
+		.wrap_err("system clock is before the unix epoch")
 }
 
 fn parse_log(log: &str, now: u64) -> Age {

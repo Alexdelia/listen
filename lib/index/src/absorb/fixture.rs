@@ -218,7 +218,11 @@ pub(super) fn built(name: &str) -> (PathBuf, PathBuf, Meta) {
 	)
 }
 
-pub(super) fn absorb(index: &Path, meta: &Meta, incremental: &Incremental) -> hmerr::Result<Reach> {
+pub(super) fn absorb(
+	index: &Path,
+	meta: &Meta,
+	incremental: &Incremental,
+) -> miette::Result<Reach> {
 	let work = work::open(index, meta.covered())?;
 	let db = index::session::of(&work)?;
 	let mut reach = work::reach(&work, meta);

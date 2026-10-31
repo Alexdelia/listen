@@ -15,7 +15,7 @@ pub(crate) fn path(source: Source) -> PathBuf {
 	Path::new(DIR).join(source.to_string()).with_extension(EXT)
 }
 
-pub(crate) fn existing() -> hmerr::Result<HashSet<Source>> {
+pub(crate) fn existing() -> miette::Result<HashSet<Source>> {
 	Ok(file::with_extension(DIR, EXT)?
 		.iter()
 		.filter_map(|found| found.stem.parse().ok())

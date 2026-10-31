@@ -7,7 +7,7 @@ use super::{
 	say,
 };
 
-pub(super) fn scanned(username: &str, carried: Option<Carried>) -> hmerr::Result<Option<Held>> {
+pub(super) fn scanned(username: &str, carried: Option<Carried>) -> miette::Result<Option<Held>> {
 	say::reading();
 
 	let Some(own) = own::played(username)? else {

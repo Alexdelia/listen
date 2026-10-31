@@ -46,7 +46,7 @@ impl Stream {
 		&self.skipped
 	}
 
-	pub(super) fn next(&mut self, skip: &mut Skip) -> hmerr::Result<Option<Shown>> {
+	pub(super) fn next(&mut self, skip: &mut Skip) -> miette::Result<Option<Shown>> {
 		while let Some(turn) = self.living() {
 			let Some(recommendation) = self.pull(turn, skip)? else {
 				self.retire(turn);
@@ -84,7 +84,7 @@ impl Stream {
 		Ok(None)
 	}
 
-	fn pull(&mut self, turn: usize, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn pull(&mut self, turn: usize, skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		match self.feed.get_mut(turn) {
 			Some(Some(feed)) => feed.next(skip),
 			_ => Ok(None),

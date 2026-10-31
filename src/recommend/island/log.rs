@@ -7,7 +7,7 @@ use crate::{cache, declaration::Source};
 
 const FILE: &str = "recommended.jsonl";
 
-pub(super) fn path() -> hmerr::Result<PathBuf> {
+pub(super) fn path() -> miette::Result<PathBuf> {
 	Ok(cache::root()?.join(FILE))
 }
 

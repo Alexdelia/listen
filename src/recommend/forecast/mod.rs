@@ -33,11 +33,11 @@ pub(super) use report::Report;
 
 const POOL: usize = 2000;
 
-pub(super) fn log_path() -> hmerr::Result<PathBuf> {
+pub(super) fn log_path() -> miette::Result<PathBuf> {
 	log::path()
 }
 
-pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fed> {
+pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> miette::Result<Fed> {
 	let db = &local.index.db;
 	prepare(db, &local.entry, arg.allow_known_artist)?;
 	let (calibration, point) = calibrated(db, &local.entry)?;
@@ -71,7 +71,7 @@ pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fe
 	})
 }
 
-fn picked(db: &duckdb::Connection, judged: Vec<(f32, Scored)>) -> hmerr::Result<Vec<Pick>> {
+fn picked(db: &duckdb::Connection, judged: Vec<(f32, Scored)>) -> miette::Result<Vec<Pick>> {
 	if judged.is_empty() {
 		return Ok(Vec::new());
 	}
@@ -101,7 +101,7 @@ fn picked(db: &duckdb::Connection, judged: Vec<(f32, Scored)>) -> hmerr::Result<
 		.collect())
 }
 
-pub(super) fn backtest(local: &Local) -> hmerr::Result<()> {
+pub(super) fn backtest(local: &Local) -> miette::Result<()> {
 	let db = &local.index.db;
 	prepare(db, &local.entry, false)?;
 	let (calibration, point) = calibrated(db, &local.entry)?;
@@ -115,7 +115,7 @@ fn prepare(
 	db: &duckdb::Connection,
 	entry: &[Entry],
 	allow_known_artist: bool,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	declared::table(db, entry)?;
 	preference::declare(db)?;
 	known_artist::declare(db, allow_known_artist)?;
@@ -127,7 +127,7 @@ fn prepare(
 fn calibrated(
 	db: &duckdb::Connection,
 	entry: &[Entry],
-) -> hmerr::Result<(Calibration, Vec<Point>)> {
+) -> miette::Result<(Calibration, Vec<Point>)> {
 	let rated = rated::of(entry, &[island::log_path()?, log::path()?])?;
 	let point = predict::rated(db, &rated)?;
 

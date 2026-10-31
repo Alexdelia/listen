@@ -4,13 +4,13 @@ pub(super) const MODULE: &str = "listenbrainz/fullexport";
 pub(crate) const PREFIX: &str = "listenbrainz-dump-";
 const SUFFIX: &str = "-full";
 
-pub(crate) fn newer_than(baseline: &str) -> hmerr::Result<Option<String>> {
+pub(crate) fn newer_than(baseline: &str) -> miette::Result<Option<String>> {
 	let built = stamp::reach(baseline)?;
 
 	Ok(newest()?.filter(|name| reaches_past(name, built)))
 }
 
-pub(super) fn newest() -> hmerr::Result<Option<String>> {
+pub(super) fn newest() -> miette::Result<Option<String>> {
 	let published = rsync::list(&format!("{host}/{MODULE}/", host = rsync::HOST))?;
 
 	Ok(newest_of(published.into_iter().map(|entry| entry.name)))

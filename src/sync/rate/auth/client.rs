@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D, Y};
+use console::style;
 
 use crate::env::{self, Var};
 
@@ -21,8 +21,10 @@ fn credential(key: Var) -> Option<String> {
 
 	if value.contains(char::is_whitespace) {
 		eprintln!(
-			"{Y}invalid {B}{key}{D}{Y}, rating sync skipped{D}",
-			key = key.key()
+			"{}{}{}",
+			style("invalid ").yellow(),
+			style(&key.key()).bold().yellow(),
+			style(", rating sync skipped").yellow()
 		);
 		return None;
 	}

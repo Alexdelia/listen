@@ -6,9 +6,10 @@ version = "0.1.0"
 
 [workspace.dependencies]
 const_format = "0.2"
-hmerr = { git = "https://github.com/Alexdelia/yahmrslib.git" }
-ansi = { git = "https://github.com/Alexdelia/yahmrslib.git", features = ["gen"] }
-ux = { git = "https://github.com/Alexdelia/yahmrslib.git" }
+miette = { version = "7", features = ["fancy"] }
+thiserror = "2"
+console = "0.16"
+dialoguer = { version = "0.12", default-features = false }
 chrono = { version = "0.4", default-features = false, features = [
 	"serde",
 	"clock",
@@ -43,7 +44,6 @@ nursery = { level = "deny", priority = -1 }
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 redundant_pub_crate = "allow"
-future_not_send = "allow"
 
 [package]
 name = "declarative_listen"
@@ -61,9 +61,9 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-hmerr.workspace = true
-ansi.workspace = true
-ux.workspace = true
+miette.workspace = true
+thiserror.workspace = true
+console.workspace = true
 const_format.workspace = true
 async-std = { version = "1", features = ["tokio1"] }
 chrono.workspace = true

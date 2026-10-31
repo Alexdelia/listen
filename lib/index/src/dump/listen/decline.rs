@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 const DECLINED: &str = "declined-full";
 
@@ -10,9 +10,11 @@ pub(crate) fn declined(root: &Path) -> Option<String> {
 		.map(|name| name.trim().to_string())
 }
 
-pub(crate) fn decline(root: &Path, dump: &str) -> hmerr::Result<()> {
+pub(crate) fn decline(root: &Path, dump: &str) -> miette::Result<()> {
 	let path = root.join(DECLINED);
-	fs::write(&path, dump).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(&path, dump)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }

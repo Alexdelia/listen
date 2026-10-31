@@ -1,17 +1,23 @@
 use std::{fs, path::PathBuf};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 pub(super) struct Named {
 	pub path: PathBuf,
 	pub stem: String,
 }
 
-pub(super) fn with_extension(dir: &str, ext: &str) -> hmerr::Result<Vec<Named>> {
+pub(super) fn with_extension(dir: &str, ext: &str) -> miette::Result<Vec<Named>> {
 	let mut found = Vec::new();
 
-	for entry in fs::read_dir(dir).map_err(|e| ioe!(dir, e))? {
-		let path = entry.map_err(|e| ioe!(dir, e))?.path();
+	for entry in fs::read_dir(dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot list {dir}"))?
+	{
+		let path = entry
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot list {dir}"))?
+			.path();
 
 		if !path.is_file() || path.extension().map(|found| found.to_str()) != Some(Some(ext)) {
 			continue;

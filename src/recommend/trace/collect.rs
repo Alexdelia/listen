@@ -18,7 +18,7 @@ pub(in crate::recommend) fn collect(
 	stream: &mut Stream,
 	skip: &mut Skip,
 	limit: usize,
-) -> hmerr::Result<Vec<Pick>> {
+) -> miette::Result<Vec<Pick>> {
 	let mut pick = Vec::new();
 
 	while pick.len() < limit {

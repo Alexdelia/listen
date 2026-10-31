@@ -1,25 +1,20 @@
 use std::{fs, path::Path};
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 pub(super) struct Shard {
 	pub path: Vec<String>,
 	pub bytes: u64,
 }
 
-pub(super) fn of(dump: &Path) -> hmerr::Result<Shard> {
-	held(dump)?.ok_or_else(|| {
-		ge!(format!(
-			"{R}no parquet shard under {B}{}{D}",
-			dump.display()
-		))
-		.into()
-	})
+pub(super) fn of(dump: &Path) -> miette::Result<Shard> {
+	held(dump)?.ok_or_else(|| miette!("no parquet shard under {}", dump.display()))
 }
 
-pub(super) fn held(dump: &Path) -> hmerr::Result<Option<Shard>> {
-	let read = fs::read_dir(dump).map_err(|e| ioe!(dump.to_string_lossy(), e))?;
+pub(super) fn held(dump: &Path) -> miette::Result<Option<Shard>> {
+	let read = fs::read_dir(dump)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot list {}", dump.display()))?;
 
 	let mut found: Vec<(String, u64)> = read
 		.filter_map(Result::ok)

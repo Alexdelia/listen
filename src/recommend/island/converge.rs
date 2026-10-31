@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use ansi::abbrev::{CYA, D, F, G, Y};
+use console::style;
 use serde::Serialize;
 
 use crate::format::genre_list;
@@ -118,7 +118,7 @@ pub(super) fn raise(
 	library: &Library,
 	island: Vec<Island>,
 	tuning: Tuning,
-) -> hmerr::Result<Found> {
+) -> miette::Result<Found> {
 	let cohort: Vec<Vec<Member>> = island
 		.iter()
 		.map(|island| cohort::of(library, island, cohort::SIZE))
@@ -140,7 +140,7 @@ pub(super) fn of(
 	terrain: &Terrain,
 	granularity: f64,
 	tuning: Tuning,
-) -> hmerr::Result<Converged> {
+) -> miette::Result<Converged> {
 	let mut without: HashSet<usize> = HashSet::new();
 	let mut round = Vec::new();
 
@@ -197,17 +197,25 @@ fn say(barren: &[&Glance]) {
 
 	for glance in barren {
 		println!(
-			"{name}{pad} {Y}no candidate{D} {CYA}{user:>4} {F}user{D} {G}{member:>4} {F}seed{D}",
+			"{name}{pad} {} {:>4} {} {:>4} {}",
+			style("no candidate").yellow(),
+			style(&glance.user).cyan(),
+			style("user").dim().cyan(),
+			style(&glance.seed).green(),
+			style("seed").dim().green(),
 			name = genre_list::text(&glance.name),
-			pad = genre_list::pad(&glance.name, width),
-			user = glance.user,
-			member = glance.seed,
+			pad = genre_list::pad(&glance.name, width)
 		);
 	}
 }
 
 fn again(seed: usize) {
-	println!("{F}re-partitioning without{D} {G}{seed}{D} {F}seed{D}\n");
+	println!(
+		"{} {} {}\n",
+		style("re-partitioning without").dim(),
+		style(&seed).green(),
+		style("seed").dim()
+	);
 }
 
 #[cfg(test)]

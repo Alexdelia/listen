@@ -1,27 +1,23 @@
+use miette::{IntoDiagnostic, WrapErr, miette};
 use std::process::Command;
 
-use hmerr::ioe;
-
-pub(super) fn run(command: &mut Command, url: &str) -> hmerr::Result<()> {
+pub(super) fn run(command: &mut Command, url: &str) -> miette::Result<()> {
 	match command.output() {
 		Ok(output) => {
 			if output.status.success() {
 				return Ok(());
 			}
 
-			Err(format!(
+			Err(miette!(
 				"failed to download {url}\n{e}",
 				e = String::from_utf8_lossy(&output.stderr)
-			)
-			.into())
+			))
 		}
-		Err(e) => Err(ioe!(
+		Err(e) => Err(e).into_diagnostic().wrap_err_with(|| {
 			format!(
-				"failed to execute {downloader}",
-				downloader = command.get_program().to_string_lossy()
-			),
-			e,
-		)
-		.into()),
+				"failed to execute {}",
+				command.get_program().to_string_lossy()
+			)
+		}),
 	}
 }

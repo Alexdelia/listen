@@ -4,7 +4,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use hmerr::{ioe, se};
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::declaration::{Q, Source};
 
@@ -28,16 +28,11 @@ pub(crate) fn path(playlist: &str) -> PathBuf {
 	PathBuf::from(DIR).join(playlist).with_extension(EXT)
 }
 
-pub(crate) fn parse_q(name: &str) -> hmerr::Result<Q> {
+pub(crate) fn parse_q(name: &str) -> miette::Result<Q> {
 	let q = name.trim_start_matches(PREFIX);
-	Ok(q.parse().map_err(|e| {
-		se!(
-			"failed to parse q from {name}",
-			"u8",
-			q,
-			s: e
-		)
-	})?)
+	q.parse()
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to parse q from {name}: expected a u8, got {q}"))
 }
 
 pub(crate) fn header(content: &str) -> String {
@@ -76,12 +71,14 @@ pub(crate) struct Existing {
 	pub playlist: HashMap<String, HashSet<Source>>,
 }
 
-pub(crate) fn existing() -> hmerr::Result<Existing> {
+pub(crate) fn existing() -> miette::Result<Existing> {
 	let mut ret = Existing::default();
 
 	for found in file::with_extension(DIR, EXT)? {
 		let list = parse_content(
-			&fs::read_to_string(&found.path).map_err(|e| ioe!(found.path.to_string_lossy(), e))?,
+			&fs::read_to_string(&found.path)
+				.into_diagnostic()
+				.wrap_err_with(|| format!("cannot read {}", found.path.display()))?,
 		);
 
 		if found.stem.starts_with(PREFIX) {

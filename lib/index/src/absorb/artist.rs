@@ -11,7 +11,7 @@ pub(super) fn of(
 	board: &Board<Stage>,
 	merge: &Merge,
 	recording: &Path,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	part::step(
 		db,
 		board,

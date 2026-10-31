@@ -1,7 +1,7 @@
 use std::{fs, io, path::Path};
 
-use hmerr::ioe;
 use listen_cache::text;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::declaration::Source;
 
@@ -13,7 +13,7 @@ impl Prefetch {
 		source: Source,
 		target: &Path,
 		carried: &[&str],
-	) -> hmerr::Result<bool> {
+	) -> miette::Result<bool> {
 		let complete = self.complete(source);
 		if !complete.is_file() {
 			return Ok(false);
@@ -28,8 +28,12 @@ impl Prefetch {
 		}
 
 		listen_cache::prepare(target)?;
-		moved(&complete, target).map_err(|e| ioe!(target.to_string_lossy(), e))?;
-		fs::remove_file(&origin).map_err(|e| ioe!(origin.to_string_lossy(), e))?;
+		moved(&complete, target)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot move into {}", target.display()))?;
+		fs::remove_file(&origin)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", origin.display()))?;
 
 		Ok(true)
 	}

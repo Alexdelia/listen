@@ -12,7 +12,7 @@ use super::{
 
 pub(super) const BUCKETED: &str = "library_bucket";
 
-pub(super) fn of(scan: &Scan) -> hmerr::Result<PathBuf> {
+pub(super) fn of(scan: &Scan) -> miette::Result<PathBuf> {
 	let partial = scan.batched(Stage::Library, LIBRARY, &play::counted)?;
 
 	let into = scan.work.join(BUCKETED);

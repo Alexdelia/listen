@@ -1,3 +1,5 @@
+use miette::IntoDiagnostic;
+
 use crate::declaration::{Q_MAX, value};
 
 pub(super) const ONE_PLAY: f32 = 45.0;
@@ -6,7 +8,7 @@ pub(super) const PREFERENCE: &str = "forecast_preference";
 
 const VALUE: &str = "forecast_value";
 
-pub(super) fn declare(db: &duckdb::Connection) -> hmerr::Result<()> {
+pub(super) fn declare(db: &duckdb::Connection) -> miette::Result<()> {
 	let neutral = f32::from(value::NEUTRAL);
 	let top = f32::from(value::from_q(Q_MAX));
 
@@ -19,7 +21,8 @@ create or replace macro {VALUE}(plays, center) as
 create or replace macro {PREFERENCE}(plays, center) as
 	({VALUE}(plays, center) - {neutral}) / {neutral};
 "
-	))?;
+	))
+	.into_diagnostic()?;
 
 	Ok(())
 }

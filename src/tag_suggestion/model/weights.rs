@@ -4,9 +4,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
 use indicatif::ProgressBar;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::bar;
 
@@ -22,7 +21,7 @@ const FILE: [(&str, u64); 4] = [
 	("model.safetensors", 347_827_260),
 ];
 
-pub(super) fn ensure(model: &Path) -> hmerr::Result<PathBuf> {
+pub(super) fn ensure(model: &Path) -> miette::Result<PathBuf> {
 	let dir = model.join(DIR);
 
 	for (name, size) in FILE {
@@ -39,7 +38,7 @@ fn present(path: &Path, size: u64) -> bool {
 	fs::metadata(path).is_ok_and(|metadata| metadata.len() == size)
 }
 
-fn fetch(name: &str, path: &Path, size: u64) -> hmerr::Result<()> {
+fn fetch(name: &str, path: &Path, size: u64) -> miette::Result<()> {
 	let url = format!("{REPOSITORY}/{REVISION}/{name}");
 	let partial = path.with_extension(PARTIAL);
 	listen_cache::prepare(&partial)?;
@@ -47,26 +46,34 @@ fn fetch(name: &str, path: &Path, size: u64) -> hmerr::Result<()> {
 	let body = listen_agent::shared()
 		.get(&url)
 		.call()
-		.map_err(|e| ge!(format!("{R}failed to fetch {B}{url}{D}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to fetch {url}"))?
 		.into_body()
 		.into_reader();
 
 	let bar = ProgressBar::new(size).with_style(bar::byte_template("weights", "cyan")?);
-	let mut file = File::create(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
+	let mut file = File::create(&partial)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", partial.display()))?;
 	let written = io::copy(&mut bar.wrap_read(body), &mut file)
-		.map_err(|e| ge!(format!("{R}failed to download {B}{url}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to download {url}"))?;
 	bar.finish_and_clear();
 
 	if written != size {
 		let _ = fs::remove_file(&partial);
-		return Err(ge!(
-			format!("{R}{B}{name}{D}{R} is {written} bytes, expected {size}{D}"),
-			h: format!("the model at {B}{url}{D} changed, update {B}FILE{D} in {B}{file}{D}", file = file!())
-		)
-		.into());
+		return Err(miette!(
+			help = format!(
+				"the model at {url} changed, update FILE in {file}",
+				file = file!()
+			),
+			"{name} is {written} bytes, expected {size}"
+		));
 	}
 
-	fs::rename(&partial, path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::rename(&partial, path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot move into {}", path.display()))?;
 
 	Ok(())
 }

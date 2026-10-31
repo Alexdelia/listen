@@ -13,7 +13,7 @@ pub(super) struct Cursor<F> {
 
 impl<F> Cursor<F>
 where
-	F: FnMut(usize) -> hmerr::Result<Page>,
+	F: FnMut(usize) -> miette::Result<Page>,
 {
 	pub(super) const fn new(fetch: F) -> Self {
 		Self {
@@ -27,9 +27,9 @@ where
 
 impl<F> Feed for Cursor<F>
 where
-	F: FnMut(usize) -> hmerr::Result<Page>,
+	F: FnMut(usize) -> miette::Result<Page>,
 {
-	fn next(&mut self, _skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, _skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		if let Some(recommendation) = self.buffer.pop_front() {
 			return Ok(Some(recommendation));
 		}
@@ -76,7 +76,7 @@ mod tests {
 
 	fn drain<F>(cursor: &mut Cursor<F>) -> Vec<u8>
 	where
-		F: FnMut(usize) -> hmerr::Result<Page>,
+		F: FnMut(usize) -> miette::Result<Page>,
 	{
 		let mut seen = Vec::new();
 

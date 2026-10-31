@@ -22,7 +22,7 @@ pub(super) struct Pending {
 	pub rating: Vec<Rating>,
 }
 
-pub(super) fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
+pub(super) fn pending(list: &[Entry]) -> miette::Result<Option<Pending>> {
 	let Some(client) = auth::client() else {
 		return Ok(None);
 	};
@@ -42,7 +42,7 @@ pub(super) fn pending(list: &[Entry]) -> hmerr::Result<Option<Pending>> {
 	}))
 }
 
-pub(super) fn acquire(pending: &Pending) -> hmerr::Result<Option<String>> {
+pub(super) fn acquire(pending: &Pending) -> miette::Result<Option<String>> {
 	auth::acquire(&pending.client)
 }
 
@@ -59,17 +59,9 @@ pub(super) async fn sync(bearer: String, pending: Pending, tx: Sender<Status>) {
 			cache::write(&submitted)
 		});
 
-		let gave_up = sent
-			.as_ref()
-			.err()
-			.is_some_and(|e| meta_brainz::gave_up(&**e));
+		let gave_up = sent.as_ref().err().is_some_and(meta_brainz::gave_up);
 
-		report(
-			&tx,
-			Action::SubmitRating(chunk.len()),
-			sent.map_err(|e| e.to_string()),
-		)
-		.await;
+		report(&tx, Action::SubmitRating(chunk.len()), sent).await;
 
 		if gave_up {
 			return;

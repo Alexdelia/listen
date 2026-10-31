@@ -1,8 +1,5 @@
-use ansi::{
-	DIM,
-	abbrev::{B, D, F, G, Y},
-};
 use chrono::DateTime;
+use console::style;
 
 use crate::format::{DATE_FORMAT, TIME_FORMAT};
 
@@ -10,38 +7,64 @@ use super::Held;
 
 pub(super) fn another_dump(unpacked: &str) {
 	println!(
-		"{Y}the dump unpacked is not the one the counts were read off, \
-		reading {B}{unpacked}{D}{Y} up and asking for every incremental since{D}"
+		"{}{}{}",
+		style(
+			"the dump unpacked is not the one the counts were read off, \
+		reading "
+		)
+		.yellow(),
+		style(&unpacked).bold().yellow(),
+		style(" up and asking for every incremental since").yellow()
 	);
 }
 
 pub(super) fn merged_in() {
 	println!(
-		"{Y}the cached count cannot tell the dump from what was folded onto it, \
-		reading the dump up again and asking for every incremental since{D}"
+		"{}",
+		style(
+			"the cached count cannot tell the dump from what was folded onto it, \
+		reading the dump up again and asking for every incremental since"
+		)
+		.yellow()
 	);
 }
 
 pub(super) fn stuck_at(reached: &str) {
 	println!(
-		"{Y}the counts stopped at {B}{reached}{D}{Y}, which no dump can be held against, \
-		reading the dump up again and asking for every incremental since{D}"
+		"{}{}{}",
+		style("the counts stopped at ").yellow(),
+		style(&reached).bold().yellow(),
+		style(
+			", which no dump can be held against, \
+		reading the dump up again and asking for every incremental since"
+		)
+		.yellow()
 	);
 }
 
 pub(super) fn reading() {
-	println!("{F}reading own listen off the unpacked dump, once per dump{D}");
+	println!(
+		"{}",
+		style("reading own listen off the unpacked dump, once per dump").dim()
+	);
 }
 
-pub(super) fn announce(username: &str, held: &Held) -> hmerr::Result<()> {
+pub(super) fn announce(username: &str, held: &Held) -> miette::Result<()> {
 	println!(
-		"{B}{G}{count}{D} recording off the dump for {B}{username}{D}, covering up to \
-		{B}{reached}{D} {DIM}({day} day ago, last listen {last}, \
-		{B}--refresh{D}{DIM} to read the dump again){D}\n",
-		count = held.recording(),
-		reached = at(held.reached_at()),
-		day = held.ago()?,
-		last = at(held.covered)
+		"{} recording off the dump for {}, covering up to \
+		{} {}{}{}\n",
+		style(&held.recording()).bold().green(),
+		style(&username).bold(),
+		style(&at(held.reached_at())).bold(),
+		style(format!(
+			"({day} day ago, last listen {last}, \
+		",
+			day = held.ago()?,
+			last = at(held.covered)
+		))
+		.dim(),
+		style("--refresh").dim().bold(),
+		style(" to read the dump again)").dim()
 	);
 
 	Ok(())

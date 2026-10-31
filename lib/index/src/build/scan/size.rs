@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use ansi::abbrev::{B, D, F};
+use console::style;
 
 use super::super::super::progress;
 
@@ -37,12 +37,19 @@ impl Size {
 
 	pub(super) fn tell(&self) {
 		progress::say(format!(
-			"{F}{B}{thread}{D}{F} thread, {B}{memory}{D}{F} memory, \
-			{B}{lane}{D}{F} query at once, dump read in {B}{batch}{D}{F} slice{D}",
-			thread = self.thread,
-			memory = progress::bytes(self.memory),
-			lane = self.lane,
-			batch = self.batch
+			"{}{}{}{}{}{}{}{}",
+			style(self.thread).dim().bold(),
+			style(" thread, ").dim(),
+			style(progress::bytes(self.memory)).dim().bold(),
+			style(
+				" memory, \
+			"
+			)
+			.dim(),
+			style(self.lane).dim().bold(),
+			style(" query at once, dump read in ").dim(),
+			style(self.batch).dim().bold(),
+			style(" slice").dim()
 		));
 	}
 }

@@ -10,7 +10,7 @@ struct Shown {
 	mbid: Source,
 }
 
-pub(super) fn of(entry: &[Entry], log: &[PathBuf]) -> hmerr::Result<Vec<(Source, Q)>> {
+pub(super) fn of(entry: &[Entry], log: &[PathBuf]) -> miette::Result<Vec<(Source, Q)>> {
 	let mut shown = HashSet::new();
 
 	for path in log {

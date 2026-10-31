@@ -48,7 +48,11 @@ struct Built {
 	local: Option<Local>,
 }
 
-pub(crate) async fn run(path: &Path, request: Request<'_>) -> hmerr::Result<()> {
+#[expect(
+	clippy::future_not_send,
+	reason = "the feeds are `Box<dyn Feed>` trait objects, which are not `Send`"
+)]
+pub(crate) async fn run(path: &Path, request: Request<'_>) -> miette::Result<()> {
 	selection::ensure_arg(request.source, request.arg)?;
 	let mode = Mode::of(request.trace);
 
@@ -92,7 +96,11 @@ pub(crate) async fn run(path: &Path, request: Request<'_>) -> hmerr::Result<()> 
 	})
 }
 
-async fn interact(path: &Path, stream: &mut Stream, skip: &mut Skip) -> hmerr::Result<()> {
+#[expect(
+	clippy::future_not_send,
+	reason = "the feeds are `Box<dyn Feed>` trait objects, which are not `Send`"
+)]
+async fn interact(path: &Path, stream: &mut Stream, skip: &mut Skip) -> miette::Result<()> {
 	while let Some(shown) = stream.next(skip)? {
 		if consider::consider(path, shown.index, &shown.recommendation)
 			.await?
@@ -105,7 +113,11 @@ async fn interact(path: &Path, stream: &mut Stream, skip: &mut Skip) -> hmerr::R
 	Ok(())
 }
 
-async fn built(path: &Path, request: Request<'_>, mode: &Mode) -> hmerr::Result<Option<Built>> {
+#[expect(
+	clippy::future_not_send,
+	reason = "the feeds are `Box<dyn Feed>` trait objects, which are not `Send`"
+)]
+async fn built(path: &Path, request: Request<'_>, mode: &Mode) -> miette::Result<Option<Built>> {
 	let Request {
 		target,
 		source,
@@ -163,7 +175,7 @@ fn local_feed(
 	source: RecommendSource,
 	arg: &IslandArg,
 	mode: &Mode,
-) -> hmerr::Result<Option<(Local, Vec<Fed>)>> {
+) -> miette::Result<Option<(Local, Vec<Fed>)>> {
 	let island = selection::island(source);
 	let forecast = selection::forecast(source);
 
@@ -190,11 +202,15 @@ fn local_feed(
 	Ok(Some((local, fed)))
 }
 
+#[expect(
+	clippy::future_not_send,
+	reason = "the feeds are `Box<dyn Feed>` trait objects, which are not `Send`"
+)]
 async fn remote(
 	target: &Target,
 	source: RecommendSource,
 	sort: RecommendSort,
-) -> hmerr::Result<Vec<Fed>> {
+) -> miette::Result<Vec<Fed>> {
 	let mut fed = Vec::new();
 
 	if let Target::Username(username) = target {

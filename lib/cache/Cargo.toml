@@ -6,8 +6,8 @@ authors = ["Alexdelia <alexandre.delille.57@gmail.com>"]
 description = "where declarative_listen keeps what it caches"
 
 [dependencies]
-hmerr.workspace = true
-ansi.workspace = true
+miette.workspace = true
+console.workspace = true
 listen_prompt.workspace = true
 serde.workspace = true
 serde_json.workspace = true

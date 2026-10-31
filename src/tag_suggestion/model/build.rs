@@ -5,10 +5,10 @@ use std::{
 	process::{Command, Stdio},
 };
 
-use ansi::abbrev::{B, D, G, R, Y};
-use hmerr::{ge, ioe};
+use console::style;
 use indicatif::ProgressBar;
 use listen_cache::text;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::{bar, prompt};
 
@@ -26,7 +26,7 @@ const PROGRAM: &str = "bin/maest";
 const NAMED: usize = 8;
 const NCCL: &str = "nccl";
 
-pub(super) fn ensure(dir: &Path) -> hmerr::Result<Option<PathBuf>> {
+pub(super) fn ensure(dir: &Path) -> miette::Result<Option<PathBuf>> {
 	let runtime = dir.join(RUNTIME);
 	let program = runtime.join(PROGRAM);
 	let stamp = dir.join(STAMP);
@@ -75,10 +75,11 @@ fn nix(args: &[&str]) -> Command {
 	command
 }
 
-fn dry_run() -> hmerr::Result<Log> {
+fn dry_run() -> miette::Result<Log> {
 	let output = nix(&["--dry-run", "--no-link"])
 		.output()
-		.map_err(|e| ioe!(format!("failed to execute {NIX}"), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {NIX}"))?;
 
 	let mut log = Log::default();
 	for line in String::from_utf8_lossy(&output.stderr).lines() {
@@ -94,9 +95,12 @@ fn dry_run() -> hmerr::Result<Log> {
 
 fn announce(planned: &Log) {
 	println!(
-		"{Y}the tag suggestion model needs {B}{built}{D}{Y} derivation(s) built and {B}{fetched}{D}{Y} path(s) fetched{D}",
-		built = planned.build.len(),
-		fetched = planned.fetch.len(),
+		"{}{}{}{}{}",
+		style("the tag suggestion model needs ").yellow(),
+		style(&planned.build.len()).bold().yellow(),
+		style(" derivation(s) built and ").yellow(),
+		style(&planned.fetch.len()).bold().yellow(),
+		style(" path(s) fetched").yellow()
 	);
 
 	let names = planned
@@ -108,12 +112,15 @@ fn announce(planned: &Log) {
 		println!("  {name}");
 	}
 	if names.len() > NAMED {
-		println!("  {B}{more}{D} more", more = names.len() - NAMED);
+		println!("  {} more", style(names.len() - NAMED).bold());
 	}
 
 	if compiles_nccl(planned) {
 		println!(
-			"{G}a cold build compiles NCCL for CUDA from source, about {B}75 min{D}{G} on 8 cores{D}"
+			"{}{}{}",
+			style("a cold build compiles NCCL for CUDA from source, about ").green(),
+			style("75 min").bold().green(),
+			style(" on 8 cores").green()
 		);
 	}
 }
@@ -125,17 +132,18 @@ fn compiles_nccl(planned: &Log) -> bool {
 		.any(|name| name.split('-').any(|part| part == NCCL))
 }
 
-fn build(runtime: &Path) -> hmerr::Result<()> {
+fn build(runtime: &Path) -> miette::Result<()> {
 	let mut child = nix(&["--out-link", &runtime.to_string_lossy()])
 		.stdout(Stdio::null())
 		.stderr(Stdio::piped())
 		.spawn()
-		.map_err(|e| ioe!(format!("failed to execute {NIX}"), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {NIX}"))?;
 
 	let stderr = child
 		.stderr
 		.take()
-		.ok_or_else(|| ge!(format!("{R}no stderr from {B}{NIX}{D}")))?;
+		.ok_or_else(|| miette!("no stderr from {NIX}"))?;
 
 	let bar = bar::ticking(ProgressBar::new(0).with_style(bar::message_template("model", "cyan")?));
 	let mut log = Log::default();
@@ -147,8 +155,12 @@ fn build(runtime: &Path) -> hmerr::Result<()> {
 	let waited = child.wait();
 	bar.finish_and_clear();
 
-	followed.map_err(|e| ioe!(format!("{NIX} stderr"), e))?;
-	let status = waited.map_err(|e| ioe!(format!("failed to wait for {NIX}"), e))?;
+	followed
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {NIX} stderr"))?;
+	let status = waited
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to wait for {NIX}"))?;
 
 	if !status.success() {
 		return Err(failed("build", &log));
@@ -169,15 +181,12 @@ fn follow(stderr: impl BufRead, log: &mut Log, bar: &ProgressBar) -> io::Result<
 	Ok(())
 }
 
-fn failed(step: &str, log: &Log) -> Box<dyn std::error::Error> {
-	ge!(
-		format!(
-			"{R}failed to {step} the tag suggestion model{D}\n{said}",
-			said = log.said.join("\n")
-		),
-		h: format!("rerun by hand: {B}{G}{NIX} build --file {EXPRESSION}{D}")
+fn failed(step: &str, log: &Log) -> miette::Report {
+	miette!(
+		help = format!("rerun by hand: {NIX} build --file {EXPRESSION}"),
+		"failed to {step} the tag suggestion model\n{said}",
+		said = log.said.join("\n")
 	)
-	.into()
 }
 
 #[cfg(test)]

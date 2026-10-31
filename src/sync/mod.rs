@@ -20,7 +20,7 @@ use channel::{Action, Status};
 use filter::{GroupedEntry, SyncEntry};
 use progress::Count;
 
-pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
+pub(crate) fn run(path: &Path, refresh_metadata: bool) -> miette::Result<()> {
 	if refresh_metadata {
 		let list = parse::parse(path)?;
 		return block_on(refresh::metadata::run(&list));
@@ -31,7 +31,7 @@ pub(crate) fn run(path: &Path, refresh_metadata: bool) -> hmerr::Result<()> {
 	let list = parse::parse(path)?;
 
 	if let Err(e) = Prefetch::cached().and_then(|prefetch| prefetch.prune()) {
-		eprintln!("{e}");
+		eprintln!("{e:?}");
 	}
 
 	let pending = rate::pending(&list)?;
@@ -100,11 +100,7 @@ fn acquire_rating(pending: Option<rate::Pending>, tx: &Sender<Status>) -> Rating
 		Ok(Some(bearer)) => Rating::Submit(bearer, pending),
 		Ok(None) => Rating::Skip,
 		Err(e) => {
-			block_on(channel::report(
-				tx,
-				Action::SubmitRating(0),
-				Err(e.to_string()),
-			));
+			block_on(channel::report(tx, Action::SubmitRating(0), Err(e)));
 			Rating::Failed(pending.rating.len())
 		}
 	}

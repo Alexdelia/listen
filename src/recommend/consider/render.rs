@@ -1,21 +1,23 @@
-use ansi::abbrev::{B, BLU, CYA, D, F, G, M, Y};
 use chrono::{DateTime, Months, Utc};
+use console::style;
 
 use super::super::recommendation::{Origin, Recommendation};
 use crate::{
 	declaration::{Q, Source},
-	format::{DATE_FORMAT, TIME_FORMAT, q_color},
+	format::{DATE_FORMAT, TIME_FORMAT, q_style},
 	library,
 };
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
-		"{B}{M}{index}{D} {source} {F}{M}{position}{D}\n\
-		{CYA}https://musicbrainz.org/recording/{B}{mbid}{D}{label}",
+		"{} {source} {}\n\
+		{}{}{label}",
+		style(&index).bold().magenta(),
+		style(&recommendation.origin.position()).dim().magenta(),
+		style("https://musicbrainz.org/recording/").cyan(),
+		style(&recommendation.mbid).bold().cyan(),
 		source = recommendation.origin.source(),
-		position = recommendation.origin.position(),
-		mbid = recommendation.mbid,
-		label = label(&recommendation.origin),
+		label = label(&recommendation.origin)
 	)
 }
 
@@ -26,10 +28,11 @@ fn label(origin: &Origin) -> String {
 			latest_listened_at,
 			..
 		} => format!(
-			" {Y}{score:.3}{D}{last}",
+			" {:.3}{last}",
+			style(&score).yellow(),
 			last = latest_listened_at
-				.map(|at| format!(" {CYA}{at}{D}", at = listened(at)))
-				.unwrap_or_default(),
+				.map(|at| format!(" {}", style(&listened(at)).cyan()))
+				.unwrap_or_default()
 		),
 		Origin::WeeklyExploration { .. } => String::new(),
 		Origin::ListenCount {
@@ -38,10 +41,14 @@ fn label(origin: &Origin) -> String {
 			released,
 			..
 		} => format!(
-			" {M}{listen} {F}listen{D} {CYA}{user} {F}user{D}{released}",
+			" {} {} {} {}{released}",
+			style(&listen).magenta(),
+			style("listen").dim().magenta(),
+			style(&user).cyan(),
+			style("user").dim().cyan(),
 			released = released
-				.map(|date| format!(" {Y}{date}{D}", date = date.format(DATE_FORMAT)))
-				.unwrap_or_default(),
+				.map(|date| format!(" {}", style(&date.format(DATE_FORMAT)).yellow()))
+				.unwrap_or_default()
 		),
 		Origin::Island {
 			member,
@@ -51,8 +58,17 @@ fn label(origin: &Origin) -> String {
 			plays,
 			..
 		} => format!(
-			" {Y}{score:.3}{D} {M}{plays} {F}play{D} {CYA}{listener} {F}listener{D} \
-			{BLU}{backer} {F}backer{D} {G}{member} {F}seed{D}"
+			" {:.3} {} {} {} {} \
+			{} {} {} {}",
+			style(&score).yellow(),
+			style(&plays).magenta(),
+			style("play").dim().magenta(),
+			style(&listener).cyan(),
+			style("listener").dim().cyan(),
+			style(&backer).blue(),
+			style("backer").dim().blue(),
+			style(&member).green(),
+			style("seed").dim().green()
 		),
 		Origin::Forecast {
 			expected,
@@ -61,13 +77,18 @@ fn label(origin: &Origin) -> String {
 			near,
 			..
 		} => format!(
-			" {Y}{expected:.0} {F}expected{D} {F}raw {raw:.0}{D} {CYA}{support} {F}support{D}{near}",
+			" {:.0} {} {} {} {}{near}",
+			style(&expected).yellow(),
+			style("expected").dim().yellow(),
+			style(format!("raw {raw:.0}")).dim(),
+			style(&support).cyan(),
+			style("support").dim().cyan(),
 			near = near_line(
 				&near
 					.iter()
 					.map(|near| (labelled(near.recording.0), near.q))
 					.collect::<Vec<_>>()
-			),
+			)
 		),
 	}
 }
@@ -89,10 +110,14 @@ fn near_line(near: &[(String, Q)]) -> String {
 
 	let shown: Vec<String> = near
 		.iter()
-		.map(|(label, q)| format!("{label} {color}q{q}{D}", color = q_color(*q)))
+		.map(|(label, q)| format!("{label} {}", q_style(*q).apply_to(format!("q{q}"))))
 		.collect();
 
-	format!("\n{F}near{D} {}", shown.join(&format!("{F},{D} ")))
+	format!(
+		"\n{} {}",
+		style("near").dim(),
+		shown.join(&format!("{} ", style(",").dim()))
+	)
 }
 
 fn listened(at: DateTime<Utc>) -> String {
@@ -113,6 +138,7 @@ fn listened(at: DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
 	use chrono::{Months, NaiveDate, Utc};
+	use console::strip_ansi_codes;
 
 	use super::*;
 	use crate::declaration::Source;
@@ -147,14 +173,13 @@ mod tests {
 		assert!(head.contains('3'), "{head}");
 		assert!(head.contains("weekly-exploration"), "{head}");
 		assert!(head.contains("2026-07-12"), "{head}");
-		assert!(head.ends_with(&format!("{F}{M}5{D}")), "{head}");
+		assert!(strip_ansi_codes(head).ends_with('5'), "{head}");
 
 		let body = line.next().unwrap_or_default();
 
 		assert!(
-			body.contains(&format!(
-				"{CYA}https://musicbrainz.org/recording/{B}07070707-0707-0707-0707-070707070707{D}"
-			)),
+			strip_ansi_codes(body)
+				.contains("https://musicbrainz.org/recording/07070707-0707-0707-0707-070707070707"),
 			"{body}"
 		);
 		assert_eq!(line.next(), None);
@@ -239,30 +264,25 @@ mod tests {
 
 	#[test]
 	fn a_listen_count_recommendation_shows_its_listen_and_user_count() {
-		let shown = label(&listen_count(None));
+		let shown = strip_ansi_codes(&label(&listen_count(None))).into_owned();
 
-		assert!(
-			shown.contains(&format!("{M}1259231 {F}listen{D}")),
-			"{shown}"
-		);
-		assert!(shown.contains(&format!("{CYA}85027 {F}user{D}")), "{shown}");
+		assert!(shown.contains("1259231 listen"), "{shown}");
+		assert!(shown.contains("85027 user"), "{shown}");
 	}
 
 	#[test]
 	fn a_dated_listen_count_recommendation_shows_its_release_date() {
-		let shown = label(&listen_count(NaiveDate::from_ymd_opt(2010, 5, 24)));
+		let shown = strip_ansi_codes(&label(&listen_count(NaiveDate::from_ymd_opt(2010, 5, 24))))
+			.into_owned();
 
-		assert!(shown.contains(&format!("{Y}2010-05-24{D}")), "{shown}");
+		assert!(shown.contains("2010-05-24"), "{shown}");
 	}
 
 	#[test]
 	fn an_undated_listen_count_recommendation_ends_on_its_user_count() {
-		let shown = label(&listen_count(None));
+		let shown = strip_ansi_codes(&label(&listen_count(None))).into_owned();
 
-		assert!(
-			shown.ends_with(&format!("{CYA}85027 {F}user{D}")),
-			"{shown}"
-		);
+		assert!(shown.ends_with("85027 user"), "{shown}");
 	}
 
 	#[test]

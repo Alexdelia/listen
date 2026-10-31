@@ -1,5 +1,4 @@
-use ansi::abbrev::{B, D, R};
-use hmerr::{GenericError, ge};
+use miette::miette;
 
 use clap::ValueEnum;
 
@@ -27,33 +26,29 @@ pub(super) fn ensure_local_target(
 	source: RecommendSource,
 	sort: RecommendSort,
 	target: Option<&str>,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	if let Some(target) = target {
-		return Err(ge!(
-			format!(
-				"{R}source {B}{source}{D}{R} takes no target, got {B}{target}{D}",
-				source = name(&source)
-			),
-			h: "it reads the declaration and the local index, never a listenbrainz account"
-		)
-		.into());
+		return Err(miette!(
+			help = "it reads the declaration and the local index, never a listenbrainz account",
+			"source {source} takes no target, got {target}",
+			source = name(&source)
+		));
 	}
 
 	if sort != RecommendSort::Popularity {
-		return Err(ge!(format!(
-			"{R}sort {B}{sort}{D}{R} needs an artist mbid, not source {B}{source}{D}",
+		return Err(miette!(
+			"sort {sort} needs an artist mbid, not source {source}",
 			sort = name(&sort),
 			source = name(&source)
-		))
-		.into());
+		));
 	}
 
 	Ok(())
 }
 
-pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
+pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> miette::Result<()> {
 	if arg.backtest && !forecast_only(source) {
-		return Err(needs("--backtest", RecommendSource::Forecast, source).into());
+		return Err(needs("--backtest", RecommendSource::Forecast, source));
 	}
 
 	if forecast_only(source) {
@@ -67,21 +62,20 @@ pub(super) fn ensure_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Res
 	ensure_no_island_arg(source, arg)
 }
 
-fn ensure_island_arg(arg: &IslandArg) -> hmerr::Result<()> {
+fn ensure_island_arg(arg: &IslandArg) -> miette::Result<()> {
 	if let Some(built_by) = built_by(arg) {
 		ensure_built_island_arg(arg, built_by)?;
 	}
 
 	if arg.popularity_damp < 0.0 {
-		return Err(ge!(
-			format!("{R}{B}--popularity-damp{D}{R} cannot be negative{D}"),
-			h: "0 leaves popularity alone, 0.6 is the discovery setting, higher digs further"
-		)
-		.into());
+		return Err(miette!(
+			help = "0 leaves popularity alone, 0.6 is the discovery setting, higher digs further",
+			"--popularity-damp cannot be negative"
+		));
 	}
 
 	if arg.granularity <= 0.0 {
-		return Err(ge!(format!("{R}{B}--granularity{D}{R} has to be above zero{D}")).into());
+		return Err(miette!("--granularity has to be above zero"));
 	}
 
 	Ok(())
@@ -107,21 +101,19 @@ const fn built_by(arg: &IslandArg) -> Option<&'static str> {
 	None
 }
 
-fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> hmerr::Result<()> {
+fn ensure_built_island_arg(arg: &IslandArg, built_by: &str) -> miette::Result<()> {
 	if arg.island.is_some() {
-		return Err(ge!(
-			format!("{R}{B}--island{D}{R} cannot pin an island built by {B}{built_by}{D}"),
-			h: format!("{built_by} already says which recording the island is made of")
-		)
-		.into());
+		return Err(miette!(
+			help = format!("{built_by} already says which recording the island is made of"),
+			"--island cannot pin an island built by {built_by}"
+		));
 	}
 
 	if tuned_granularity(arg) {
-		return Err(ge!(
-			format!("{R}{B}--granularity{D}{R} cannot split an island built by {B}{built_by}{D}"),
-			h: "granularity only tunes the islands detected out of the whole declaration"
-		)
-		.into());
+		return Err(miette!(
+			help = "granularity only tunes the islands detected out of the whole declaration",
+			"--granularity cannot split an island built by {built_by}"
+		));
 	}
 
 	Ok(())
@@ -138,15 +130,19 @@ fn island_only_flag(arg: &IslandArg) -> [(&'static str, bool); 6] {
 	]
 }
 
-fn ensure_forecast_arg(arg: &IslandArg) -> hmerr::Result<()> {
+fn ensure_forecast_arg(arg: &IslandArg) -> miette::Result<()> {
 	let Some((flag, _)) = island_only_flag(arg).into_iter().find(|(_, given)| *given) else {
 		return Ok(());
 	};
 
-	Err(needs(flag, RecommendSource::Island, RecommendSource::Forecast).into())
+	Err(needs(
+		flag,
+		RecommendSource::Island,
+		RecommendSource::Forecast,
+	))
 }
 
-fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Result<()> {
+fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> miette::Result<()> {
 	let Some((flag, _)) = island_only_flag(arg)
 		.into_iter()
 		.chain([("--allow-known-artist", arg.allow_known_artist)])
@@ -155,17 +151,15 @@ fn ensure_no_island_arg(source: RecommendSource, arg: &IslandArg) -> hmerr::Resu
 		return Ok(());
 	};
 
-	Err(needs(flag, RecommendSource::Island, source).into())
+	Err(needs(flag, RecommendSource::Island, source))
 }
 
-fn needs(flag: &str, wanted: RecommendSource, source: RecommendSource) -> GenericError {
-	ge!(
-		format!(
-			"{R}{B}{flag}{D}{R} needs source {B}{wanted}{D}{R}, not {B}{source}{D}",
-			wanted = name(&wanted),
-			source = name(&source)
-		),
-		h: format!("run with {B}--source {wanted}{D}", wanted = name(&wanted))
+fn needs(flag: &str, wanted: RecommendSource, source: RecommendSource) -> miette::Report {
+	miette!(
+		help = format!("run with --source {wanted}", wanted = name(&wanted)),
+		"{flag} needs source {wanted}, not {source}",
+		wanted = name(&wanted),
+		source = name(&source)
 	)
 }
 
@@ -201,7 +195,7 @@ pub(super) fn ensure(
 	source: RecommendSource,
 	sort: RecommendSort,
 	target: &Target,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let (fits, need) = match target {
 		Target::Username(_) => (
 			weekly(source) || collaborative_filtering(source),
@@ -211,22 +205,18 @@ pub(super) fn ensure(
 	};
 
 	if !fits {
-		return Err(ge!(format!(
-			"{R}source {B}{source}{D}{R} needs {need}{D}",
+		return Err(miette!(
+			"source {source} needs {need}",
 			source = name(&source)
-		))
-		.into());
+		));
 	}
 
 	if sort != RecommendSort::Popularity && !matches!(target, Target::Artist(_)) {
-		return Err(ge!(
-			format!(
-				"{R}sort {B}{sort}{D}{R} needs an artist mbid, not a username{D}",
-				sort = name(&sort)
-			),
-			h: "only the recordings of an artist carry a release date to sort on"
-		)
-		.into());
+		return Err(miette!(
+			help = "only the recordings of an artist carry a release date to sort on",
+			"sort {sort} needs an artist mbid, not a username",
+			sort = name(&sort)
+		));
 	}
 
 	Ok(())
@@ -251,7 +241,7 @@ mod tests {
 		Target::Username("alexdelia".to_string())
 	}
 
-	fn by_popularity(source: RecommendSource, target: &Target) -> hmerr::Result<()> {
+	fn by_popularity(source: RecommendSource, target: &Target) -> miette::Result<()> {
 		ensure(source, RecommendSort::Popularity, target)
 	}
 
@@ -337,7 +327,7 @@ mod tests {
 	fn refusal(source: RecommendSource, target: &Target) -> String {
 		by_popularity(source, target)
 			.err()
-			.map(|e| e.to_string())
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default()
 	}
 
@@ -378,7 +368,7 @@ mod tests {
 			&username(),
 		)
 		.err()
-		.map(|e| e.to_string())
+		.map(|e| format!("{e:?}"))
 		.unwrap_or_default();
 
 		assert!(said.contains("newest"), "{said}");
@@ -580,7 +570,7 @@ mod tests {
 			Some("alexdelia"),
 		)
 		.err()
-		.map(|e| e.to_string())
+		.map(|e| format!("{e:?}"))
 		.unwrap_or_default();
 
 		assert!(said.contains("forecast"), "{said}");

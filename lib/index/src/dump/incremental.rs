@@ -3,9 +3,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{GenericError, ge, ioe};
 use indicatif::ProgressBar;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use super::{super::keep, listen, rsync, space, stamp};
 
@@ -41,7 +40,7 @@ impl Pending {
 	}
 }
 
-pub(super) fn pending(covered: &str, through: Option<u32>) -> hmerr::Result<Vec<Pending>> {
+pub(super) fn pending(covered: &str, through: Option<u32>) -> miette::Result<Vec<Pending>> {
 	let reached = stamp::reach(covered)?;
 	let url = format!("{host}/{MODULE}/", host = rsync::HOST);
 
@@ -77,7 +76,7 @@ fn pending_of(entry: &rsync::Entry) -> Option<Pending> {
 	})
 }
 
-pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> hmerr::Result<()> {
+pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> miette::Result<()> {
 	let biggest = pending
 		.iter()
 		.map(|pending| pending.size)
@@ -92,7 +91,7 @@ pub(super) fn pull(
 	pending: &Pending,
 	downloading: &ProgressBar,
 	verifying: &ProgressBar,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let url = url(&pending.name);
 
 	rsync::pull(
@@ -110,14 +109,14 @@ pub(super) fn opened(
 	root: &Path,
 	pending: &Pending,
 	bar: &ProgressBar,
-) -> hmerr::Result<Incremental> {
+) -> miette::Result<Incremental> {
 	let dir = unpack(root, pending, bar)?;
 	keep::discard(&root.join(&pending.archive))?;
 
 	read(&dir, &pending.name, pending.number)
 }
 
-pub(super) fn release(incremental: &Incremental) -> hmerr::Result<()> {
+pub(super) fn release(incremental: &Incremental) -> miette::Result<()> {
 	keep::discard(&incremental.dir)
 }
 
@@ -125,24 +124,31 @@ fn url(name: &str) -> String {
 	format!("{host}/{MODULE}/{name}/", host = rsync::HOST)
 }
 
-fn unpack(root: &Path, pending: &Pending, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
+fn unpack(root: &Path, pending: &Pending, bar: &ProgressBar) -> miette::Result<PathBuf> {
 	let tar = root.join(&pending.archive);
-	let file = fs::File::open(&tar).map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+	let file = fs::File::open(&tar)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot open {}", tar.display()))?;
 
 	tar::Archive::new(bar.wrap_read(file))
 		.unpack(root)
-		.map_err(|e| ioe!(tar.to_string_lossy(), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot unpack {}", tar.display()))?;
 
 	let inner = root.join(stem(&pending.archive));
 	if !inner.is_dir() {
-		return Err(shapeless(&pending.archive).into());
+		return Err(shapeless(&pending.archive));
 	}
 
 	let dir = root.join(UNPACKED);
 	if dir.exists() {
-		fs::remove_dir_all(&dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+		fs::remove_dir_all(&dir)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", dir.display()))?;
 	}
-	fs::rename(&inner, &dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+	fs::rename(&inner, &dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot move into {}", dir.display()))?;
 
 	Ok(dir)
 }
@@ -151,11 +157,11 @@ fn stem(archive: &str) -> &str {
 	archive.strip_suffix(EXT).unwrap_or(archive)
 }
 
-fn read(dir: &Path, name: &str, number: u32) -> hmerr::Result<Incremental> {
+fn read(dir: &Path, name: &str, number: u32) -> miette::Result<Incremental> {
 	let sequence = marker(dir, SEQUENCE)?;
 
 	if sequence != SEQUENCE_UNDERSTOOD {
-		return Err(unreadable(name, &sequence).into());
+		return Err(unreadable(name, &sequence));
 	}
 
 	Ok(Incremental {
@@ -167,9 +173,11 @@ fn read(dir: &Path, name: &str, number: u32) -> hmerr::Result<Incremental> {
 	})
 }
 
-fn marker(dir: &Path, of: &str) -> hmerr::Result<String> {
+fn marker(dir: &Path, of: &str) -> miette::Result<String> {
 	let path = dir.join(of);
-	let read = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	let read = fs::read_to_string(&path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 
 	Ok(read.trim().to_string())
 }
@@ -178,17 +186,15 @@ pub(super) fn weight(pending: &[&Pending]) -> u64 {
 	pending.iter().map(|pending| pending.size).sum()
 }
 
-fn shapeless(archive: &str) -> GenericError {
-	ge!(format!("{R}{B}{archive}{D}{R} held no dump directory{D}"))
+fn shapeless(archive: &str) -> miette::Report {
+	miette!("{archive} held no dump directory")
 }
 
-fn unreadable(name: &str, sequence: &str) -> GenericError {
-	ge!(
-		format!(
-			"{R}{B}{name}{D}{R} is written to schema {B}{sequence}{D}{R}, \
-			this reads schema {B}{SEQUENCE_UNDERSTOOD}{D}"
-		),
-		h: "rebuild the index from a full dump of the same schema"
+fn unreadable(name: &str, sequence: &str) -> miette::Report {
+	miette!(
+		help = "rebuild the index from a full dump of the same schema",
+		"{name} is written to schema {sequence}, \
+			this reads schema {SEQUENCE_UNDERSTOOD}"
 	)
 }
 
@@ -339,7 +345,7 @@ mod tests {
 			2636,
 		)
 		.err()
-		.map(|e| format!("{e}"))
+		.map(|e| format!("{e:?}"))
 		.unwrap_or_default();
 
 		assert!(said.contains("schema"), "{said}");

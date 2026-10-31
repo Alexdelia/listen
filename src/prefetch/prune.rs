@@ -4,14 +4,14 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{PARTIAL, Prefetch};
 
 const PRUNE_AFTER: Duration = Duration::from_hours(30 * 24);
 
 impl Prefetch {
-	pub(crate) fn prune(&self) -> hmerr::Result<()> {
+	pub(crate) fn prune(&self) -> miette::Result<()> {
 		let Some(cutoff) = SystemTime::now().checked_sub(PRUNE_AFTER) else {
 			return Ok(());
 		};
@@ -21,16 +21,24 @@ impl Prefetch {
 	}
 }
 
-fn prune_in(dir: &Path, cutoff: SystemTime) -> hmerr::Result<()> {
+fn prune_in(dir: &Path, cutoff: SystemTime) -> miette::Result<()> {
 	if !dir.is_dir() {
 		return Ok(());
 	}
 
-	for entry in fs::read_dir(dir).map_err(|e| ioe!(dir.to_string_lossy(), e))? {
-		let path = entry.map_err(|e| ioe!(dir.to_string_lossy(), e))?.path();
+	for entry in fs::read_dir(dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot list {}", dir.display()))?
+	{
+		let path = entry
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot list {}", dir.display()))?
+			.path();
 		let metadata = match fs::metadata(&path) {
 			Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
-			metadata => metadata.map_err(|e| ioe!(path.to_string_lossy(), e))?,
+			metadata => metadata
+				.into_diagnostic()
+				.wrap_err_with(|| format!("cannot inspect {}", path.display()))?,
 		};
 
 		if !metadata.is_file() {
@@ -39,7 +47,8 @@ fn prune_in(dir: &Path, cutoff: SystemTime) -> hmerr::Result<()> {
 
 		let modified = metadata
 			.modified()
-			.map_err(|e| ioe!(path.to_string_lossy(), e))?;
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot inspect {}", path.display()))?;
 		if modified < cutoff {
 			remove_if_present(&path)?;
 		}
@@ -48,9 +57,11 @@ fn prune_in(dir: &Path, cutoff: SystemTime) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn remove_if_present(path: &Path) -> hmerr::Result<()> {
+fn remove_if_present(path: &Path) -> miette::Result<()> {
 	match fs::remove_file(path) {
-		Err(e) if e.kind() != io::ErrorKind::NotFound => Err(ioe!(path.to_string_lossy(), e))?,
+		Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display())),
 		_ => Ok(()),
 	}
 }

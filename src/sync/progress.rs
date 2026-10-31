@@ -13,7 +13,7 @@ pub(super) struct Count {
 	pub rating: usize,
 }
 
-pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
+pub(super) fn render(total: Count, rx: &Receiver<Status>) -> miette::Result<()> {
 	let mp = MultiProgress::new();
 
 	let pb_rating = bar(&mp, total.rating, "rating", "yellow")?;
@@ -49,7 +49,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 		}
 
 		if let Err(e) = status.status {
-			mp.suspend(|| eprintln!("{e}\n"));
+			mp.suspend(|| eprintln!("{e:?}\n"));
 			err.push(e);
 		}
 	}
@@ -64,7 +64,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
 		for e in err {
-			eprintln!("{e}");
+			eprintln!("{e:?}");
 		}
 		eprint!("\n\n\n");
 	}
@@ -72,7 +72,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> hmerr::Result<()> {
 	Ok(())
 }
 
-fn bar(mp: &MultiProgress, total: usize, title: &str, color: &str) -> hmerr::Result<ProgressBar> {
+fn bar(mp: &MultiProgress, total: usize, title: &str, color: &str) -> miette::Result<ProgressBar> {
 	let bar = mp.add(ProgressBar::new(total as u64));
 	bar.set_style(template(title, color)?);
 

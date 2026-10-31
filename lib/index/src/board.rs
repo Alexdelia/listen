@@ -1,8 +1,7 @@
 use std::ops::Deref;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
 use indicatif::ProgressBar;
+use miette::miette;
 
 use super::progress::{self, Measure};
 
@@ -36,7 +35,7 @@ struct Shown<S> {
 }
 
 impl<S: Planned> Board<S> {
-	pub(super) fn of(plan: &[S], cost: &S::Cost) -> hmerr::Result<Self> {
+	pub(super) fn of(plan: &[S], cost: &S::Cost) -> miette::Result<Self> {
 		let mut shown = Vec::with_capacity(plan.len());
 
 		for stage in plan {
@@ -52,17 +51,12 @@ impl<S: Planned> Board<S> {
 		Ok(Self { shown })
 	}
 
-	pub(super) fn start(&self, stage: S) -> hmerr::Result<Running> {
+	pub(super) fn start(&self, stage: S) -> miette::Result<Running> {
 		let shown = self
 			.shown
 			.iter()
 			.find(|shown| shown.stage == stage)
-			.ok_or_else(|| {
-				ge!(format!(
-					"{R}no bar was planned for {B}{title}{D}",
-					title = stage.title()
-				))
-			})?;
+			.ok_or_else(|| miette!("no bar was planned for {title}", title = stage.title()))?;
 
 		progress::started(&shown.bar, stage.title(), shown.measure)?;
 
@@ -74,8 +68,8 @@ impl<S: Planned> Board<S> {
 	pub(super) fn run<T>(
 		&self,
 		stage: S,
-		work: impl FnOnce(&Running) -> hmerr::Result<T>,
-	) -> hmerr::Result<T> {
+		work: impl FnOnce(&Running) -> miette::Result<T>,
+	) -> miette::Result<T> {
 		let bar = self.start(stage)?;
 
 		work(&bar)

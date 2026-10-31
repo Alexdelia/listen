@@ -8,7 +8,7 @@ pub(super) fn run(
 	found: Option<(&Info, &str)>,
 	length: i64,
 	recommend: bool,
-) -> hmerr::Result<bool> {
+) -> miette::Result<bool> {
 	if let Some((info, url)) = found {
 		output::found(info, length);
 		output::url(url);

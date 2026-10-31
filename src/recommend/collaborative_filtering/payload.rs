@@ -1,6 +1,5 @@
-use ansi::abbrev::{D, R};
 use chrono::{DateTime, Utc};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 use serde::Deserialize;
 
 use crate::{
@@ -14,9 +13,10 @@ pub(super) struct Page {
 	pub total: usize,
 }
 
-pub(super) fn page(body: &str, offset: usize) -> hmerr::Result<Page> {
+pub(super) fn page(body: &str, offset: usize) -> miette::Result<Page> {
 	let payload = serde_json::from_str::<Response>(body)
-		.map_err(|e| ge!(format!("{R}failed to parse recommendation{D}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err("failed to parse recommendation")?
 		.payload;
 
 	Ok(Page {

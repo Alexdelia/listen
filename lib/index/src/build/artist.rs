@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{super::index::layout::RECORDING_ARTIST, scan::Scan, stage::Stage, work::ARTIST};
 
-pub(super) fn of(scan: &Scan, dir: &Path, recording: &Path) -> hmerr::Result<()> {
+pub(super) fn of(scan: &Scan, dir: &Path, recording: &Path) -> miette::Result<()> {
 	let recording = recording.display().to_string();
 
 	let partial = scan.batched(Stage::Artist, ARTIST, &|shard| {

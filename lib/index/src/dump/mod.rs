@@ -13,9 +13,9 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use ansi::abbrev::{B, D, F, Y};
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
+use console::style;
 use listen_cache as cache;
 
 use crate::{board::Chain, decide::Decide, progress};
@@ -39,35 +39,37 @@ const HOLED: Offer = Offer {
 	default: false,
 };
 
-pub(super) fn root() -> hmerr::Result<PathBuf> {
+pub(super) fn root() -> miette::Result<PathBuf> {
 	let root = cache::root()?.join(DIR);
-	std::fs::create_dir_all(&root).map_err(|e| ioe!(root.to_string_lossy(), e))?;
+	std::fs::create_dir_all(&root)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", root.display()))?;
 
 	Ok(root)
 }
 
-pub(super) fn listen(decide: &dyn Decide) -> hmerr::Result<Listen> {
+pub(super) fn listen(decide: &dyn Decide) -> miette::Result<Listen> {
 	let root = root()?;
 
 	match listen::find(&root)? {
 		Some(listen) => Ok(listen),
-		None => listen::fetch(&root, &NO_INDEX, decide)?.ok_or_else(|| listen::refused().into()),
+		None => listen::fetch(&root, &NO_INDEX, decide)?.ok_or_else(listen::refused),
 	}
 }
 
-pub(super) fn named(username: &str, past: Option<u64>) -> hmerr::Result<Search> {
+pub(super) fn named(username: &str, past: Option<u64>) -> miette::Result<Search> {
 	listener::named(username, past)
 }
 
-pub(super) fn unpacked() -> hmerr::Result<Option<Listen>> {
+pub(super) fn unpacked() -> miette::Result<Option<Listen>> {
 	listen::find(&root()?)
 }
 
-pub(super) fn discard(listen: &Listen) -> hmerr::Result<()> {
+pub(super) fn discard(listen: &Listen) -> miette::Result<()> {
 	listen::discard(listen)
 }
 
-pub(super) fn repairable(baseline: &str) -> hmerr::Result<Option<String>> {
+pub(super) fn repairable(baseline: &str) -> miette::Result<Option<String>> {
 	let root = root()?;
 
 	let Some(dump) = listen::newer_than(baseline)? else {
@@ -81,7 +83,7 @@ pub(super) fn repairable(baseline: &str) -> hmerr::Result<Option<String>> {
 	Ok(Some(dump))
 }
 
-pub(super) fn repair(dump: &str, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
+pub(super) fn repair(dump: &str, decide: &dyn Decide) -> miette::Result<Option<Listen>> {
 	let root = root()?;
 	let taken = listen::fetch_named(&root, dump, &HOLED, decide)?;
 
@@ -92,16 +94,17 @@ pub(super) fn repair(dump: &str, decide: &dyn Decide) -> hmerr::Result<Option<Li
 	Ok(taken)
 }
 
-pub(super) fn pending(covered: &str, through: Option<u32>) -> hmerr::Result<Vec<Pending>> {
+pub(super) fn pending(covered: &str, through: Option<u32>) -> miette::Result<Vec<Pending>> {
 	incremental::pending(covered, through)
 }
 
-pub(super) fn listed<T>(read: hmerr::Result<T>, keeping: &str) -> Option<T> {
+pub(super) fn listed<T>(read: miette::Result<T>, keeping: &str) -> Option<T> {
 	match read {
 		Ok(read) => Some(read),
 		Err(e) => {
 			progress::say(format!(
-				"{F}cannot read what is published, keeping {keeping}{D}\n{e}"
+				"{}\n{e:?}",
+				style(format!("cannot read what is published, keeping {keeping}")).dim()
 			));
 
 			None
@@ -120,21 +123,26 @@ pub(super) fn offered(
 	pending: &[&Pending],
 	saying: &str,
 	decide: &dyn Decide,
-) -> hmerr::Result<bool> {
+) -> miette::Result<bool> {
 	if pending.is_empty() {
 		return Ok(true);
 	}
 
 	progress::say(format!(
-		"\n{F}{B}{count}{D}{F} {saying}, {B}{Y}{size}{D}{F}, each read once then deleted{D}",
-		count = pending.len(),
-		size = progress::bytes(weight(pending))
+		"\n{} {}{}{}",
+		style(pending.len()).dim().bold(),
+		style(format!("{saying}, ")).dim(),
+		style(progress::bytes(weight(pending)))
+			.dim()
+			.bold()
+			.yellow(),
+		style(", each read once then deleted").dim()
 	));
 
 	progress::confirm(decide, "download", true)
 }
 
-pub(super) fn reach(timestamp: &str) -> hmerr::Result<u64> {
+pub(super) fn reach(timestamp: &str) -> miette::Result<u64> {
 	stamp::reach(timestamp)
 }
 
@@ -146,11 +154,11 @@ pub(super) fn weight(pending: &[&Pending]) -> u64 {
 	incremental::weight(pending)
 }
 
-pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> hmerr::Result<()> {
+pub(super) fn room(root: &Path, pending: &[&Pending], at_once: u64) -> miette::Result<()> {
 	incremental::room(root, pending, at_once)
 }
 
-pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
+pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> miette::Result<()> {
 	if link.exists() {
 		return Ok(());
 	}
@@ -160,7 +168,7 @@ pub(super) fn artist_link(link: &Path, decide: &dyn Decide) -> hmerr::Result<()>
 
 #[cfg(test)]
 mod tests {
-	use hmerr::ge;
+	use miette::miette;
 
 	use crate::decide::Refuse;
 
@@ -170,13 +178,13 @@ mod tests {
 	const SAYING: &str = "incremental dump to read";
 	const SIZE: u64 = 1 << 21;
 
-	fn read(pending: hmerr::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
+	fn read(pending: miette::Result<Vec<Pending>>) -> Option<Vec<Pending>> {
 		listed(pending, KEEPING)
 	}
 
 	#[test]
 	fn nothing_published_can_be_read_leaves_what_stands_where_it_is() {
-		assert!(read(Err(ge!("rsync is not here".to_string()).into())).is_none());
+		assert!(read(Err(miette!("rsync is not here"))).is_none());
 	}
 
 	#[test]

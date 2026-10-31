@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D, F};
+use console::style;
 
 use super::{
 	super::{
@@ -8,7 +8,7 @@ use super::{
 	work::Reach,
 };
 
-pub(super) fn left<'a>(pending: &'a [Pending], reach: &Reach) -> hmerr::Result<Vec<&'a Pending>> {
+pub(super) fn left<'a>(pending: &'a [Pending], reach: &Reach) -> miette::Result<Vec<&'a Pending>> {
 	let reached = dump::reach(&reach.covered)?;
 
 	Ok(pending
@@ -23,9 +23,11 @@ pub(super) fn resuming(pending: &[Pending], left: &[&Pending]) {
 	}
 
 	progress::say(format!(
-		"{F}{B}{done}{D}{F} of them already absorbed by a previous run, {B}{left}{D}{F} left{D}",
-		done = pending.len() - left.len(),
-		left = left.len()
+		"{}{}{}{}",
+		style(pending.len() - left.len()).dim().bold(),
+		style(" of them already absorbed by a previous run, ").dim(),
+		style(left.len()).dim().bold(),
+		style(" left").dim()
 	));
 }
 

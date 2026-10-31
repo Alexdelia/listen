@@ -6,7 +6,7 @@ use super::{
 	stage::Stage,
 };
 
-pub(super) fn of(scan: &Scan, dir: &Path) -> hmerr::Result<()> {
+pub(super) fn of(scan: &Scan, dir: &Path) -> miette::Result<()> {
 	scan.step(
 		Stage::Listener,
 		&dir.join(RECORDING_LISTENER),

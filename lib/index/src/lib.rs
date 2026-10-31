@@ -24,8 +24,7 @@ use std::{cmp::Ordering, path::Path};
 
 use uuid::Uuid;
 
-use ansi::abbrev::{B, D, F};
-
+use console::style;
 use dump::Listen;
 
 pub use decide::Decide;
@@ -43,7 +42,7 @@ pub fn ready() -> bool {
 	index::dir().is_ok_and(|dir| index::built(&dir))
 }
 
-pub fn standing() -> hmerr::Result<Option<Index>> {
+pub fn standing() -> miette::Result<Option<Index>> {
 	let dir = index::dir()?;
 
 	if !index::readable(&dir) {
@@ -53,7 +52,7 @@ pub fn standing() -> hmerr::Result<Option<Index>> {
 	index::open(&dir).map(Some)
 }
 
-pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
+pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> miette::Result<Index> {
 	let dir = index::dir()?;
 
 	if let Some(listen) = to_build_from(&dir, decide)? {
@@ -74,7 +73,7 @@ pub fn ensure(declared: &[Seed], decide: &dyn Decide) -> hmerr::Result<Index> {
 	index::open(&dir)
 }
 
-fn to_build_from(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
+fn to_build_from(dir: &Path, decide: &dyn Decide) -> miette::Result<Option<Listen>> {
 	if !index::scanned(dir) {
 		return dump::listen(decide).map(Some);
 	}
@@ -94,7 +93,10 @@ fn to_build_from(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen
 
 fn worth_rebuilding(dir: &Path, listen: &Listen, built: &str) -> Option<String> {
 	if newer(listen, built) {
-		return Some(format!("newer than the index built from {B}{built}{D}{F}"));
+		return Some(format!(
+			"newer than the index built from {}",
+			style(built).bold()
+		));
 	}
 
 	index::predates_stat(dir)
@@ -105,23 +107,28 @@ fn newer(listen: &Listen, built: &str) -> bool {
 	dump::compare(&listen.name, built).is_none_or(Ordering::is_gt)
 }
 
-fn asked(listen: &Listen, reason: &str, decide: &dyn Decide) -> hmerr::Result<bool> {
+fn asked(listen: &Listen, reason: &str, decide: &dyn Decide) -> miette::Result<bool> {
 	progress::say(format!(
-		"\n{F}listen dump {B}{name}{D}{F} unpacked, {reason}, \
-		rebuilding replaces the index, resets what it absorbed and may be long{D}",
-		name = listen.name
+		"\n{}{}{}",
+		style("listen dump ").dim(),
+		style(&listen.name).dim().bold(),
+		style(format!(
+			" unpacked, {reason}, \
+		rebuilding replaces the index, resets what it absorbed and may be long"
+		))
+		.dim()
 	));
 
 	progress::confirm(decide, "rebuild index", true)
 }
 
-fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> hmerr::Result<()> {
+fn rebuilt(dir: &Path, listen: &Listen, declared: &[Seed]) -> miette::Result<()> {
 	build::run(dir, listen, declared)?;
 
 	dump::discard(listen)
 }
 
-fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
+fn repaired(dir: &Path, decide: &dyn Decide) -> miette::Result<Option<Listen>> {
 	let meta = index::meta::read(dir)?;
 
 	if meta.gap.is_empty() {
@@ -135,7 +142,7 @@ fn repaired(dir: &Path, decide: &dyn Decide) -> hmerr::Result<Option<Listen>> {
 	dump::repair(&dump, decide)
 }
 
-fn absorbed(dir: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
+fn absorbed(dir: &Path, decide: &dyn Decide) -> miette::Result<()> {
 	let meta = index::meta::read(dir)?;
 
 	let Some(pending) = dump::listed(dump::pending(meta.covered(), meta.through), STANDING) else {

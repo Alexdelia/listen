@@ -3,7 +3,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 use serde::{Deserialize, Serialize};
 
 use super::super::{
@@ -37,11 +37,11 @@ pub(super) struct Reach {
 	pub absorbed: u32,
 }
 
-pub(super) fn open(dir: &Path, from: &str) -> hmerr::Result<PathBuf> {
+pub(super) fn open(dir: &Path, from: &str) -> miette::Result<PathBuf> {
 	work::opened(dir, DIR, FROM, &format!("{FORMAT} {from}"))
 }
 
-pub(super) fn merging(dir: &Path, work: &Path, covered: &str) -> hmerr::Result<Merge> {
+pub(super) fn merging(dir: &Path, work: &Path, covered: &str) -> miette::Result<Merge> {
 	Ok(Merge {
 		index: dir.to_path_buf(),
 		work: work.to_path_buf(),
@@ -58,11 +58,13 @@ pub(super) fn reach(work: &Path, meta: &Meta) -> Reach {
 	})
 }
 
-pub(super) fn reached(work: &Path, reach: &Reach) -> hmerr::Result<()> {
-	let content = serde_json::to_string(reach)?;
+pub(super) fn reached(work: &Path, reach: &Reach) -> miette::Result<()> {
+	let content = serde_json::to_string(reach).into_diagnostic()?;
 
 	partial::write(&work.join(REACH), |partial| {
-		fs::write(partial, &content).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
+		fs::write(partial, &content)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot write {}", partial.display()))?;
 
 		Ok(())
 	})

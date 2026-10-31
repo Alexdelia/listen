@@ -4,13 +4,12 @@ use std::{
 	thread,
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
 use indicatif::ProgressBar;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 const READ: usize = 16 * 1024;
 
-pub(crate) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Result<()> {
+pub(crate) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> miette::Result<()> {
 	let reached = bar.position();
 
 	let mut child = Command::new(program)
@@ -18,7 +17,8 @@ pub(crate) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Re
 		.stdout(Stdio::piped())
 		.stderr(Stdio::piped())
 		.spawn()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{program}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {program}"))?;
 
 	let complaint = complaint(&mut child);
 
@@ -28,16 +28,16 @@ pub(crate) fn rsync(program: &str, arg: &[&str], bar: &ProgressBar) -> hmerr::Re
 
 	let status = child
 		.wait()
-		.map_err(|e| ge!(format!("{R}failed to wait on {B}{program}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to wait on {program}"))?;
 
 	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
 
 	if !status.success() {
-		return Err(ge!(
-			format!("{R}{B}{program}{D}{R} failed{D}\n{complaint}"),
-			h: "the transfer resumes where it stopped, run it again"
-		)
-		.into());
+		return Err(miette!(
+			help = "the transfer resumes where it stopped, run it again",
+			"{program} failed\n{complaint}"
+		));
 	}
 
 	Ok(())

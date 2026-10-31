@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{
 	board::{Board, Planned},
@@ -14,7 +14,7 @@ pub(super) fn step<S: Planned>(
 	stage: S,
 	into: &Path,
 	select: &str,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	board.run(stage, |bar| {
 		if !query::done(db, into) {
 			query::copy(db, into, select)?;
@@ -32,8 +32,10 @@ pub(super) fn bucketed<S: Planned>(
 	stage: S,
 	into: &Path,
 	select: &dyn Fn(u32) -> String,
-) -> hmerr::Result<()> {
-	fs::create_dir_all(into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+) -> miette::Result<()> {
+	fs::create_dir_all(into)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", into.display()))?;
 
 	board.run(stage, |bar| {
 		for bucket in 0..BUCKET {

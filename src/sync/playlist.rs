@@ -5,7 +5,7 @@ use std::{
 };
 
 use async_std::channel::Sender;
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::{
 	declaration::{Q, Source},
@@ -20,7 +20,7 @@ use super::{
 #[derive(Default)]
 struct SortName {
 	name: HashMap<Source, Sort>,
-	unread: Vec<String>,
+	unread: Vec<miette::Report>,
 }
 
 impl SortName {
@@ -30,7 +30,7 @@ impl SortName {
 		}
 
 		let sort = library::tag::sort(source).unwrap_or_else(|e| {
-			self.unread.push(e.to_string());
+			self.unread.push(e);
 			library::tag::unnamed()
 		});
 		self.name.insert(source, sort.clone());
@@ -68,7 +68,7 @@ pub(super) async fn all(
 }
 
 async fn synced(path: &Path, sync_entry: SyncEntry, sort_name: &mut SortName, tx: &Sender<Status>) {
-	let status = sync(path, sync_entry, sort_name).map_err(|e| e.to_string());
+	let status = sync(path, sync_entry, sort_name);
 
 	for unread in sort_name.unread.drain(..) {
 		report(tx, Action::ReadTag, Err(unread)).await;
@@ -77,9 +77,11 @@ async fn synced(path: &Path, sync_entry: SyncEntry, sort_name: &mut SortName, tx
 	report(tx, Action::SyncPlaylist, status).await;
 }
 
-fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result<()> {
+fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> miette::Result<()> {
 	let previous = if path.exists() {
-		fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?
+		fs::read_to_string(path)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot read {}", path.display()))?
 	} else {
 		String::new()
 	};
@@ -97,7 +99,9 @@ fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result
 		if !path.exists() {
 			return Ok(());
 		}
-		fs::remove_file(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		fs::remove_file(path)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display()))?;
 		return Ok(());
 	}
 
@@ -107,18 +111,22 @@ fn sync(path: &Path, sync: SyncEntry, sort_name: &mut SortName) -> hmerr::Result
 		return Ok(());
 	}
 
-	fs::write(path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(path, content)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
 
-fn content(header: &str, set: HashSet<Source>, sort_name: &mut SortName) -> hmerr::Result<String> {
+fn content(header: &str, set: HashSet<Source>, sort_name: &mut SortName) -> miette::Result<String> {
 	let recording_path = std::env::current_dir()
-		.map_err(|e| ioe!("current_dir", e))?
+		.into_diagnostic()
+		.wrap_err("cannot read the current directory")?
 		.join(library::recording::DIR);
 	let recording_path = recording_path
 		.canonicalize()
-		.map_err(|e| ioe!(recording_path.to_string_lossy(), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot resolve {}", recording_path.display()))?;
 
 	let mut list = set
 		.into_iter()

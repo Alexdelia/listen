@@ -6,7 +6,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{
 	super::{
@@ -36,9 +36,9 @@ pub(super) struct Scan {
 }
 
 impl Scan {
-	pub(super) fn of(work: &Path, dump: &Path) -> hmerr::Result<Self> {
+	pub(super) fn of(work: &Path, dump: &Path) -> miette::Result<Self> {
 		let shard = shard::of(dump)?;
-		let db = duckdb::Connection::open_in_memory()?;
+		let db = duckdb::Connection::open_in_memory().into_diagnostic()?;
 		let size = Size::of(size::offered(&db), shard.bytes, shard.path.len());
 
 		db.execute_batch(&format!(
@@ -51,7 +51,8 @@ set preserve_insertion_order=false;
 			memory = size.limit(),
 			thread = size.thread,
 			work = work.display()
-		))?;
+		))
+		.into_diagnostic()?;
 
 		size.tell();
 
@@ -68,15 +69,15 @@ set preserve_insertion_order=false;
 		self.lane.take()
 	}
 
-	pub(super) fn count(&self, of: &Path) -> hmerr::Result<u64> {
+	pub(super) fn count(&self, of: &Path) -> miette::Result<u64> {
 		query::count(&self.take(), of)
 	}
 
-	pub(super) fn stage(&self, stage: Stage) -> hmerr::Result<Running> {
+	pub(super) fn stage(&self, stage: Stage) -> miette::Result<Running> {
 		self.board.start(stage)
 	}
 
-	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> hmerr::Result<()> {
+	pub(super) fn step(&self, stage: Stage, into: &Path, select: &str) -> miette::Result<()> {
 		part::step(&self.take(), &self.board, stage, into, select)
 	}
 
@@ -85,9 +86,11 @@ set preserve_insertion_order=false;
 		stage: Stage,
 		part: &str,
 		query: &dyn Fn(&str) -> String,
-	) -> hmerr::Result<PathBuf> {
+	) -> miette::Result<PathBuf> {
 		let partial = self.work.join(part);
-		fs::create_dir_all(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
+		fs::create_dir_all(&partial)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot create {}", partial.display()))?;
 
 		let per = self.shard.len().div_ceil(self.batch);
 		let unit: Vec<Unit> = self
@@ -110,8 +113,10 @@ set preserve_insertion_order=false;
 		into: &Path,
 		stage: Stage,
 		query: &dyn Fn(u32) -> String,
-	) -> hmerr::Result<()> {
-		fs::create_dir_all(into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+	) -> miette::Result<()> {
+		fs::create_dir_all(into)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot create {}", into.display()))?;
 
 		let unit: Vec<Unit> = (0..BUCKET)
 			.map(|bucket| Unit {
@@ -123,7 +128,7 @@ set preserve_insertion_order=false;
 		self.produce(stage, &unit)
 	}
 
-	fn produce(&self, stage: Stage, unit: &[Unit]) -> hmerr::Result<()> {
+	fn produce(&self, stage: Stage, unit: &[Unit]) -> miette::Result<()> {
 		let bar = self.stage(stage)?;
 		bar.set_length(unit.len() as u64);
 

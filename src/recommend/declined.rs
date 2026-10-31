@@ -6,7 +6,7 @@ use crate::{cache::root, declaration::Source};
 
 const FILE: &str = "declined";
 
-pub(super) fn load() -> hmerr::Result<HashSet<Source>> {
+pub(super) fn load() -> miette::Result<HashSet<Source>> {
 	let Some(content) = text::read(&root()?.join(FILE))? else {
 		return Ok(HashSet::new());
 	};
@@ -17,6 +17,6 @@ pub(super) fn load() -> hmerr::Result<HashSet<Source>> {
 		.collect())
 }
 
-pub(super) fn add(mbid: Source) -> hmerr::Result<()> {
+pub(super) fn add(mbid: Source) -> miette::Result<()> {
 	text::append(&root()?.join(FILE), &mbid.to_string())
 }

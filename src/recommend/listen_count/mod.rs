@@ -18,7 +18,7 @@ use rank::rank;
 
 pub(super) use report::Report;
 
-pub(super) async fn feed(mbid: Source, sort: RecommendSort) -> hmerr::Result<Fed> {
+pub(super) async fn feed(mbid: Source, sort: RecommendSort) -> miette::Result<Fed> {
 	let catalogue = catalogue(mbid).await?;
 
 	let mut found = Vec::new();

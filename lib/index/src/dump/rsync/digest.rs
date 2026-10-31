@@ -4,8 +4,8 @@ use std::{
 	process::{Command, Output},
 };
 
-use ansi::abbrev::{B, D, F, R};
-use hmerr::{GenericError, ge, ioe};
+use console::style;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use super::super::super::progress;
 
@@ -18,17 +18,22 @@ pub(crate) fn checksum(name: &str) -> String {
 	format!("{name}{CHECKSUM_EXT}")
 }
 
-pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
+pub(super) fn verify(dir: &Path, sums: &str) -> miette::Result<()> {
 	let path = dir.join(sums);
 
 	if !path.exists() {
 		progress::say(format!(
-			"{F}no {B}{sums}{D}{F} alongside the archive, verification skipped{D}"
+			"{}{}{}",
+			style("no ").dim(),
+			style(sums).dim().bold(),
+			style(" alongside the archive, verification skipped").dim()
 		));
 		return Ok(());
 	}
 
-	let published = fs::read_to_string(&path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	let published = fs::read_to_string(&path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 
 	let matches = match lone_digest(&published) {
 		Some(digest) => archive_digest(dir, digest_owner(sums))?.eq_ignore_ascii_case(digest),
@@ -36,7 +41,7 @@ pub(super) fn verify(dir: &Path, sums: &str) -> hmerr::Result<()> {
 	};
 
 	if !matches {
-		return Err(corrupt(dir).into());
+		return Err(corrupt(dir));
 	}
 
 	Ok(())
@@ -52,15 +57,14 @@ fn digest_owner(sums: &str) -> &str {
 	sums.strip_suffix(CHECKSUM_EXT).unwrap_or(sums)
 }
 
-fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
+fn archive_digest(dir: &Path, archive: &str) -> miette::Result<String> {
 	let out = summed(&[archive], dir)?;
 
 	if !out.status.success() {
-		return Err(ge!(format!(
-			"{R}{B}{SHA256SUM}{D}{R} could not read {B}{archive}{D}\n{}{D}",
+		return Err(miette!(
+			"{SHA256SUM} could not read {archive}\n{}",
 			String::from_utf8_lossy(&out.stderr).trim()
-		))
-		.into());
+		));
 	}
 
 	Ok(String::from_utf8_lossy(&out.stdout)
@@ -70,24 +74,25 @@ fn archive_digest(dir: &Path, archive: &str) -> hmerr::Result<String> {
 		.to_string())
 }
 
-fn checked_list(dir: &Path, sums: &str) -> hmerr::Result<bool> {
+fn checked_list(dir: &Path, sums: &str) -> miette::Result<bool> {
 	Ok(summed(&["--check", "--ignore-missing", sums], dir)?
 		.status
 		.success())
 }
 
-fn summed(argument: &[&str], dir: &Path) -> hmerr::Result<Output> {
+fn summed(argument: &[&str], dir: &Path) -> miette::Result<Output> {
 	Command::new(SHA256SUM)
 		.args(argument)
 		.current_dir(dir)
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{SHA256SUM}{D}\n{e}")).into())
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {SHA256SUM}"))
 }
 
-fn corrupt(dir: &Path) -> GenericError {
-	ge!(
-		format!("{R}a downloaded archive does not match its published checksum{D}"),
-		h: format!("delete it under {B}{}{D} and run again", dir.display())
+fn corrupt(dir: &Path) -> miette::Report {
+	miette!(
+		help = format!("delete it under {} and run again", dir.display()),
+		"a downloaded archive does not match its published checksum"
 	)
 }
 

@@ -36,7 +36,7 @@ pub(super) fn run(
 	meta: &Meta,
 	pending: &[Pending],
 	decide: &dyn Decide,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let root = dump::root()?;
 	let work = work::open(dir, meta.covered())?;
 	let mut reach = work::reach(&work, meta);

@@ -7,10 +7,9 @@ use std::{
 	time::Duration,
 };
 
-use ansi::abbrev::{B, D};
 use async_std::task::block_on;
 use chrono::{NaiveDateTime, Utc};
-use hmerr::ge;
+use miette::{Diagnostic, IntoDiagnostic, WrapErr};
 use musicbrainz_rs::api_bindium::governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use ureq::{
 	Body,
@@ -59,7 +58,7 @@ pub(crate) fn send(
 	url: &str,
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
-) -> hmerr::Result<Sent> {
+) -> miette::Result<Sent> {
 	sent(url, attempt, failure, Resend::Safe)
 }
 
@@ -67,7 +66,7 @@ pub(crate) fn send_once(
 	url: &str,
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
-) -> hmerr::Result<Sent> {
+) -> miette::Result<Sent> {
 	sent(url, attempt, failure, Resend::Never)
 }
 
@@ -76,13 +75,13 @@ fn sent(
 	attempt: impl Fn() -> Result<Response<Body>, ureq::Error>,
 	failure: &str,
 	resend: Resend,
-) -> hmerr::Result<Sent> {
+) -> miette::Result<Sent> {
 	let mut taken = Taken::none();
 
 	loop {
 		block_ready();
 
-		let mut response = attempt().map_err(|e| ge!(format!("{failure}\n{e}")))?;
+		let mut response = attempt().into_diagnostic().wrap_err(failure.to_owned())?;
 		let status = response.status();
 
 		if throttled(status) {
@@ -113,7 +112,8 @@ fn sent(
 			body: response
 				.body_mut()
 				.read_to_string()
-				.map_err(|e| ge!(format!("{failure}\n{e}")))?,
+				.into_diagnostic()
+				.wrap_err(failure.to_owned())?,
 		});
 	}
 }
@@ -195,16 +195,16 @@ impl fmt::Display for GaveUp {
 		match self {
 			Self::AskedForLonger(wait) => write!(
 				f,
-				"throttled for {B}{seconds}s{D}, longer than this run waits out",
+				"throttled for {seconds}s, longer than this run waits out",
 				seconds = wait.as_secs()
 			),
 			Self::NotSentAgain(status) => write!(
 				f,
-				"throttled ({B}{status}{D}), and this request is not one to send twice"
+				"throttled ({status}), and this request is not one to send twice"
 			),
 			Self::StillThrottled(status) => write!(
 				f,
-				"throttled ({B}{status}{D}) through every one of the {B}{RETRY}{D} retries"
+				"throttled ({status}) through every one of the {RETRY} retries"
 			),
 		}
 	}
@@ -212,22 +212,18 @@ impl fmt::Display for GaveUp {
 
 impl Error for GaveUp {}
 
-fn gave_up_on(failure: &str, reason: GaveUp) -> Box<dyn Error> {
-	let hint = reason.hint();
-
-	ge!(failure, h: hint, s: reason).into()
+impl Diagnostic for GaveUp {
+	fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+		Some(Box::new(self.hint()))
+	}
 }
 
-pub(crate) fn gave_up(mut e: &(dyn Error + 'static)) -> bool {
-	while !e.is::<GaveUp>() {
-		let Some(source) = e.source() else {
-			return false;
-		};
+fn gave_up_on(failure: &str, reason: GaveUp) -> miette::Report {
+	miette::Report::new(reason).wrap_err(failure.to_owned())
+}
 
-		e = source;
-	}
-
-	true
+pub(crate) fn gave_up(e: &miette::Report) -> bool {
+	e.chain().any(<dyn Error>::is::<GaveUp>)
 }
 
 fn held(wait: Duration) -> Duration {
@@ -258,6 +254,7 @@ fn date(said: &str) -> Option<Duration> {
 mod tests {
 	use std::cell::Cell;
 
+	use miette::miette;
 	use ureq::http::HeaderValue;
 
 	use super::*;
@@ -295,7 +292,7 @@ mod tests {
 		.expect("a throttled request that must not be sent twice gives up");
 
 		assert_eq!(taken.get(), 1);
-		assert!(gave_up(&*e));
+		assert!(gave_up(&e));
 	}
 
 	#[test]
@@ -545,7 +542,7 @@ mod tests {
 			GaveUp::AskedForLonger(Duration::from_secs(90)),
 		);
 
-		assert!(gave_up(&*e));
+		assert!(gave_up(&e));
 	}
 
 	#[test]
@@ -555,24 +552,35 @@ mod tests {
 			GaveUp::StillThrottled(StatusCode::SERVICE_UNAVAILABLE),
 		);
 
-		assert!(gave_up(&*e));
+		assert!(gave_up(&e));
 	}
 
 	#[test]
 	fn a_failure_that_is_no_throttling_does_not_say_the_run_gave_up() {
-		let e: Box<dyn Error> = ge!("failed to submit rating").into();
+		let e = miette!("failed to submit rating");
 
-		assert!(!gave_up(&*e));
+		assert!(!gave_up(&e));
+	}
+
+	#[test]
+	fn the_gave_up_failure_still_says_what_to_do() {
+		let reason = GaveUp::StillThrottled(StatusCode::TOO_MANY_REQUESTS);
+		let hint = reason.hint();
+		let said = format!("{:?}", gave_up_on("failed to submit rating", reason));
+
+		assert!(said.contains("failed to submit rating"), "{said}");
+		assert!(said.contains(&hint), "{said}");
+		assert!(said.contains("throttled"), "{said}");
 	}
 
 	#[test]
 	fn a_giving_up_is_still_read_under_a_failure_that_wraps_it() {
-		let e: Box<dyn Error> = ge!(
-			"failed to submit rating",
-			s: ge!("throttled", s: GaveUp::StillThrottled(StatusCode::TOO_MANY_REQUESTS))
+		let e = gave_up_on(
+			"throttled",
+			GaveUp::StillThrottled(StatusCode::TOO_MANY_REQUESTS),
 		)
-		.into();
+		.wrap_err("failed to submit rating");
 
-		assert!(gave_up(&*e));
+		assert!(gave_up(&e));
 	}
 }

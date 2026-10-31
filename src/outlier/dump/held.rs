@@ -32,7 +32,7 @@ pub(super) struct Carried {
 }
 
 impl Held {
-	pub(crate) fn ago(&self) -> hmerr::Result<u64> {
+	pub(crate) fn ago(&self) -> miette::Result<u64> {
 		age::days_since(self.reached_at())
 	}
 

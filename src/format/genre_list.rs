@@ -1,15 +1,12 @@
-use ansi::{
-	WHITE,
-	abbrev::{D, F},
-};
+use console::style;
 
 pub(crate) const SEPARATOR: &str = " / ";
 
 pub(crate) fn text(list: &str) -> String {
 	list.split(SEPARATOR)
-		.map(|genre| format!("{F}{WHITE}{genre}{D}"))
+		.map(|genre| style(&genre).dim().white().to_string())
 		.collect::<Vec<_>>()
-		.join(&format!("{F}{SEPARATOR}{D}"))
+		.join(&style(&SEPARATOR).dim().to_string())
 }
 
 pub(crate) fn width(list: &str) -> usize {
@@ -22,24 +19,26 @@ pub(crate) fn pad(list: &str, width: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+	use console::strip_ansi_codes;
+
 	use super::*;
 
 	#[test]
-	fn a_single_genre_carries_the_genre_color() {
-		assert_eq!(text("eurobeat"), format!("{F}{WHITE}eurobeat{D}"));
+	fn a_single_genre_reads_as_itself() {
+		assert_eq!(strip_ansi_codes(&text("eurobeat")), "eurobeat");
 	}
 
 	#[test]
-	fn the_separator_is_faint_and_uncolored() {
+	fn the_genres_and_their_separator_read_in_order() {
 		assert_eq!(
-			text("eurobeat / touhou"),
-			format!("{F}{WHITE}eurobeat{D}{F}{SEPARATOR}{D}{F}{WHITE}touhou{D}")
+			strip_ansi_codes(&text("eurobeat / touhou")),
+			"eurobeat / touhou"
 		);
 	}
 
 	#[test]
-	fn a_slash_inside_a_genre_is_not_a_separator() {
-		assert_eq!(text("meter:4/4"), format!("{F}{WHITE}meter:4/4{D}"));
+	fn a_slash_inside_a_genre_is_kept_as_written() {
+		assert_eq!(strip_ansi_codes(&text("meter:4/4")), "meter:4/4");
 	}
 
 	#[test]

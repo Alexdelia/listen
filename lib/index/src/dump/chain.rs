@@ -26,8 +26,8 @@ pub(crate) fn each(
 	root: &Path,
 	pending: &[&Pending],
 	bar: &Bar<'_>,
-	mut fold: impl FnMut(&Incremental) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	mut fold: impl FnMut(&Incremental) -> miette::Result<()>,
+) -> miette::Result<()> {
 	piped(
 		pending.len(),
 		|step| incremental::pull(root, pending[step], bar.downloading, bar.verifying),
@@ -39,8 +39,8 @@ fn one(
 	root: &Path,
 	pending: &Pending,
 	bar: &Bar<'_>,
-	fold: &mut impl FnMut(&Incremental) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	fold: &mut impl FnMut(&Incremental) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let incremental = incremental::opened(root, pending, bar.unpacking)?;
 
 	let folded = fold(&incremental);
@@ -53,15 +53,15 @@ fn one(
 
 fn piped(
 	count: usize,
-	produce: impl Fn(usize) -> hmerr::Result<()> + Send,
-	mut consume: impl FnMut(usize) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	produce: impl Fn(usize) -> miette::Result<()> + Send,
+	mut consume: impl FnMut(usize) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let (send, receive) = mpsc::sync_channel(AHEAD);
 
 	thread::scope(|scope| {
 		let producing = scope.spawn(move || {
 			for step in 0..count {
-				produce(step).map_err(|e| e.to_string())?;
+				produce(step)?;
 
 				if send.send(step).is_err() {
 					break;
@@ -80,8 +80,8 @@ fn piped(
 
 fn consume_each(
 	receive: &Receiver<usize>,
-	consume: &mut impl FnMut(usize) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	consume: &mut impl FnMut(usize) -> miette::Result<()>,
+) -> miette::Result<()> {
 	while let Ok(step) = receive.recv() {
 		consume(step)?;
 	}
@@ -96,14 +96,14 @@ mod tests {
 		atomic::{AtomicUsize, Ordering},
 	};
 
-	use hmerr::ge;
+	use miette::miette;
 
 	use super::*;
 
 	const CHAIN: usize = 20;
 
-	fn stopped() -> hmerr::Result<()> {
-		Err(ge!("stopped".to_string()).into())
+	fn stopped() -> miette::Result<()> {
+		Err(miette!("stopped"))
 	}
 
 	fn keep(held: &Mutex<Vec<usize>>, step: usize) {
@@ -218,7 +218,7 @@ mod tests {
 	fn what_a_failed_step_said_is_what_comes_back() {
 		let said = piped(1, |_| stopped(), |_| Ok(()))
 			.err()
-			.map(|e| format!("{e}"))
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default();
 
 		assert!(said.contains("stopped"), "{said}");

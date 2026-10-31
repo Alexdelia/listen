@@ -4,4 +4,4 @@ pub(crate) mod human_readable_number;
 mod q;
 
 pub(crate) use date_time::{DATE_FORMAT, TIME_FORMAT};
-pub(crate) use q::{q_color, q_f32_color};
+pub(crate) use q::{q_f32_style, q_style};

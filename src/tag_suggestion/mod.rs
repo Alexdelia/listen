@@ -6,11 +6,8 @@ mod vocabulary;
 
 use std::collections::HashSet;
 
-use ansi::{
-	DIM,
-	abbrev::{B, D, R, Y},
-};
-use hmerr::ge;
+use console::style;
+use miette::miette;
 use musicbrainz_rs::entity::recording::Recording;
 
 use crate::{
@@ -26,25 +23,24 @@ pub(crate) fn suggest(recording: &Recording, url: Option<&str>) {
 	}
 
 	if let Err(e) = run(recording, url) {
-		eprintln!("{Y}no tag suggestion{D}\n{e}");
+		eprintln!("{}\n{e:?}", style("no tag suggestion").yellow());
 	}
 }
 
-fn run(recording: &Recording, url: Option<&str>) -> hmerr::Result<()> {
+fn run(recording: &Recording, url: Option<&str>) -> miette::Result<()> {
 	let Some(url) = url else {
 		println!(
-			"{B}{label}{D}  {DIM}no streaming url to listen to{D}",
-			label = output::LABEL
+			"{}  {}",
+			style(&output::LABEL).bold(),
+			style("no streaming url to listen to").dim()
 		);
 		return Ok(());
 	};
 
-	let source = recording.id.parse::<Source>().map_err(|e| {
-		ge!(format!(
-			"{R}{B}{id}{D}{R} is not an mbid{D}\n{e}",
-			id = recording.id
-		))
-	})?;
+	let source = recording
+		.id
+		.parse::<Source>()
+		.map_err(|e| miette!("{id} is not an mbid\n{e}", id = recording.id))?;
 
 	let spinner = bar::spinner("prefetch", "blue")?;
 	let audio = Prefetch::cached()?.fetch(source, url);
@@ -57,8 +53,7 @@ fn run(recording: &Recording, url: Option<&str>) -> hmerr::Result<()> {
 	let genres = mapping::genres(&scores, &vocabulary::load()?);
 	let suggestions = select::select(genres, &carried(recording));
 
-	// TODO: turn these rows into a checkbox list (needs a checkbox prompt added to yahmrslib) where each genre is upvoted, downvoted or left alone, then submit the votes as MusicBrainz user tags (POST /ws/2/tag with vote="upvote"/"downvote", OAuth scope "tag" next to "rating" in src/sync/rate/auth/login.rs)
-	// TODO: in yahmrslib, make ux::ask_yn always end its line: it prints a newline after "y" but not after Enter on the default, so after the declare prompt in recommend this line lands on the prompt line
+	// TODO: turn these rows into a checkbox list (dialoguer has no tri-state checkbox: a `Select` per genre, or a custom prompt on `console::Term`) where each genre is upvoted, downvoted or left alone, then submit the votes as MusicBrainz user tags (POST /ws/2/tag with vote="upvote"/"downvote", OAuth scope "tag" next to "rating" in src/sync/rate/auth/login.rs)
 	for row in output::rows(&suggestions) {
 		println!("{row}");
 	}

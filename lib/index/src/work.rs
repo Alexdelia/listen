@@ -3,8 +3,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use ansi::abbrev::{B, D, F};
-use hmerr::ioe;
+use console::style;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{
 	index::{
@@ -28,7 +28,7 @@ pub(super) const fn published() -> [&'static str; 5] {
 	]
 }
 
-pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()> {
+pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> miette::Result<()> {
 	index::meta::forget(dir)?;
 
 	for part in published() {
@@ -36,7 +36,9 @@ pub(super) fn publish(work: &Path, dir: &Path, meta: &Meta) -> hmerr::Result<()>
 		let into = dir.join(part);
 
 		keep::removed(&into)?;
-		fs::rename(&built, &into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+		fs::rename(&built, &into)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot move into {}", into.display()))?;
 	}
 
 	index::meta::write(dir, meta)
@@ -48,8 +50,9 @@ pub(super) fn release(work: &Path) {
 	}
 
 	progress::say(format!(
-		"{F}work directory kept at {B}{work}{D}",
-		work = work.display()
+		"{}{}",
+		style("work directory kept at ").dim(),
+		style(work.display()).dim().bold()
 	));
 }
 
@@ -59,9 +62,11 @@ pub(super) fn stamped(work: &Path, of: &str) -> Option<String> {
 		.map(|stamp| stamp.trim().to_string())
 }
 
-pub(super) fn stamp(work: &Path, of: &str, value: &str) -> hmerr::Result<()> {
+pub(super) fn stamp(work: &Path, of: &str, value: &str) -> miette::Result<()> {
 	let path = work.join(of);
-	fs::write(&path, value).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(&path, value)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
@@ -71,14 +76,16 @@ pub(super) fn opened(
 	name: &str,
 	stamp_of: &str,
 	value: &str,
-) -> hmerr::Result<PathBuf> {
+) -> miette::Result<PathBuf> {
 	let work = dir.join(name);
 
 	if stamped(&work, stamp_of).as_deref() != Some(value) {
 		keep::removed(&work)?;
 	}
 
-	fs::create_dir_all(&work).map_err(|e| ioe!(work.to_string_lossy(), e))?;
+	fs::create_dir_all(&work)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", work.display()))?;
 	stamp(&work, stamp_of, value)?;
 
 	Ok(work)

@@ -7,7 +7,7 @@ mod stage;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, D, Y};
+use console::style;
 
 use super::{
 	decide::Decide,
@@ -35,11 +35,11 @@ pub struct Fold {
 	pub gap: Vec<Gap>,
 }
 
-pub fn unpacked() -> hmerr::Result<Option<String>> {
+pub fn unpacked() -> miette::Result<Option<String>> {
 	Ok(dumped()?.map(|listen| listen.name))
 }
 
-pub fn played(username: &str) -> hmerr::Result<Option<Own>> {
+pub fn played(username: &str) -> miette::Result<Option<Own>> {
 	let dir = index::dir()?;
 
 	let Some(own) = listened_as(&dir, username)? else {
@@ -67,8 +67,8 @@ pub fn fresh(
 	reached: &str,
 	through: Option<u32>,
 	decide: &dyn Decide,
-	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	keep: &mut impl FnMut(Fold) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let dir = index::dir()?;
 
 	let Some(own) = listened_as(&dir, username)? else {
@@ -102,7 +102,7 @@ pub fn fresh(
 	)
 }
 
-fn listened_as(dir: &Path, username: &str) -> hmerr::Result<Option<u32>> {
+fn listened_as(dir: &Path, username: &str) -> miette::Result<Option<u32>> {
 	if let Some(named) = listener::of(username)? {
 		return Ok(Some(named));
 	}
@@ -110,7 +110,7 @@ fn listened_as(dir: &Path, username: &str) -> hmerr::Result<Option<u32>> {
 	Ok(index::meta::own(dir))
 }
 
-fn dumped() -> hmerr::Result<Option<Listen>> {
+fn dumped() -> miette::Result<Option<Listen>> {
 	let Some(listen) = dump::unpacked()? else {
 		return Ok(None);
 	};
@@ -130,15 +130,29 @@ pub fn stamped(name: &str) -> bool {
 
 fn unreadable(reached: &str) {
 	progress::say(format!(
-		"{Y}the counts stop at {B}{reached}{D}{Y}, which is no timestamp to hold a dump against, \
-		nothing is folded onto them, {B}--refresh{D}{Y} reads the dump up again to clear it{D}"
+		"{}{}{}{}{}",
+		style("the counts stop at ").yellow(),
+		style(reached).bold().yellow(),
+		style(
+			", which is no timestamp to hold a dump against, \
+		nothing is folded onto them, "
+		)
+		.yellow(),
+		style("--refresh").bold().yellow(),
+		style(" reads the dump up again to clear it").yellow()
 	));
 }
 
 fn unstamped(name: &str) {
 	progress::say(format!(
-		"{Y}the unpacked dump {B}{name}{D}{Y} carries no readable timestamp, \
-		its listens stay out of the counts until it is fetched again{D}"
+		"{}{}{}",
+		style("the unpacked dump ").yellow(),
+		style(name).bold().yellow(),
+		style(
+			" carries no readable timestamp, \
+		its listens stay out of the counts until it is fetched again"
+		)
+		.yellow()
 	));
 }
 

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use ansi::abbrev::{D, F};
 use indicatif::{ProgressBar, ProgressStyle};
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{
 	eta::{self, Eta},
@@ -46,10 +46,10 @@ impl Measure {
 	}
 }
 
-pub(crate) fn waiting_bar(measure: Measure, title: &str) -> hmerr::Result<ProgressBar> {
+pub(crate) fn waiting_bar(measure: Measure, title: &str) -> miette::Result<ProgressBar> {
 	let bar = shown(ProgressBar::new(measure.total()));
 	bar.set_style(style(
-		&format!("{F}{title}{D}", title = titled(title)),
+		&console::style(titled(title)).dim().to_string(),
 		&format!("{field} {WAITING_TIME}", field = measure.waiting_field()),
 		"white",
 	)?);
@@ -58,7 +58,7 @@ pub(crate) fn waiting_bar(measure: Measure, title: &str) -> hmerr::Result<Progre
 	Ok(bar)
 }
 
-pub(crate) fn started(bar: &ProgressBar, title: &str, measure: Measure) -> hmerr::Result<()> {
+pub(crate) fn started(bar: &ProgressBar, title: &str, measure: Measure) -> miette::Result<()> {
 	let style = style(
 		&titled(title),
 		&format!("{field} {TIME}", field = measure.field()),
@@ -76,9 +76,10 @@ fn titled(title: &str) -> String {
 	format!("{title:>WIDTH$}")
 }
 
-fn style(title: &str, field: &str, color: &str) -> hmerr::Result<ProgressStyle> {
+fn style(title: &str, field: &str, color: &str) -> miette::Result<ProgressStyle> {
 	ProgressStyle::with_template(&format!("{title} {{wide_bar:.{color}/white}} {field}"))
-		.map_err(|e| format!("failed to create progress style\n{e}").into())
+		.into_diagnostic()
+		.wrap_err("failed to create progress style")
 }
 
 #[cfg(test)]

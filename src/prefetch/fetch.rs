@@ -1,36 +1,41 @@
 use std::{fs, path::PathBuf};
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
 use listen_cache::text;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::{declaration::Source, streaming_source::StreamingSource};
 
 use super::Prefetch;
 
 impl Prefetch {
-	pub(crate) fn fetch(&self, source: Source, url: &str) -> hmerr::Result<PathBuf> {
+	pub(crate) fn fetch(&self, source: Source, url: &str) -> miette::Result<PathBuf> {
 		let complete = self.complete(source);
 		let origin = self.origin(source);
 		if complete.exists() && text::read(&origin)?.as_deref() == Some(url) {
 			return Ok(complete);
 		}
 
-		let streaming = StreamingSource::try_from(url)
-			.map_err(|e| ge!(format!("{R}cannot prefetch {B}{url}{D}: {e}")))?;
+		let streaming =
+			StreamingSource::try_from(url).map_err(|e| miette!("cannot prefetch {url}: {e}"))?;
 
 		let partial = self.partial(source);
 		listen_cache::prepare(&partial)?;
 		if partial.exists() {
-			fs::remove_file(&partial).map_err(|e| ioe!(partial.to_string_lossy(), e))?;
+			fs::remove_file(&partial)
+				.into_diagnostic()
+				.wrap_err_with(|| format!("cannot remove {}", partial.display()))?;
 		}
 
 		streaming.download(url, &partial)?;
 
 		if origin.exists() {
-			fs::remove_file(&origin).map_err(|e| ioe!(origin.to_string_lossy(), e))?;
+			fs::remove_file(&origin)
+				.into_diagnostic()
+				.wrap_err_with(|| format!("cannot remove {}", origin.display()))?;
 		}
-		fs::rename(&partial, &complete).map_err(|e| ioe!(complete.to_string_lossy(), e))?;
+		fs::rename(&partial, &complete)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot move into {}", complete.display()))?;
 		text::write(&origin, url)?;
 
 		Ok(complete)

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use ansi::abbrev::{B, D, R};
 use chrono::NaiveDate;
-use hmerr::ge;
+use miette::miette;
 use musicbrainz_rs::{
 	Browse, Fetch,
 	entity::{artist::Artist, recording::Recording},
@@ -20,7 +19,7 @@ pub(super) struct Catalogue {
 	pub released: HashMap<Source, NaiveDate>,
 }
 
-pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
+pub(super) async fn catalogue(mbid: Source) -> miette::Result<Catalogue> {
 	let client = music_brainz::client();
 	let id = mbid.to_string();
 
@@ -31,15 +30,13 @@ pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
 	{
 		Ok(artist) if confirmed(&artist.id, &id) => artist,
 		Ok(_) => {
-			return Err(
-				not_an_artist(&client, &id, format!("{R}no artist under {B}{id}{D}")).await,
-			);
+			return Err(not_an_artist(&client, &id, format!("no artist under {id}")).await);
 		}
 		Err(e) => {
 			return Err(not_an_artist(
 				&client,
 				&id,
-				format!("{R}failed to fetch artist {B}{id}{D}\n{e:#?}"),
+				format!("failed to fetch artist {id}\n{e:#?}"),
 			)
 			.await);
 		}
@@ -56,10 +53,10 @@ pub(super) async fn catalogue(mbid: Source) -> hmerr::Result<Catalogue> {
 			.execute_with_client_async(&client)
 			.await
 			.map_err(|e| {
-				ge!(format!(
-					"{R}failed to browse the recordings of {B}{name}{D}\n{e:#?}",
+				miette!(
+					"failed to browse the recordings of {name}\n{e:#?}",
 					name = artist.name
-				))
+				)
 			})?;
 
 		for entity in &page.entities {
@@ -113,21 +110,20 @@ async fn not_an_artist(
 	client: &musicbrainz_rs::MusicBrainzClient,
 	id: &str,
 	failure: String,
-) -> Box<dyn std::error::Error> {
+) -> miette::Report {
 	if Recording::fetch()
 		.id(id)
 		.execute_with_client_async(client)
 		.await
 		.is_ok_and(|recording| confirmed(&recording.id, id))
 	{
-		return ge!(
-			format!("{R}{B}{id}{D}{R} is a recording, not an artist{D}"),
-			h: "listenbrainz only recommends by listen count for an artist mbid"
-		)
-		.into();
+		return miette!(
+			help = "listenbrainz only recommends by listen count for an artist mbid",
+			"{id} is a recording, not an artist"
+		);
 	}
 
-	ge!(failure).into()
+	miette!("{failure}")
 }
 
 #[cfg(test)]

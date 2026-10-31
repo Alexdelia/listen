@@ -1,21 +1,22 @@
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{link, verify};
 
 const CANONICAL: &str = "<link rel=\"canonical\" href=\"";
 const CANONICAL_CLOSE: char = '"';
 
-pub(super) fn resolve(id: &str) -> hmerr::Result<Option<String>> {
+pub(super) fn resolve(id: &str) -> miette::Result<Option<String>> {
 	let url = verify::watch(id);
 
 	let body = listen_agent::shared()
 		.get(&url)
 		.call()
-		.map_err(|e| ge!(format!("{R}failed to fetch {B}{url}{D}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to fetch {url}"))?
 		.body_mut()
 		.read_to_string()
-		.map_err(|e| ge!(format!("{R}failed to read {B}{url}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to read {url}"))?;
 
 	Ok(canonical(&body).filter(|replacement| replacement != id))
 }

@@ -15,7 +15,7 @@ pub(super) fn of(
 	db: &duckdb::Connection,
 	board: &Board<Stage>,
 	merge: &Merge,
-) -> hmerr::Result<u64> {
+) -> miette::Result<u64> {
 	let partial = merge.into.join(STAT);
 
 	part::bucketed(db, board, Stage::Stat, &partial, &|bucket| {

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use miette::IntoDiagnostic;
+
 use crate::declaration::{Entry, Q, Source, value};
 
 use super::{
@@ -53,15 +55,17 @@ pub(super) fn mean_q<'s>(seed: impl Iterator<Item = &'s Seed>) -> f32 {
 	sum / real::of(count)
 }
 
-pub(super) fn load(entry: &[Entry], index: &Index) -> hmerr::Result<Library> {
+pub(super) fn load(entry: &[Entry], index: &Index) -> miette::Result<Library> {
 	declared::table(&index.db, entry)?;
 
 	let mut listen: HashMap<Source, Vec<Listener>> = HashMap::new();
 	let mut dense: HashMap<i64, u32> = HashMap::new();
 	let mut user = Vec::new();
 
-	let mut statement = index.db.prepare(&format!(
-		r"
+	let mut statement = index
+		.db
+		.prepare(&format!(
+			r"
 select
 	r.mbid::varchar,
 	ul.user_id::bigint,
@@ -71,14 +75,15 @@ join user_stat s using (user_id)
 join recording r using (recording_id)
 semi join declared d on d.mbid::uuid = r.mbid
 ",
-		weight = attraction::WEIGHT
-	))?;
-	let mut row = statement.query([])?;
+			weight = attraction::WEIGHT
+		))
+		.into_diagnostic()?;
+	let mut row = statement.query([]).into_diagnostic()?;
 
-	while let Some(row) = row.next()? {
-		let mbid: String = row.get(0)?;
-		let listener: i64 = row.get(1)?;
-		let weight: f32 = row.get(2)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let mbid: String = row.get(0).into_diagnostic()?;
+		let listener: i64 = row.get(1).into_diagnostic()?;
+		let weight: f32 = row.get(2).into_diagnostic()?;
 
 		let Ok(mbid) = mbid.parse() else {
 			continue;

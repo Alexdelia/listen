@@ -26,7 +26,7 @@ use async_std::task::block_on;
 
 use args::Command;
 
-fn main() -> hmerr::Result<()> {
+fn main() -> miette::Result<()> {
 	env::read();
 
 	let args = args::parse();

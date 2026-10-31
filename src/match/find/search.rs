@@ -1,7 +1,6 @@
 use std::process::Command;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::streaming_source::{StreamingSource, YT_DLP};
 
@@ -13,7 +12,7 @@ const SONGS_FILTER: &str = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D";
 const RESULT_PER_QUERY: usize = 4;
 const MAX_CANDIDATE: usize = 8;
 
-pub(super) fn search(query: &[String]) -> hmerr::Result<Vec<String>> {
+pub(super) fn search(query: &[String]) -> miette::Result<Vec<String>> {
 	let mut id = Vec::new();
 
 	for q in query {
@@ -30,7 +29,7 @@ pub(super) fn search(query: &[String]) -> hmerr::Result<Vec<String>> {
 	Ok(id)
 }
 
-fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
+fn search_one(query: &str) -> miette::Result<Vec<String>> {
 	let url = format!(
 		"{base_url}/search?q={q}&sp={SONGS_FILTER}",
 		base_url = StreamingSource::YouTubeMusic.base_url(),
@@ -49,14 +48,14 @@ fn search_one(query: &str) -> hmerr::Result<Vec<String>> {
 			&url,
 		])
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{YT_DLP}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {YT_DLP}"))?;
 
 	if !output.status.success() {
-		return Err(ge!(format!(
-			"{R}{YT_DLP} failed to search {B}{query}{D}\n{e}",
-			e = String::from_utf8_lossy(&output.stderr),
-		))
-		.into());
+		return Err(miette!(
+			"{YT_DLP} failed to search {query}\n{e}",
+			e = String::from_utf8_lossy(&output.stderr)
+		));
 	}
 
 	Ok(String::from_utf8_lossy(&output.stdout)

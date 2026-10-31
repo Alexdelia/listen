@@ -1,5 +1,4 @@
-use ansi::abbrev::{D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 use serde::Deserialize;
 
 use crate::declaration::Source;
@@ -13,9 +12,10 @@ pub(super) struct Popularity {
 	pub total_user_count: Option<u64>,
 }
 
-pub(super) fn popularity(body: &str) -> hmerr::Result<Vec<Popularity>> {
+pub(super) fn popularity(body: &str) -> miette::Result<Vec<Popularity>> {
 	serde_json::from_str(body)
-		.map_err(|e| ge!(format!("{R}failed to parse recording popularity{D}\n{e}")).into())
+		.into_diagnostic()
+		.wrap_err("failed to parse recording popularity")
 }
 
 #[cfg(test)]

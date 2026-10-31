@@ -1,9 +1,6 @@
-use ansi::{
-	DIM,
-	abbrev::{B, D, Y},
-};
 use chrono::{DateTime, NaiveDateTime};
 
+use console::style;
 use listen_index::own::Gap;
 
 use super::age;
@@ -45,7 +42,7 @@ impl Window {
 	}
 }
 
-pub(super) fn covered(ago: u64, gap: &[Gap]) -> hmerr::Result<Covered> {
+pub(super) fn covered(ago: u64, gap: &[Gap]) -> miette::Result<Covered> {
 	let mut window = Vec::with_capacity(gap.len());
 	let mut held = Vec::with_capacity(gap.len());
 
@@ -70,21 +67,26 @@ fn holed(held: &[(&Gap, u64)]) {
 	}
 
 	println!(
-		"{Y}{B}{count}{D}{Y} window no dump covered, {B}{day}{D}{Y} day of listens out of the counts{D}",
-		count = held.len(),
-		day = held.iter().map(|(_, day)| day).sum::<u64>()
+		"{}{}{}{}",
+		style(&held.len()).bold().yellow(),
+		style(" window no dump covered, ").yellow(),
+		style(&held.iter().map(|(_, day)| day).sum::<u64>())
+			.bold()
+			.yellow(),
+		style(" day of listens out of the counts").yellow()
 	);
 
 	for (gap, day) in held {
 		println!(
-			"{DIM}{from}{D} {Y}to{D} {DIM}{to} ({day} day){D}",
-			from = gap.from,
-			to = gap.to
+			"{} {} {}",
+			style(&gap.from).dim(),
+			style("to").yellow(),
+			style(format!("{to} ({day} day)", to = gap.to)).dim()
 		);
 	}
 }
 
-fn read(gap: &Gap) -> hmerr::Result<Option<Window>> {
+fn read(gap: &Gap) -> miette::Result<Option<Window>> {
 	let Some((from, to)) = seconds(&gap.from).zip(seconds(&gap.to)) else {
 		return Ok(None);
 	};
@@ -108,10 +110,16 @@ pub(super) fn seconds(stamp: &str) -> Option<i64> {
 
 fn unreadable(gap: &Gap) {
 	eprintln!(
-		"{Y}cannot read the window {B}{from}{D}{Y} to {B}{to}{D}{Y}, \
-		the days it holds are counted as covered{D}",
-		from = gap.from,
-		to = gap.to
+		"{}{}{}{}{}",
+		style("cannot read the window ").yellow(),
+		style(&gap.from).bold().yellow(),
+		style(" to ").yellow(),
+		style(&gap.to).bold().yellow(),
+		style(
+			", \
+		the days it holds are counted as covered"
+		)
+		.yellow()
 	);
 }
 

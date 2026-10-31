@@ -6,9 +6,9 @@ mod fixture;
 mod jspf;
 mod track;
 
-use ansi::abbrev::{B, D, R, Y};
 use chrono::NaiveDate;
-use hmerr::ge;
+use console::style;
+use miette::miette;
 
 use crate::args::RecommendSource;
 
@@ -22,7 +22,7 @@ use choose::choose;
 use exploration::explorations;
 use track::tracks;
 
-pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Option<Fed>> {
+pub(super) fn feed(username: &str, source: RecommendSource) -> miette::Result<Option<Fed>> {
 	if !selection::weekly(source) {
 		return Ok(None);
 	}
@@ -58,27 +58,30 @@ pub(super) fn feed(username: &str, source: RecommendSource) -> hmerr::Result<Opt
 	}))
 }
 
-fn tolerated<T>(source: RecommendSource, fetched: hmerr::Result<T>) -> hmerr::Result<Option<T>> {
+fn tolerated<T>(source: RecommendSource, fetched: miette::Result<T>) -> miette::Result<Option<T>> {
 	match fetched {
 		Ok(fetched) => Ok(Some(fetched)),
 		Err(e) if selection::tolerates_missing_weekly(source) => {
-			eprintln!("{Y}{e}{D}");
+			eprintln!("{e:?}");
 			Ok(None)
 		}
 		Err(e) => Err(e),
 	}
 }
 
-fn missing(username: &str, source: RecommendSource) -> hmerr::Result<Option<Fed>> {
+fn missing(username: &str, source: RecommendSource) -> miette::Result<Option<Fed>> {
 	if selection::tolerates_missing_weekly(source) {
-		eprintln!("{Y}no weekly-exploration playlist for {B}{username}{D}");
+		eprintln!(
+			"{}{}",
+			style("no weekly-exploration playlist for ").yellow(),
+			style(&username).bold().yellow()
+		);
 
 		return Ok(None);
 	}
 
-	Err(ge!(
-		format!("{R}no weekly-exploration playlist for {B}{username}{D}"),
-		h: "listenbrainz keeps the two most recent, generated every monday"
-	)
-	.into())
+	Err(miette!(
+		help = "listenbrainz keeps the two most recent, generated every monday",
+		"no weekly-exploration playlist for {username}"
+	))
 }

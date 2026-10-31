@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{B, D, Y};
+use console::style;
 
 use super::{
 	super::{
@@ -19,8 +19,8 @@ pub(super) fn run(
 	pending: &[&Pending],
 	own: u32,
 	reached: &str,
-	keep: &mut impl FnMut(Fold) -> hmerr::Result<()>,
-) -> hmerr::Result<()> {
+	keep: &mut impl FnMut(Fold) -> miette::Result<()>,
+) -> miette::Result<()> {
 	let planned = Board::of(&stage::PLAN, &dump::chain(pending))?;
 
 	let downloading = planned.start(Stage::Download)?;
@@ -54,7 +54,7 @@ fn taken(
 	incremental: &Incremental,
 	own: u32,
 	reached: &str,
-) -> hmerr::Result<Fold> {
+) -> miette::Result<Fold> {
 	if !stamped(&incremental.start) || !stamped(&incremental.end) {
 		unstamped(&incremental.name);
 		return Ok(untouched(incremental, reached));
@@ -119,28 +119,50 @@ fn missed(reached: &str, to: &str) -> Gap {
 
 fn unstamped(name: &str) {
 	progress::say(format!(
-		"{Y}{B}{name}{D}{Y} carries no timestamp the counts can be held against, \
-		nothing of it is folded in and the window it covers is left for the next one to miss{D}"
+		"{}{}",
+		style(name).bold().yellow(),
+		style(
+			" carries no timestamp the counts can be held against, \
+		nothing of it is folded in and the window it covers is left for the next one to miss"
+		)
+		.yellow()
 	));
 }
 
 fn out_of_reach(reached: &str, start: &str) {
 	progress::say(format!(
-		"{Y}nothing published covers {B}{reached}{D}{Y} to {B}{start}{D}{Y}, \
-		those listens stay out of the count{D}"
+		"{}{}{}{}{}",
+		style("nothing published covers ").yellow(),
+		style(reached).bold().yellow(),
+		style(" to ").yellow(),
+		style(start).bold().yellow(),
+		style(
+			", \
+		those listens stay out of the count"
+		)
+		.yellow()
 	));
 }
 
 fn already_counted(name: &str) {
 	progress::say(format!(
-		"{Y}{B}{name}{D}{Y} reaches back into what the count already holds, \
-		skipped rather than counted twice{D}"
+		"{}{}",
+		style(name).bold().yellow(),
+		style(
+			" reaches back into what the count already holds, \
+		skipped rather than counted twice"
+		)
+		.yellow()
 	));
 }
 
 fn stays_out(reached: &str, end: &str) {
 	progress::say(format!(
-		"{Y}{B}{reached}{D}{Y} to {B}{end}{D}{Y} stays out of the count with it{D}"
+		"{}{}{}{}",
+		style(reached).bold().yellow(),
+		style(" to ").yellow(),
+		style(end).bold().yellow(),
+		style(" stays out of the count with it").yellow()
 	));
 }
 

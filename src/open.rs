@@ -1,21 +1,18 @@
 use std::process::{Command, Stdio};
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
-pub(crate) fn open(url: &str) -> hmerr::Result<()> {
+pub(crate) fn open(url: &str) -> miette::Result<()> {
 	let status = Command::new("xdg-open")
 		.arg(url)
 		.stdout(Stdio::null())
 		.stderr(Stdio::null())
 		.status()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}xdg-open{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err("failed to execute xdg-open")?;
 
 	if !status.success() {
-		return Err(ge!(format!(
-			"{B}xdg-open{D} {R}could not open{D} {B}{url}{D} ({status})"
-		))
-		.into());
+		return Err(miette!("xdg-open could not open {url} ({status})"));
 	}
 
 	Ok(())

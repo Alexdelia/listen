@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
-use ansi::abbrev::{B, D, R, Y};
-
 use async_std::{channel::Sender, task};
+use miette::miette;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{
@@ -37,7 +36,7 @@ pub(super) async fn fetch(sync: &[Source], tx: Sender<Status>) {
 			report(
 				&tx,
 				Action::FetchMusicBrainz,
-				Err(format!("{R}failed to fetch {B}{entry}{D}\n{res:#?}")),
+				Err(miette!("failed to fetch {entry}\n{res:#?}")),
 			)
 			.await;
 
@@ -72,9 +71,7 @@ async fn fetch_recording(
 	let path = library::recording::path(*entry);
 
 	let carried = streaming_source::streaming_url(recording).collect::<Vec<_>>();
-	let adopted = Prefetch::cached()
-		.and_then(|prefetch| prefetch.adopt(*entry, &path, &carried))
-		.map_err(|e| e.to_string());
+	let adopted = Prefetch::cached().and_then(|prefetch| prefetch.adopt(*entry, &path, &carried));
 	if matches!(adopted, Ok(true)) {
 		report(tx, Action::FetchStreaming, Ok(())).await;
 
@@ -85,7 +82,7 @@ async fn fetch_recording(
 		report(
 			tx,
 			Action::FetchStreaming,
-			Err(format!("{R}no relations for {B}{entry} ({title}){D}")),
+			Err(miette!("no relations for {entry} ({title})")),
 		)
 		.await;
 
@@ -100,8 +97,8 @@ async fn fetch_recording(
 		report(
 			tx,
 			Action::FetchStreaming,
-			Err(format!(
-				"{R}no streaming urls for {B}{entry} ({title}){D}\n{Y}{relations:#?}{D}"
+			Err(miette!(
+				"no streaming urls for {entry} ({title})\n{relations:#?}"
 			)),
 		)
 		.await;
@@ -110,14 +107,14 @@ async fn fetch_recording(
 	}
 
 	let unadopted = adopted.err().map_or_else(String::default, |e| {
-		format!("\n{R}failed to adopt the prefetched file{D}\n{e}")
+		format!("\nfailed to adopt the prefetched file\n{e:?}")
 	});
-	let mut err: Option<String> = None;
+	let mut err: Option<miette::Report> = None;
 
 	download_order::sort(&mut urls, |url| r#match::is_song(url).unwrap_or(false));
 
 	for url in urls {
-		match url.0.download(&url.1, &path).map_err(|e| e.to_string()) {
+		match url.0.download(&url.1, &path) {
 			Ok(()) => {
 				report(tx, Action::FetchStreaming, Ok(())).await;
 
@@ -133,9 +130,7 @@ async fn fetch_recording(
 		report(
 			tx,
 			Action::FetchStreaming,
-			Err(format!(
-				"{R}failed to download {B}{entry} ({title}){D}\n{e}{unadopted}"
-			)),
+			Err(e.wrap_err(format!("failed to download {entry} ({title}){unadopted}"))),
 		)
 		.await;
 	}

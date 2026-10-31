@@ -1,12 +1,12 @@
 use std::{fs, path::Path};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{LISTEN, Listen};
 
 const STAMP: &str = "TIMESTAMP";
 
-pub(crate) fn find(root: &Path) -> hmerr::Result<Option<Listen>> {
+pub(crate) fn find(root: &Path) -> miette::Result<Option<Listen>> {
 	let dir = root.join(LISTEN);
 
 	if !holds_parquet(&dir)? {
@@ -33,13 +33,18 @@ pub(super) fn timestamp(dir: &Path) -> Option<String> {
 		.map(|stamp| stamp.trim().to_string())
 }
 
-fn holds_parquet(dir: &Path) -> hmerr::Result<bool> {
+fn holds_parquet(dir: &Path) -> miette::Result<bool> {
 	if !dir.is_dir() {
 		return Ok(false);
 	}
 
-	for entry in fs::read_dir(dir).map_err(|e| ioe!(dir.to_string_lossy(), e))? {
-		let entry = entry.map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+	for entry in fs::read_dir(dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot list {}", dir.display()))?
+	{
+		let entry = entry
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot list {}", dir.display()))?;
 		if entry.path().extension().is_some_and(|ext| ext == "parquet") {
 			return Ok(true);
 		}

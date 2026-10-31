@@ -1,10 +1,5 @@
 use std::fmt::Write;
 
-use ansi::{
-	DIM,
-	abbrev::{B, D, R},
-};
-
 use super::matching::Mismatch;
 
 const MAX_MISS: usize = 3;
@@ -33,15 +28,22 @@ pub(super) fn block(mut miss: Vec<Miss>) -> String {
 
 fn reason(mismatch: &Mismatch) -> String {
 	match mismatch {
-		Mismatch::Duration(delta) => format!("{B}{R}{delta:+}{DIM}s{D}"),
-		Mismatch::NoDuration => format!("{B}{R}no duration{D}"),
-		Mismatch::Title => format!("{B}{R}title{D}"),
-		Mismatch::NoTitle => format!("{B}{R}no title{D}"),
-		Mismatch::NotSong(category) => {
-			format!(
-				"{B}{R}{found_category}{D}",
-				found_category = category.as_deref().unwrap_or("not a song")
-			)
-		}
+		Mismatch::Duration(delta) => format!("{delta:+}s"),
+		Mismatch::NoDuration => "no duration".to_owned(),
+		Mismatch::Title => "title".to_owned(),
+		Mismatch::NoTitle => "no title".to_owned(),
+		Mismatch::NotSong(category) => category.as_deref().unwrap_or("not a song").to_owned(),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn a_miss_reason_reads_as_plain_text_inside_the_error() {
+		assert_eq!(reason(&Mismatch::Duration(-2)), "-2s");
+		assert_eq!(reason(&Mismatch::Title), "title");
+		assert_eq!(reason(&Mismatch::NotSong(None)), "not a song");
 	}
 }

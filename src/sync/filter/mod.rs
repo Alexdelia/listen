@@ -4,7 +4,7 @@ mod sort;
 
 use std::{collections::HashMap, fs};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::{
 	declaration::{Entry, Q, Source},
@@ -32,11 +32,15 @@ impl SyncEntry {
 	}
 }
 
-pub(super) fn sync(list: Vec<Entry>) -> hmerr::Result<GroupedEntry<SyncEntry>> {
+pub(super) fn sync(list: Vec<Entry>) -> miette::Result<GroupedEntry<SyncEntry>> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
 
-	fs::create_dir_all(library::recording::DIR).map_err(|e| ioe!(library::recording::DIR, e))?;
-	fs::create_dir_all(library::playlist::DIR).map_err(|e| ioe!(library::playlist::DIR, e))?;
+	fs::create_dir_all(library::recording::DIR)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", library::recording::DIR))?;
+	fs::create_dir_all(library::playlist::DIR)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", library::playlist::DIR))?;
 
 	let m3u = library::playlist::existing()?;
 	let mut existing = GroupedEntry {

@@ -1,7 +1,6 @@
 use std::io::{BufRead, BufReader, Read};
 
-use ansi::abbrev::{B, D, F, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, miette};
 use serde::Deserialize;
 
 use super::{
@@ -56,7 +55,7 @@ pub(crate) struct Search {
 	pub reach: Option<u64>,
 }
 
-pub(super) fn named(username: &str, past: Option<u64>) -> hmerr::Result<Search> {
+pub(super) fn named(username: &str, past: Option<u64>) -> miette::Result<Search> {
 	let mut search = Search {
 		id: None,
 		reach: past,
@@ -82,7 +81,7 @@ fn unread(published: &Published, past: Option<u64>) -> bool {
 	past.is_none_or(|reach| published.reach > reach)
 }
 
-fn latest() -> hmerr::Result<Vec<Published>> {
+fn latest() -> miette::Result<Vec<Published>> {
 	let url = format!("{host}/{MODULE}/", host = rsync::HOST);
 
 	let mut found: Vec<Published> = rsync::beneath(&url, &format!("{ARCHIVE}*{SUFFIX}{EXT}"))?
@@ -106,7 +105,7 @@ fn published_of(entry: &rsync::Entry) -> Option<Published> {
 	})
 }
 
-fn read(published: &Published, username: &str) -> hmerr::Result<Option<u32>> {
+fn read(published: &Published, username: &str) -> miette::Result<Option<u32>> {
 	let board = Board::of(&[Stage::Name], &published.size)?;
 
 	board.run(Stage::Name, |bar| {
@@ -121,13 +120,18 @@ fn read(published: &Published, username: &str) -> hmerr::Result<Option<u32>> {
 	})
 }
 
-fn listed(read: impl Read, username: &str) -> hmerr::Result<Option<u32>> {
-	let mut archive = tar::Archive::new(zstd::Decoder::new(read)?);
+fn listed(read: impl Read, username: &str) -> miette::Result<Option<u32>> {
+	let mut archive = tar::Archive::new(zstd::Decoder::new(read).into_diagnostic()?);
 
-	for entry in archive.entries()? {
-		let entry = entry?;
+	for entry in archive.entries().into_diagnostic()? {
+		let entry = entry.into_diagnostic()?;
 
-		if !entry.path()?.to_string_lossy().ends_with(LISTENS) {
+		if !entry
+			.path()
+			.into_diagnostic()?
+			.to_string_lossy()
+			.ends_with(LISTENS)
+		{
 			continue;
 		}
 
@@ -139,7 +143,7 @@ fn listed(read: impl Read, username: &str) -> hmerr::Result<Option<u32>> {
 	Ok(None)
 }
 
-fn lined(read: impl Read, username: &str) -> hmerr::Result<Option<u32>> {
+fn lined(read: impl Read, username: &str) -> miette::Result<Option<u32>> {
 	let needle = needle(username)?;
 	let mut reader = BufReader::with_capacity(READ, read);
 	let mut line = Vec::new();
@@ -147,7 +151,7 @@ fn lined(read: impl Read, username: &str) -> hmerr::Result<Option<u32>> {
 	loop {
 		line.clear();
 
-		if reader.read_until(b'\n', &mut line)? == 0 {
+		if reader.read_until(b'\n', &mut line).into_diagnostic()? == 0 {
 			return Ok(None);
 		}
 
@@ -163,19 +167,18 @@ fn lined(read: impl Read, username: &str) -> hmerr::Result<Option<u32>> {
 	}
 }
 
-fn needle(username: &str) -> hmerr::Result<String> {
+fn needle(username: &str) -> miette::Result<String> {
 	Ok(format!(
 		"\"user_name\":{quoted}",
-		quoted = serde_json::to_string(username)?
+		quoted = serde_json::to_string(username).into_diagnostic()?
 	))
 }
 
-fn unreachable_dump(url: &str, reason: &str) -> Box<dyn std::error::Error> {
-	ge!(
-		format!("{R}failed to fetch {B}{url}{D}\n{reason}"),
-		h: format!("{F}the listens dump is what names a listener, the run goes on without it{D}")
+fn unreachable_dump(url: &str, reason: &str) -> miette::Report {
+	miette!(
+		help = "the listens dump is what names a listener, the run goes on without it",
+		"failed to fetch {url}\n{reason}"
 	)
-	.into()
 }
 
 #[cfg(test)]

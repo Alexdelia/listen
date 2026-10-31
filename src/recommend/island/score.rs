@@ -1,3 +1,4 @@
+use miette::IntoDiagnostic;
 use serde::Serialize;
 
 use crate::declaration::Source;
@@ -49,18 +50,20 @@ pub(super) fn of(
 	index: &Index,
 	cohort: &[Vec<Member>],
 	tuning: Tuning,
-) -> hmerr::Result<Vec<Vec<Candidate>>> {
+) -> miette::Result<Vec<Vec<Candidate>>> {
 	known_artist::declare(&index.db, tuning.allow_known_artist)?;
 	enlist(index, cohort)?;
 
-	let mut statement = index.db.prepare(&ranked())?;
+	let mut statement = index.db.prepare(&ranked()).into_diagnostic()?;
 
-	let mut row = statement.query(duckdb::params![
-		tuning.backing.most_a_backer_counts(),
-		MIN_BACKER,
-		tuning.damp,
-		i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
-	])?;
+	let mut row = statement
+		.query(duckdb::params![
+			tuning.backing.most_a_backer_counts(),
+			MIN_BACKER,
+			tuning.damp,
+			i64::try_from(PER_ISLAND).unwrap_or(i64::MAX)
+		])
+		.into_diagnostic()?;
 
 	collected(&mut row, cohort.len())
 }
@@ -138,16 +141,16 @@ order by island, position
 	)
 }
 
-fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec<Candidate>>> {
+fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> miette::Result<Vec<Vec<Candidate>>> {
 	let mut candidate: Vec<Vec<Candidate>> = (0..island).map(|_| Vec::new()).collect();
 
-	while let Some(row) = row.next()? {
-		let island: i64 = row.get(0)?;
-		let mbid: String = row.get(1)?;
-		let score: f32 = row.get(2)?;
-		let backer: i64 = row.get(3)?;
-		let listener: i64 = row.get(4)?;
-		let plays: i64 = row.get(5)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let island: i64 = row.get(0).into_diagnostic()?;
+		let mbid: String = row.get(1).into_diagnostic()?;
+		let score: f32 = row.get(2).into_diagnostic()?;
+		let backer: i64 = row.get(3).into_diagnostic()?;
+		let listener: i64 = row.get(4).into_diagnostic()?;
+		let plays: i64 = row.get(5).into_diagnostic()?;
 
 		let Ok(mbid) = mbid.parse() else {
 			continue;
@@ -171,23 +174,25 @@ fn collected(row: &mut duckdb::Rows<'_>, island: usize) -> hmerr::Result<Vec<Vec
 	Ok(candidate)
 }
 
-fn enlist(index: &Index, cohort: &[Vec<Member>]) -> hmerr::Result<()> {
+fn enlist(index: &Index, cohort: &[Vec<Member>]) -> miette::Result<()> {
 	index.db.execute_batch(
 		"create or replace temp table cohort (island ubigint, user_id bigint, weight float, liked_seed uinteger);",
-	)?;
+	).into_diagnostic()?;
 
-	let mut appender = index.db.appender("cohort")?;
+	let mut appender = index.db.appender("cohort").into_diagnostic()?;
 	for (island, cohort) in cohort.iter().enumerate() {
 		for member in cohort {
-			appender.append_row(duckdb::params![
-				island as u64,
-				member.user,
-				member.weight,
-				member.liked_seed
-			])?;
+			appender
+				.append_row(duckdb::params![
+					island as u64,
+					member.user,
+					member.weight,
+					member.liked_seed
+				])
+				.into_diagnostic()?;
 		}
 	}
-	appender.flush()?;
+	appender.flush().into_diagnostic()?;
 
 	Ok(())
 }

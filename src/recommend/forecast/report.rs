@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D, F, Y};
+use console::style;
 use serde::Serialize;
 
 use crate::{
@@ -93,22 +93,30 @@ impl Report {
 	pub(in crate::recommend) fn print(&self) {
 		if self.passing > 0 {
 			println!(
-				"{B}forecast{D} {Y}{passing}{D} {F}of{D} {total} {F}candidates reach q1 ({calibration}){D}",
-				passing = self.passing,
+				"{} {} {} {total} {}",
+				style("forecast").bold(),
+				style(&self.passing).yellow(),
+				style("of").dim(),
+				style(format!(
+					"candidates reach q1 ({calibration})",
+					calibration = self.calibration
+				))
+				.dim(),
 				total =
-					human_readable_number::text(u64::try_from(self.candidate).unwrap_or(u64::MAX)),
-				calibration = self.calibration,
+					human_readable_number::text(u64::try_from(self.candidate).unwrap_or(u64::MAX))
 			);
 			return;
 		}
 
 		match &self.best_rejected {
 			Some(best) => println!(
-				"{Y}no candidate reaches q1{D}{F}, best{D} {expected:.0} {B}{mbid}{D}",
-				expected = best.expected,
-				mbid = best.mbid
+				"{}{} {expected:.0} {}",
+				style("no candidate reaches q1").yellow(),
+				style(", best").dim(),
+				style(&best.mbid).bold(),
+				expected = best.expected
 			),
-			None => println!("{Y}no candidate at all{D}"),
+			None => println!("{}", style("no candidate at all").yellow()),
 		}
 	}
 }

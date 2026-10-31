@@ -1,5 +1,4 @@
-use ansi::abbrev::{D, R};
-use hmerr::ge;
+use miette::miette;
 
 use crate::{cache, declaration::Source};
 
@@ -8,7 +7,7 @@ pub(super) enum Target {
 	Artist(Source),
 }
 
-pub(super) fn resolve(target: Option<&str>) -> hmerr::Result<Target> {
+pub(super) fn resolve(target: Option<&str>) -> miette::Result<Target> {
 	match target.map(parse) {
 		Some(Target::Artist(mbid)) => Ok(Target::Artist(mbid)),
 		Some(Target::Username(username)) => {
@@ -18,7 +17,7 @@ pub(super) fn resolve(target: Option<&str>) -> hmerr::Result<Target> {
 	}
 }
 
-pub(super) fn known(target: Option<&str>) -> hmerr::Result<Target> {
+pub(super) fn known(target: Option<&str>) -> miette::Result<Target> {
 	if let Some(target) = target {
 		return Ok(parse(target));
 	}
@@ -26,11 +25,10 @@ pub(super) fn known(target: Option<&str>) -> hmerr::Result<Target> {
 	cache::username::read()?
 		.map(Target::Username)
 		.ok_or_else(|| {
-			ge!(
-				format!("{R}no listenbrainz username remembered{D}"),
-				h: "name one: recommend --json <username>, or run once without --json"
+			miette!(
+				help = "name one: recommend --json <username>, or run once without --json",
+				"no listenbrainz username remembered"
 			)
-			.into()
 		})
 }
 

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use miette::IntoDiagnostic;
+
 use crate::declaration::{Q, Source, value};
 
 use super::{predict::Scored, preference::PREFERENCE};
@@ -55,18 +57,22 @@ struct Link {
 	strength: f32,
 }
 
-pub(super) fn of(db: &duckdb::Connection, pool: &[Scored]) -> hmerr::Result<HashMap<u32, Shape>> {
-	db.execute_batch("create or replace temp table forecast_pool (recording_id uinteger);")?;
+pub(super) fn of(db: &duckdb::Connection, pool: &[Scored]) -> miette::Result<HashMap<u32, Shape>> {
+	db.execute_batch("create or replace temp table forecast_pool (recording_id uinteger);")
+		.into_diagnostic()?;
 	{
-		let mut appender = db.appender("forecast_pool")?;
+		let mut appender = db.appender("forecast_pool").into_diagnostic()?;
 		for scored in pool {
-			appender.append_row(duckdb::params![scored.recording_id])?;
+			appender
+				.append_row(duckdb::params![scored.recording_id])
+				.into_diagnostic()?;
 		}
-		appender.flush()?;
+		appender.flush().into_diagnostic()?;
 	}
 
-	let mut statement = db.prepare(&format!(
-		r"
+	let mut statement = db
+		.prepare(&format!(
+			r"
 with pool_listen as (
 	select ul.user_id, ul.recording_id, {PREFERENCE}(ul.plays, s.center) as preference
 	from user_listen ul
@@ -82,17 +88,18 @@ join recording r on r.recording_id = d.recording_id
 where c.preference > 0 and d.preference > 0
 group by c.recording_id, d.recording_id, r.mbid
 "
-	))?;
+		))
+		.into_diagnostic()?;
 
-	let mut row = statement.query([])?;
+	let mut row = statement.query([]).into_diagnostic()?;
 	let mut link: HashMap<u32, Vec<Link>> = HashMap::new();
 
-	while let Some(row) = row.next()? {
-		let candidate: i64 = row.get(0)?;
-		let seed: i64 = row.get(1)?;
-		let mbid: String = row.get(2)?;
-		let q: Q = row.get(3)?;
-		let strength: f32 = row.get(4)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let candidate: i64 = row.get(0).into_diagnostic()?;
+		let seed: i64 = row.get(1).into_diagnostic()?;
+		let mbid: String = row.get(2).into_diagnostic()?;
+		let q: Q = row.get(3).into_diagnostic()?;
+		let strength: f32 = row.get(4).into_diagnostic()?;
 
 		let (Ok(candidate), Ok(seed), Ok(mbid)) =
 			(u32::try_from(candidate), u32::try_from(seed), mbid.parse())

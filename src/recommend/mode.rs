@@ -19,21 +19,24 @@ impl Mode {
 		}
 	}
 
-	pub(super) fn log(&self, path: impl FnOnce() -> hmerr::Result<PathBuf>) -> hmerr::Result<Log> {
+	pub(super) fn log(
+		&self,
+		path: impl FnOnce() -> miette::Result<PathBuf>,
+	) -> miette::Result<Log> {
 		match self {
 			Self::Interactive => Ok(Log::File(path()?)),
 			Self::Trace { .. } => Ok(Log::Off),
 		}
 	}
 
-	pub(super) fn open(&self, path: &Path) -> hmerr::Result<Local> {
+	pub(super) fn open(&self, path: &Path) -> miette::Result<Local> {
 		match self {
 			Self::Interactive => local::open(path),
 			Self::Trace { .. } => local::standing(path),
 		}
 	}
 
-	pub(super) fn target(&self, target: Option<&str>) -> hmerr::Result<Target> {
+	pub(super) fn target(&self, target: Option<&str>) -> miette::Result<Target> {
 		match self {
 			Self::Interactive => target::resolve(target),
 			Self::Trace { .. } => target::known(target),

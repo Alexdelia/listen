@@ -75,7 +75,7 @@ pub(super) fn of(terrain: &Terrain, granularity: f64, without: &HashSet<usize>) 
 		.collect()
 }
 
-pub(super) fn requested(library: &Library, request: &Request) -> hmerr::Result<Vec<Island>> {
+pub(super) fn requested(library: &Library, request: &Request) -> miette::Result<Vec<Island>> {
 	let (name, member) = requested::island(library, &read_genre(library), request)?;
 
 	Ok(vec![Island { name, member }])

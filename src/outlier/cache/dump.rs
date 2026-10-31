@@ -6,14 +6,14 @@ use super::super::dump::Held;
 
 const SUBDIR: &str = "own";
 
-pub(in crate::outlier) fn read(username: &str) -> hmerr::Result<Option<Held>> {
+pub(in crate::outlier) fn read(username: &str) -> miette::Result<Option<Held>> {
 	json::read(&path(username)?)
 }
 
-pub(in crate::outlier) fn write(username: &str, held: &Held) -> hmerr::Result<()> {
+pub(in crate::outlier) fn write(username: &str, held: &Held) -> miette::Result<()> {
 	json::write(&path(username)?, held)
 }
 
-fn path(username: &str) -> hmerr::Result<PathBuf> {
+fn path(username: &str) -> miette::Result<PathBuf> {
 	listen_cache::path(SUBDIR, username, json::EXT)
 }

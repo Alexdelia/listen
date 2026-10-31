@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{D, F};
+use console::style;
 
 use super::{
 	index::{
@@ -21,14 +21,16 @@ group by 1
 	)
 }
 
-pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
+pub(super) fn derive(dir: &Path) -> miette::Result<()> {
 	if !index::predates_listener(dir) {
 		return Ok(());
 	}
 
-	progress::say(format!(
-		"{F}index predates the listener count, counted from the listen it holds{D}"
-	));
+	progress::say(
+		style("index predates the listener count, counted from the listen it holds")
+			.dim()
+			.to_string(),
+	);
 
 	let db = index::session::of(dir)?;
 

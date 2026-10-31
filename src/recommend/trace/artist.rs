@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use miette::IntoDiagnostic;
+
 use crate::declaration::Source;
 
 use super::collect::Pick;
@@ -7,7 +9,7 @@ use super::collect::Pick;
 pub(in crate::recommend) fn attach(
 	db: &duckdb::Connection,
 	pick: &mut [Pick],
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let mut artist = of(db, pick.iter().map(|pick| pick.recommendation.mbid))?;
 
 	for pick in pick {
@@ -20,31 +22,36 @@ pub(in crate::recommend) fn attach(
 fn of(
 	db: &duckdb::Connection,
 	recording: impl Iterator<Item = Source>,
-) -> hmerr::Result<HashMap<Source, Vec<Source>>> {
-	db.execute_batch("create or replace temp table trace_pick (mbid varchar);")?;
+) -> miette::Result<HashMap<Source, Vec<Source>>> {
+	db.execute_batch("create or replace temp table trace_pick (mbid varchar);")
+		.into_diagnostic()?;
 	{
-		let mut appender = db.appender("trace_pick")?;
+		let mut appender = db.appender("trace_pick").into_diagnostic()?;
 		for mbid in recording {
-			appender.append_row(duckdb::params![mbid.to_string()])?;
+			appender
+				.append_row(duckdb::params![mbid.to_string()])
+				.into_diagnostic()?;
 		}
-		appender.flush()?;
+		appender.flush().into_diagnostic()?;
 	}
 
-	let mut statement = db.prepare(
-		r"
+	let mut statement = db
+		.prepare(
+			r"
 select p.mbid, ra.artist_mbid::varchar
 from trace_pick p
 join recording r on r.mbid = p.mbid::uuid
 join recording_artist ra using (recording_id)
 order by 1, 2
 ",
-	)?;
-	let mut row = statement.query([])?;
+		)
+		.into_diagnostic()?;
+	let mut row = statement.query([]).into_diagnostic()?;
 	let mut artist: HashMap<Source, Vec<Source>> = HashMap::new();
 
-	while let Some(row) = row.next()? {
-		let recording: String = row.get(0)?;
-		let credited: String = row.get(1)?;
+	while let Some(row) = row.next().into_diagnostic()? {
+		let recording: String = row.get(0).into_diagnostic()?;
+		let credited: String = row.get(1).into_diagnostic()?;
 
 		let (Ok(recording), Ok(credited)) = (recording.parse(), credited.parse()) else {
 			continue;

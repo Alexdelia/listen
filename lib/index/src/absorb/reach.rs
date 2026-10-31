@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{B, D, Y};
+use console::style;
 
 use super::{
 	super::{
@@ -17,7 +17,7 @@ pub(super) fn taken(
 	work: &Path,
 	reach: &mut Reach,
 	incremental: &Incremental,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	walked(db, work, reach, incremental)?;
 
 	reach.through = Some(incremental.number);
@@ -30,7 +30,7 @@ fn walked(
 	work: &Path,
 	reach: &mut Reach,
 	incremental: &Incremental,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let covered = dump::reach(&reach.covered)?;
 	let start = dump::reach(&incremental.start)?;
 
@@ -52,10 +52,16 @@ fn walked(
 
 fn lost(reach: &mut Reach, start: &str) {
 	progress::say(format!(
-		"{Y}nothing published covers {B}{from}{D}{Y} to {B}{to}{D}{Y}, \
-		those listens are out of reach{D}",
-		from = reach.covered,
-		to = start
+		"{}{}{}{}{}",
+		style("nothing published covers ").yellow(),
+		style(&reach.covered).bold().yellow(),
+		style(" to ").yellow(),
+		style(start).bold().yellow(),
+		style(
+			", \
+		those listens are out of reach"
+		)
+		.yellow()
 	));
 
 	reach.gap.push(Gap {
@@ -64,11 +70,15 @@ fn lost(reach: &mut Reach, start: &str) {
 	});
 }
 
-fn overlapping(reach: &mut Reach, incremental: &Incremental, covered: u64) -> hmerr::Result<()> {
+fn overlapping(reach: &mut Reach, incremental: &Incremental, covered: u64) -> miette::Result<()> {
 	progress::say(format!(
-		"{Y}{B}{name}{D}{Y} reaches back into what the index already holds, \
-		skipped rather than counted twice{D}",
-		name = incremental.name
+		"{}{}",
+		style(&incremental.name).bold().yellow(),
+		style(
+			" reaches back into what the index already holds, \
+		skipped rather than counted twice"
+		)
+		.yellow()
 	));
 
 	if dump::reach(&incremental.end)? <= covered {

@@ -4,9 +4,9 @@ use std::{
 	process::{Command, ExitStatus, Stdio},
 };
 
-use ansi::abbrev::{B, D, F, R, Y};
-use hmerr::{GenericError, ge, ioe};
+use console::style;
 use indicatif::ProgressBar;
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use super::{
 	super::{board::Board, decide::Decide, keep, partial, progress},
@@ -25,24 +25,31 @@ const ARTIST_COLUMN: &str = "['id','gid']";
 const LINK_COLUMN: &str = "['id','link','entity0','entity1']";
 const READ: &str = r"delim='\t', header=false, quote='', escape='', nullstr='\N', all_varchar=true";
 
-pub(super) fn build(root: &Path, link: &Path, decide: &dyn Decide) -> hmerr::Result<()> {
+pub(super) fn build(root: &Path, link: &Path, decide: &dyn Decide) -> miette::Result<()> {
 	let dump = rsync::latest_marker(MODULE, root)?;
 	let url = format!("{host}/{MODULE}/{dump}/", host = rsync::HOST);
 	let archive = rsync::list(&url)?
 		.into_iter()
 		.find(|entry| entry.name == ARCHIVE)
-		.ok_or_else(|| ge!(format!("{R}no {B}{ARCHIVE}{D}{R} inside {B}{dump}{D}")))?;
+		.ok_or_else(|| miette!("no {ARCHIVE} inside {dump}"))?;
 
 	space::require(root, space::unpacking(&root.join(ARCHIVE), archive.size))?;
 
 	progress::say(format!(
-		"\n{F}artist relations: musicbrainz dump {B}{dump}{D}{F}, {B}{Y}{size}{D}{F}, \
-		2 tables kept, archive deleted after{D}",
-		size = progress::bytes(archive.size)
+		"\n{}{}{}{}{}",
+		style("artist relations: musicbrainz dump ").dim(),
+		style(dump).dim().bold(),
+		style(", ").dim(),
+		style(progress::bytes(archive.size)).dim().bold().yellow(),
+		style(
+			", \
+		2 tables kept, archive deleted after"
+		)
+		.dim()
 	));
 
 	if !progress::confirm(decide, "download", true)? {
-		return Err(refused().into());
+		return Err(refused());
 	}
 
 	let board = Board::of(&stage::MUSIC_BRAINZ, &archive.size)?;
@@ -61,10 +68,12 @@ pub(super) fn build(root: &Path, link: &Path, decide: &dyn Decide) -> hmerr::Res
 	Ok(())
 }
 
-fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
+fn unpack(root: &Path, bar: &ProgressBar) -> miette::Result<PathBuf> {
 	let archive = root.join(ARCHIVE);
 	let into = root.join("mb");
-	fs::create_dir_all(&into).map_err(|e| ioe!(into.to_string_lossy(), e))?;
+	fs::create_dir_all(&into)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", into.display()))?;
 
 	let mut argument = vec![
 		"--extract".to_string(),
@@ -84,18 +93,22 @@ fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 		.stdout(Stdio::null())
 		.stderr(Stdio::piped())
 		.spawn()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{TAR}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {TAR}"))?;
 
 	let complaint = progress::complaint(&mut child);
 
-	let file = fs::File::open(&archive).map_err(|e| ioe!(archive.to_string_lossy(), e))?;
+	let file = fs::File::open(&archive)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot open {}", archive.display()))?;
 	let fed = child.stdin.take().map_or(Ok(0), |mut sink| {
 		io::copy(&mut bar.wrap_read(file), &mut sink)
 	});
 
 	let status = child
 		.wait()
-		.map_err(|e| ge!(format!("{R}failed to wait on {B}{TAR}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to wait on {TAR}"))?;
 
 	let complaint = complaint.map_or_else(String::new, |read| read.join().unwrap_or_default());
 
@@ -103,28 +116,26 @@ fn unpack(root: &Path, bar: &ProgressBar) -> hmerr::Result<PathBuf> {
 
 	for table in TABLE {
 		if !into.join(table).exists() {
-			return Err(ge!(format!("{R}{B}{table}{D}{R} is not in {B}{ARCHIVE}{D}")).into());
+			return Err(miette!("{table} is not in {ARCHIVE}"));
 		}
 	}
 
 	Ok(into)
 }
 
-fn unpacked(status: ExitStatus, fed: io::Result<u64>, complaint: &str) -> hmerr::Result<()> {
+fn unpacked(status: ExitStatus, fed: io::Result<u64>, complaint: &str) -> miette::Result<()> {
 	if !status.success() {
-		return Err(ge!(format!(
-			"{R}{B}{TAR}{D}{R} could not unpack {B}{ARCHIVE}{D}\n{complaint}"
-		))
-		.into());
+		return Err(miette!("{TAR} could not unpack {ARCHIVE}\n{complaint}"));
 	}
 
-	fed.map_err(|e| ioe!(ARCHIVE, e))?;
+	fed.into_diagnostic()
+		.wrap_err_with(|| format!("cannot feed {ARCHIVE} to {TAR}"))?;
 
 	Ok(())
 }
 
-fn load(table: &Path, link: &Path) -> hmerr::Result<()> {
-	let db = duckdb::Connection::open_in_memory()?;
+fn load(table: &Path, link: &Path) -> miette::Result<()> {
+	let db = duckdb::Connection::open_in_memory().into_diagnostic()?;
 
 	partial::write(link, |link| {
 		db.execute_batch(&format!(
@@ -149,16 +160,17 @@ copy (
 ",
 			table = table.display(),
 			link = link.display()
-		))?;
+		))
+		.into_diagnostic()?;
 
 		Ok(())
 	})
 }
 
-fn refused() -> GenericError {
-	ge!(
-		format!("{R}cancelled{D}"),
-		h: "artist relations decide which artists count as already known, they are required"
+fn refused() -> miette::Report {
+	miette!(
+		help = "artist relations decide which artists count as already known, they are required",
+		"cancelled"
 	)
 }
 
@@ -176,8 +188,8 @@ mod tests {
 		Err(io::Error::from(io::ErrorKind::BrokenPipe))
 	}
 
-	fn message(done: hmerr::Result<()>) -> String {
-		done.err().map(|e| format!("{e}")).unwrap_or_default()
+	fn message(done: miette::Result<()>) -> String {
+		done.err().map(|e| format!("{e:?}")).unwrap_or_default()
 	}
 
 	#[test]

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{D, F, Y};
+use console::style;
 
 use super::{
 	super::{
@@ -10,8 +10,8 @@ use super::{
 	work::Reach,
 };
 
-pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<()> {
-	progress::say(format!("{F}nothing absorbed{D}"));
+pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> miette::Result<()> {
+	progress::say(style("nothing absorbed").dim().to_string());
 
 	if reach.through == held.through && reach.gap.len() == held.gap.len() {
 		return Ok(());
@@ -32,9 +32,11 @@ pub(super) fn skipped(dir: &Path, held: &Meta, reach: &Reach) -> hmerr::Result<(
 		return Ok(());
 	}
 
-	progress::say(format!(
-		"{Y}the window those dumps left uncovered is recorded on the index{D}"
-	));
+	progress::say(
+		style("the window those dumps left uncovered is recorded on the index")
+			.yellow()
+			.to_string(),
+	);
 
 	Ok(())
 }

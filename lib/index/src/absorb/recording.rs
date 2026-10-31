@@ -10,7 +10,7 @@ pub(super) fn of(
 	db: &duckdb::Connection,
 	board: &Board<Stage>,
 	merge: &Merge,
-) -> hmerr::Result<PathBuf> {
+) -> miette::Result<PathBuf> {
 	let into = merge.into.join(RECORDING);
 
 	part::step(

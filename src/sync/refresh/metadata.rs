@@ -1,12 +1,12 @@
-use ansi::abbrev::{B, D, R};
 use indicatif::ProgressBar;
+use miette::miette;
 use musicbrainz_rs::{Fetch, entity::recording::Recording};
 
 use crate::{bar, declaration::Entry, library, music_brainz};
 
 use super::super::tag;
 
-pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
+pub(crate) async fn run(list: &[Entry]) -> miette::Result<()> {
 	let client = music_brainz::client();
 
 	let existing = list
@@ -37,7 +37,7 @@ pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 					err.push(e);
 				}
 			}
-			Err(e) => err.push(format!("{R}failed to fetch {B}{s}{D}\n{e}", s = entry.s)),
+			Err(e) => err.push(miette!("failed to fetch {}\n{e}", entry.s)),
 		}
 
 		pb.inc(1);
@@ -48,7 +48,7 @@ pub(crate) async fn run(list: &[Entry]) -> hmerr::Result<()> {
 	if !err.is_empty() {
 		eprint!("\n\nerrors:\n\n");
 		for e in &err {
-			eprintln!("{e}");
+			eprintln!("{e:?}");
 		}
 	}
 

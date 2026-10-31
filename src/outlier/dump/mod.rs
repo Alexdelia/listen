@@ -14,7 +14,7 @@ pub(super) use held::Held;
 
 use kept::{Kept, kept, told};
 
-pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
+pub(super) fn listen(username: &str, refresh: bool) -> miette::Result<Option<Held>> {
 	let Some(mut held) = held(username, refresh)? else {
 		return Ok(None);
 	};
@@ -25,7 +25,7 @@ pub(super) fn listen(username: &str, refresh: bool) -> hmerr::Result<Option<Held
 	Ok(Some(held))
 }
 
-fn held(username: &str, refresh: bool) -> hmerr::Result<Option<Held>> {
+fn held(username: &str, refresh: bool) -> miette::Result<Option<Held>> {
 	let unpacked = own::unpacked()?;
 	let cached = cache::dump::read(username)?;
 

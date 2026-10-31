@@ -15,11 +15,11 @@ enum Seen {
 	Gone { replacement: Option<String> },
 }
 
-pub(super) fn resolve(ids: Vec<String>) -> hmerr::Result<Linked> {
+pub(super) fn resolve(ids: Vec<String>) -> miette::Result<Linked> {
 	resolve_with(ids, see)
 }
 
-fn see(id: &str) -> hmerr::Result<Seen> {
+fn see(id: &str) -> miette::Result<Seen> {
 	Ok(match verify::verify(id)? {
 		Some(info) if info.is_song() => Seen::Song(info),
 		Some(_video) => Seen::Video,
@@ -29,9 +29,9 @@ fn see(id: &str) -> hmerr::Result<Seen> {
 	})
 }
 
-fn resolve_with<F>(ids: Vec<String>, mut see: F) -> hmerr::Result<Linked>
+fn resolve_with<F>(ids: Vec<String>, mut see: F) -> miette::Result<Linked>
 where
-	F: FnMut(&str) -> hmerr::Result<Seen>,
+	F: FnMut(&str) -> miette::Result<Seen>,
 {
 	let mut dead = HashSet::new();
 	let mut fallback = Linked::Dead;
@@ -51,9 +51,9 @@ where
 	Ok(fallback)
 }
 
-fn follow<F>(listed: &str, dead: &mut HashSet<String>, see: &mut F) -> hmerr::Result<Linked>
+fn follow<F>(listed: &str, dead: &mut HashSet<String>, see: &mut F) -> miette::Result<Linked>
 where
-	F: FnMut(&str) -> hmerr::Result<Seen>,
+	F: FnMut(&str) -> miette::Result<Seen>,
 {
 	let mut id = listed.to_string();
 

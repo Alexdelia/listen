@@ -1,13 +1,13 @@
 use std::process::Command;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 
-pub(super) fn copy(text: &str) -> hmerr::Result<()> {
+pub(super) fn copy(text: &str) -> miette::Result<()> {
 	Command::new("wl-copy")
 		.arg(text)
 		.status()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}wl-copy{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err("failed to execute wl-copy")?;
 
 	Ok(())
 }

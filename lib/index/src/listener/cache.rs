@@ -13,14 +13,14 @@ pub(crate) struct Named {
 	pub reach: Option<u64>,
 }
 
-pub(crate) fn read(username: &str) -> hmerr::Result<Option<Named>> {
+pub(crate) fn read(username: &str) -> miette::Result<Option<Named>> {
 	json::read(&path(username)?)
 }
 
-pub(crate) fn write(username: &str, named: &Named) -> hmerr::Result<()> {
+pub(crate) fn write(username: &str, named: &Named) -> miette::Result<()> {
 	json::write(&path(username)?, named)
 }
 
-fn path(username: &str) -> hmerr::Result<PathBuf> {
+fn path(username: &str) -> miette::Result<PathBuf> {
 	listen_cache::path(SUBDIR, username, json::EXT)
 }

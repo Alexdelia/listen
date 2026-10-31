@@ -12,7 +12,7 @@ use super::{
 
 const FILE: &str = "forecast.jsonl";
 
-pub(super) fn path() -> hmerr::Result<PathBuf> {
+pub(super) fn path() -> miette::Result<PathBuf> {
 	Ok(cache::root()?.join(FILE))
 }
 

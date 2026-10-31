@@ -5,14 +5,13 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
 use listen_cache::text;
+use miette::{IntoDiagnostic, WrapErr};
 
 const URL: &str = "https://musicbrainz.org/ws/2/genre/all?fmt=txt";
 const STALE_AFTER: Duration = Duration::from_hours(30 * 24);
 
-pub(super) fn load() -> hmerr::Result<HashSet<String>> {
+pub(super) fn load() -> miette::Result<HashSet<String>> {
 	let path = listen_cache::path("genre", "all", "txt")?;
 
 	let cached = text::read(&path)?;
@@ -39,14 +38,16 @@ fn stale(path: &Path) -> bool {
 		.is_none_or(|age| age > STALE_AFTER)
 }
 
-fn fetch() -> hmerr::Result<String> {
-	Ok(listen_agent::shared()
+fn fetch() -> miette::Result<String> {
+	listen_agent::shared()
 		.get(URL)
 		.call()
-		.map_err(|e| ge!(format!("{R}failed to fetch {B}{URL}{D}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to fetch {URL}"))?
 		.body_mut()
 		.read_to_string()
-		.map_err(|e| ge!(format!("{R}failed to read {B}{URL}{D}\n{e}")))?)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to read {URL}"))
 }
 
 fn names(listed: &str) -> HashSet<String> {

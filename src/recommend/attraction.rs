@@ -1,3 +1,5 @@
+use miette::IntoDiagnostic;
+
 use crate::declaration::value;
 
 pub(super) const WEIGHT: &str = "attraction_weight";
@@ -18,7 +20,7 @@ const ADOPT_MAX_PLAY: u16 = 12;
 const ROOM: &str = "attraction_room";
 const ADOPT: &str = "attraction_adopt";
 
-pub(super) fn declare(db: &duckdb::Connection) -> hmerr::Result<()> {
+pub(super) fn declare(db: &duckdb::Connection) -> miette::Result<()> {
 	let neutral = f32::from(value::NEUTRAL);
 	let room = CENTER_ROOM_RATIO.ln();
 	let span_half = SPAN_HALF_RATIO.ln();
@@ -56,7 +58,8 @@ create or replace macro {VALUE}(plays, center, low, high) as
 create or replace macro {WEIGHT}(plays, center, low, high) as
 	({VALUE}(plays, center, low, high) - {neutral}) / {neutral};
 "
-	))?;
+	))
+	.into_diagnostic()?;
 
 	Ok(())
 }

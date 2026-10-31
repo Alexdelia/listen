@@ -2,11 +2,8 @@ mod clipboard;
 
 use std::{fs, path::Path};
 
-use ansi::{
-	DIM,
-	abbrev::{B, CYA, D, R},
-};
-use hmerr::{ge, ioe};
+use console::style;
+use miette::{IntoDiagnostic, WrapErr, miette};
 use musicbrainz_rs::entity::{artist_credit::ArtistCredit, recording::Recording};
 
 use crate::alias;
@@ -18,18 +15,22 @@ const UNKNOWN: &str = "?";
 
 pub(super) fn recording(recording: &Recording, title: &str, length: i64) {
 	println!(
-		"{B}{title}{D}{aka}{comment} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}",
+		"{}{aka}{comment} {} {} {}",
+		style(&title).bold(),
+		style("-").dim(),
+		style(&credit_line(recording.artist_credit.as_deref())).bold(),
+		style(&duration::fmt(Some(length))).cyan(),
 		aka = aside(alias::other_name(recording.aliases.as_deref(), title)),
-		comment = aside(recording.disambiguation.as_deref()),
-		artist = credit_line(recording.artist_credit.as_deref()),
-		dur = duration::fmt(Some(length)),
+		comment = aside(recording.disambiguation.as_deref())
 	);
 }
 
 fn aside(s: Option<&str>) -> String {
 	s.map(str::trim)
 		.filter(|s| !s.is_empty())
-		.map_or_else(String::default, |s| format!(" {DIM}({s}){D}"))
+		.map_or_else(String::default, |s| {
+			format!(" {}", style(format!("({s})")).dim())
+		})
 }
 
 fn credit_line(credit: Option<&[ArtistCredit]>) -> String {
@@ -56,26 +57,28 @@ pub(super) fn found(info: &Info, length: i64) {
 			return String::default();
 		}
 
-		format!(" {R}{delta:+}{DIM}s{D}")
+		format!(" {:+}{}", style(&delta).red(), style("s").dim().red())
 	});
 
 	println!(
-		"{B}{track}{D} {DIM}-{D} {B}{artist}{D} {CYA}{dur}{D}{delta_str}",
-		track = info.track.as_deref().unwrap_or(UNKNOWN),
-		artist = info.artist.as_deref().unwrap_or(UNKNOWN),
-		dur = duration::fmt(info.duration),
+		"{} {} {} {}{delta_str}",
+		style(&info.track.as_deref().unwrap_or(UNKNOWN)).bold(),
+		style("-").dim(),
+		style(&info.artist.as_deref().unwrap_or(UNKNOWN)).bold(),
+		style(&duration::fmt(info.duration)).cyan()
 	);
 }
 
-pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
-	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+pub(super) fn entry(path: &Path, mbid: &str) -> miette::Result<()> {
+	let content = fs::read_to_string(path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 
 	let Some(close) = content.rfind(LIST_CLOSE) else {
-		return Err(ge!(format!(
-			"{R}cannot append entry: {B}{path}{D} has no closing {B}{LIST_CLOSE}{D}",
-			path = path.display(),
-		))
-		.into());
+		return Err(miette!(
+			"cannot append entry: {path} has no closing {LIST_CLOSE}",
+			path = path.display()
+		));
 	};
 
 	let entry = format!("\t(s: {mbid:?}, q: ?, playlist: []),\n");
@@ -85,7 +88,9 @@ pub(super) fn entry(path: &Path, mbid: &str) -> hmerr::Result<()> {
 		tail = &content[close..]
 	);
 
-	fs::write(path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(path, content)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
@@ -94,10 +99,13 @@ pub(super) fn url(url: &str) {
 	println!("{url}");
 }
 
-pub(super) fn musicbrainz(mbid: &str, url: &str) -> hmerr::Result<()> {
+pub(super) fn musicbrainz(mbid: &str, url: &str) -> miette::Result<()> {
 	clipboard::copy(url)?;
 	open::open(&format!("https://musicbrainz.org/recording/{mbid}/edit"))?;
-	println!("{B}musicbrainz{D} add free streaming relationship (copied)");
+	println!(
+		"{} add free streaming relationship (copied)",
+		style("musicbrainz").bold()
+	);
 
 	Ok(())
 }

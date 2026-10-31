@@ -1,11 +1,8 @@
 use std::io;
 
-use ansi::{
-	DIM,
-	abbrev::{B, D, R},
-};
-use hmerr::ge;
+use console::style;
 use id3::{Error, ErrorKind, Tag, TagLike};
+use miette::miette;
 
 use crate::declaration::Source;
 
@@ -23,7 +20,7 @@ pub(crate) type Sort = (bool, String, bool, String);
 
 const SORT_FRAME: [&str; 4] = [ARTIST, TITLE, ARTIST_SORT, TITLE_SORT];
 
-pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
+pub(crate) fn sort(source: Source) -> miette::Result<Sort> {
 	let path = recording::path(source);
 
 	match sparse::read(&path, &SORT_FRAME) {
@@ -31,10 +28,10 @@ pub(crate) fn sort(source: Source) -> hmerr::Result<Sort> {
 		Err(e) if nameless(&e) => Ok(unnamed()),
 		Err(e) => {
 			let path = path.to_string_lossy();
-			Err(Box::new(ge!(
-			format!("{R}failed to read the tag of{D} {B}{path}{D}\n{e}"),
-			h: format!("delete {B}{path}{D} and let the next run download it again")
-			)))
+			Err(miette!(
+				help = format!("delete {path} and let the next run download it again"),
+				"failed to read the tag of {path}\n{e}"
+			))
 		}
 	}
 }
@@ -67,7 +64,7 @@ pub(crate) fn plain_label(source: Source) -> String {
 }
 
 pub(crate) fn join(title: &str, artist: &str) -> String {
-	separated(title, artist, &format!(" {DIM}-{D} "))
+	separated(title, artist, &format!(" {} ", style("-").dim()))
 }
 
 fn separated(title: &str, artist: &str, separator: &str) -> String {

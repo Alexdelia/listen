@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{GenericError, ge};
+use miette::miette;
 
 use crate::declaration::Source;
 
@@ -13,7 +12,7 @@ pub(super) fn island(
 	library: &Library,
 	genre: &[Vec<String>],
 	request: &Request,
-) -> hmerr::Result<(String, Vec<usize>)> {
+) -> miette::Result<(String, Vec<usize>)> {
 	let mut member = BTreeSet::new();
 
 	for mbid in &request.recording {
@@ -21,8 +20,8 @@ pub(super) fn island(
 			Some(index) => {
 				member.insert(index);
 			}
-			None if library.declared.contains(mbid) => return Err(unsupported(*mbid).into()),
-			None => return Err(undeclared(*mbid).into()),
+			None if library.declared.contains(mbid) => return Err(unsupported(*mbid)),
+			None => return Err(undeclared(*mbid)),
 		}
 	}
 
@@ -36,7 +35,7 @@ pub(super) fn island(
 			.collect();
 
 		if matched.is_empty() {
-			return Err(no_genre(&token).into());
+			return Err(no_genre(&token));
 		}
 
 		member.extend(matched);
@@ -58,24 +57,24 @@ fn name(request: &Request, member: usize) -> String {
 		.join(SEPARATOR)
 }
 
-fn undeclared(mbid: Source) -> GenericError {
-	ge!(
-		format!("{R}recording {B}{mbid}{D}{R} is not declared{D}"),
-		h: "a seed carries the q it is weighted by, so it must be declared"
+fn undeclared(mbid: Source) -> miette::Report {
+	miette!(
+		help = "a seed carries the q it is weighted by, so it must be declared",
+		"recording {mbid} is not declared"
 	)
 }
 
-fn unsupported(mbid: Source) -> GenericError {
-	ge!(
-		format!("{R}recording {B}{mbid}{D}{R} has no listener in the index{D}"),
-		h: "nobody in the index listened to it, no cohort to reach"
+fn unsupported(mbid: Source) -> miette::Report {
+	miette!(
+		help = "nobody in the index listened to it, no cohort to reach",
+		"recording {mbid} has no listener in the index"
 	)
 }
 
-fn no_genre(token: &str) -> GenericError {
-	ge!(
-		format!("{R}no declared recording is tagged {B}{token}{D}"),
-		h: "the genre comes from the local mp3 id3 tag, not from musicbrainz"
+fn no_genre(token: &str) -> miette::Report {
+	miette!(
+		help = "the genre comes from the local mp3 id3 tag, not from musicbrainz",
+		"no declared recording is tagged {token}"
 	)
 }
 
@@ -167,7 +166,7 @@ mod tests {
 		let library = library(&[1], &[1]);
 		let said = island(&library, &genre(&[&[]]), &request(&[9], &[]))
 			.err()
-			.map(|e| e.to_string())
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default();
 
 		assert!(said.contains("not declared"), "{said}");
@@ -178,7 +177,7 @@ mod tests {
 		let library = library(&[1], &[1, 7]);
 		let said = island(&library, &genre(&[&[]]), &request(&[7], &[]))
 			.err()
-			.map(|e| e.to_string())
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default();
 
 		assert!(said.contains("no listener"), "{said}");
@@ -189,7 +188,7 @@ mod tests {
 		let library = library(&[1], &[1]);
 		let said = island(&library, &genre(&[&["pop"]]), &request(&[], &["touhou"]))
 			.err()
-			.map(|e| e.to_string())
+			.map(|e| format!("{e:?}"))
 			.unwrap_or_default();
 
 		assert!(said.contains("touhou"), "{said}");

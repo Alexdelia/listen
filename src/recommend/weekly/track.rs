@@ -1,6 +1,5 @@
-use ansi::abbrev::{D, R};
 use chrono::NaiveDate;
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::recommend::recommendation::{Origin, Recommendation};
 
@@ -9,9 +8,10 @@ use super::jspf::Wrapper;
 const RECORDING_PREFIX: &str = "https://musicbrainz.org/recording/";
 const FIRST_POSITION: usize = 0;
 
-pub(super) fn tracks(body: &str, week: NaiveDate) -> hmerr::Result<Vec<Recommendation>> {
+pub(super) fn tracks(body: &str, week: NaiveDate) -> miette::Result<Vec<Recommendation>> {
 	let playlist = serde_json::from_str::<Wrapper>(body)
-		.map_err(|e| ge!(format!("{R}failed to parse playlist{D}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err("failed to parse playlist")?
 		.playlist;
 
 	Ok(playlist

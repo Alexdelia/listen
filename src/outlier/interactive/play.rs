@@ -3,8 +3,7 @@ use std::{
 	process::Command,
 };
 
-use ansi::abbrev::{B, D, R};
-use hmerr::{ge, ioe};
+use miette::{IntoDiagnostic, WrapErr, miette};
 
 use crate::{declaration::Source, library};
 
@@ -19,7 +18,7 @@ impl Player {
 		Self { root: None }
 	}
 
-	pub(super) fn play(&mut self, mbid: Source) -> hmerr::Result<()> {
+	pub(super) fn play(&mut self, mbid: Source) -> miette::Result<()> {
 		let uri = self.uri(mbid)?;
 
 		mpc(&["insert", &uri])?;
@@ -27,11 +26,12 @@ impl Player {
 		mpc(&["play"])
 	}
 
-	fn uri(&mut self, mbid: Source) -> hmerr::Result<String> {
+	fn uri(&mut self, mbid: Source) -> miette::Result<String> {
 		let path = library::recording::path(mbid);
 		let path = path
 			.canonicalize()
-			.map_err(|e| ioe!(path.to_string_lossy(), e))?;
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot resolve {}", path.display()))?;
 
 		if let Some(root) = &self.root {
 			return relative(root, &path);
@@ -48,14 +48,15 @@ impl Player {
 			}
 		}
 
-		Err(ge!(format!("{R}{PLAYER} does not index {B}{mbid}{D}")).into())
+		Err(miette!("{PLAYER} does not index {mbid}"))
 	}
 }
 
-fn relative(root: &Path, path: &Path) -> hmerr::Result<String> {
+fn relative(root: &Path, path: &Path) -> miette::Result<String> {
 	Ok(path
 		.strip_prefix(root)
-		.map_err(|e| ge!(format!("{path:?} not under {root:?}\n{e}")))?
+		.into_diagnostic()
+		.wrap_err_with(|| format!("{} not under {}", path.display(), root.display()))?
 		.to_string_lossy()
 		.into_owned())
 }
@@ -68,19 +69,19 @@ fn indexed(uri: &str) -> bool {
 		.is_ok_and(|output| output.status.success())
 }
 
-fn mpc(arg: &[&str]) -> hmerr::Result<()> {
+fn mpc(arg: &[&str]) -> miette::Result<()> {
 	let output = Command::new(PLAYER)
 		.args(arg)
 		.output()
-		.map_err(|e| ioe!(PLAYER, e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {PLAYER}"))?;
 
 	if !output.status.success() {
-		return Err(ge!(format!(
-			"{R}{PLAYER} {arg}{D}\n{err}",
+		return Err(miette!(
+			"{PLAYER} {arg}\n{err}",
 			arg = arg.join(" "),
-			err = String::from_utf8_lossy(&output.stderr),
-		))
-		.into());
+			err = String::from_utf8_lossy(&output.stderr)
+		));
 	}
 
 	Ok(())

@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use super::{
 	super::{dump::Incremental, play, query, shard},
@@ -11,7 +11,7 @@ pub(super) fn fold(
 	db: &duckdb::Connection,
 	work: &Path,
 	incremental: &Incremental,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let Some(held) = shard::held(&incremental.dir)? else {
 		return Ok(());
 	};
@@ -27,9 +27,11 @@ fn kept(
 	of: &str,
 	name: &str,
 	select: &str,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let dir = work::delta(work, of);
-	fs::create_dir_all(&dir).map_err(|e| ioe!(dir.to_string_lossy(), e))?;
+	fs::create_dir_all(&dir)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot create {}", dir.display()))?;
 
 	let into = dir.join(format!("{name}.parquet"));
 

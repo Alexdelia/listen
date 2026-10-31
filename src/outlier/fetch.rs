@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use ansi::abbrev::{B, D, R, Y};
-use hmerr::ge;
+use console::style;
+use miette::miette;
 use serde::{Deserialize, Serialize};
 
 use crate::{declaration::Source, listen_brainz};
@@ -18,7 +18,7 @@ pub(super) struct Listen {
 	pub artist: String,
 }
 
-pub(super) fn listen_count(username: &str) -> hmerr::Result<ListenCount> {
+pub(super) fn listen_count(username: &str) -> miette::Result<ListenCount> {
 	let mut count = ListenCount::new();
 	let mut fetched = 0;
 	let mut total;
@@ -48,33 +48,33 @@ pub(super) fn listen_count(username: &str) -> hmerr::Result<ListenCount> {
 
 	if total > fetched {
 		eprintln!(
-			"{Y}listenbrainz caps at top {fetched}/{total} recording: the tail shows 0 listen{D}\n"
+			"{}\n",
+			style(format!(
+				"listenbrainz caps at top {fetched}/{total} recording: the tail shows 0 listen"
+			))
+			.yellow()
 		);
 	}
 
 	Ok(count)
 }
 
-fn page(username: &str, offset: usize) -> hmerr::Result<Payload> {
+fn page(username: &str, offset: usize) -> miette::Result<Payload> {
 	let body = listen_brainz::get(
 		&format!("stats/user/{username}/recordings?range={RANGE}&count={PAGE}&offset={offset}"),
-		&format!("{R}failed to fetch listen stats for {B}{username}{D}"),
+		&format!("failed to fetch listen stats for {username}"),
 	)?
 	.body;
 
 	if body.trim().is_empty() {
-		return Err(ge!(
-			format!("{R}listenbrainz has no computed listen stats for {B}{username}{D}"),
-			h: "stats are computed periodically, the user may have no listens yet"
-		)
-		.into());
+		return Err(miette!(
+			help = "stats are computed periodically, the user may have no listens yet",
+			"listenbrainz has no computed listen stats for {username}"
+		));
 	}
 
-	let response: Response = serde_json::from_str(&body).map_err(|e| {
-		ge!(format!(
-			"{R}failed to parse listen stats for {B}{username}{D}\n{e}"
-		))
-	})?;
+	let response: Response = serde_json::from_str(&body)
+		.map_err(|e| miette!("failed to parse listen stats for {username}\n{e}"))?;
 
 	Ok(response.payload)
 }

@@ -1,5 +1,5 @@
 use async_std::{channel::Sender, fs::remove_file};
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::{declaration::Source, library};
 
@@ -11,7 +11,8 @@ pub(super) async fn remove(sync: &[Source], tx: Sender<Status>) {
 
 		let status = remove_file(&path)
 			.await
-			.map_err(|e| ioe!(path.to_string_lossy(), e).to_string());
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display()));
 
 		report(&tx, Action::RemoveFile, status).await;
 	}

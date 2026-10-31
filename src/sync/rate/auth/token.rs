@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
-use ansi::abbrev::{B, D, R};
-use const_format::concatcp;
-use hmerr::ge;
 use listen_cache::text;
+use miette::miette;
 use serde::Deserialize;
 
 use crate::{cache, meta_brainz::Sent, music_brainz};
@@ -17,7 +15,7 @@ const FILE: &str = "musicbrainz-refresh-token";
 
 const INVALID_GRANT: &str = "invalid_grant";
 
-const FAILURE: &str = concatcp!(R, "failed to reach musicbrainz oauth", D);
+const FAILURE: &str = "failed to reach musicbrainz oauth";
 
 pub(super) struct Token {
 	pub access: String,
@@ -33,11 +31,11 @@ enum Reply {
 	Token(Token),
 	Refused {
 		invalid_grant: bool,
-		error: Box<dyn std::error::Error>,
+		error: miette::Report,
 	},
 }
 
-pub(super) fn exchange(client: &Client, code: &str) -> hmerr::Result<Token> {
+pub(super) fn exchange(client: &Client, code: &str) -> miette::Result<Token> {
 	match request(&[
 		("grant_type", "authorization_code"),
 		("code", code),
@@ -50,7 +48,7 @@ pub(super) fn exchange(client: &Client, code: &str) -> hmerr::Result<Token> {
 	}
 }
 
-pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Refresh> {
+pub(super) fn refresh(client: &Client, refresh_token: &str) -> miette::Result<Refresh> {
 	match request(&[
 		("grant_type", "refresh_token"),
 		("refresh_token", refresh_token),
@@ -66,7 +64,7 @@ pub(super) fn refresh(client: &Client, refresh_token: &str) -> hmerr::Result<Ref
 	}
 }
 
-fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
+fn request(form: &[(&str, &str)]) -> miette::Result<Reply> {
 	let Sent { status, body } = music_brainz::post_once(
 		ENDPOINT,
 		|request| request.send_form(form.iter().copied()),
@@ -76,18 +74,12 @@ fn request(form: &[(&str, &str)]) -> hmerr::Result<Reply> {
 	if !status.is_success() {
 		return Ok(Reply::Refused {
 			invalid_grant: is_invalid_grant(&body),
-			error: ge!(format!(
-				"{R}musicbrainz oauth refused the request{D} ({B}{status}{D})\n{body}"
-			))
-			.into(),
+			error: miette!("musicbrainz oauth refused the request ({status})\n{body}"),
 		});
 	}
 
-	let payload = serde_json::from_str::<Payload>(&body).map_err(|e| {
-		ge!(format!(
-			"{R}failed to parse musicbrainz oauth response{D}\n{e}"
-		))
-	})?;
+	let payload = serde_json::from_str::<Payload>(&body)
+		.map_err(|e| miette!("failed to parse musicbrainz oauth response\n{e}"))?;
 
 	Ok(Reply::Token(Token {
 		access: payload.access_token,
@@ -110,14 +102,14 @@ struct ErrorPayload {
 	error: String,
 }
 
-pub(super) fn stored() -> hmerr::Result<Option<String>> {
+pub(super) fn stored() -> miette::Result<Option<String>> {
 	text::read(&path()?)
 }
 
-pub(super) fn store(refresh_token: &str) -> hmerr::Result<()> {
+pub(super) fn store(refresh_token: &str) -> miette::Result<()> {
 	text::write(&path()?, refresh_token)
 }
 
-fn path() -> hmerr::Result<PathBuf> {
+fn path() -> miette::Result<PathBuf> {
 	Ok(cache::root()?.join(FILE))
 }

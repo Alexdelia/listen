@@ -4,39 +4,46 @@ use std::{
 	path::Path,
 };
 
-use hmerr::ioe;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::prepare;
 
-pub fn read(path: &Path) -> hmerr::Result<Option<String>> {
+pub fn read(path: &Path) -> miette::Result<Option<String>> {
 	if !path.exists() {
 		return Ok(None);
 	}
 
-	let content = fs::read_to_string(path).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	let content = fs::read_to_string(path)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
 	let content = content.trim();
 
 	Ok((!content.is_empty()).then(|| content.to_string()))
 }
 
-pub fn write(path: &Path, content: &str) -> hmerr::Result<()> {
+pub fn write(path: &Path, content: &str) -> miette::Result<()> {
 	prepare(path)?;
 
-	fs::write(path, content).map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	fs::write(path, content)
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }
 
-pub fn append(path: &Path, line: &str) -> hmerr::Result<()> {
+pub fn append(path: &Path, line: &str) -> miette::Result<()> {
 	prepare(path)?;
 
 	let mut file = OpenOptions::new()
 		.create(true)
 		.append(true)
 		.open(path)
-		.map_err(|e| ioe!(path.to_string_lossy(), e))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot open {}", path.display()))?;
 
-	writeln!(file, "{line}").map_err(|e| ioe!(path.to_string_lossy(), e))?;
+	writeln!(file, "{line}")
+		.into_diagnostic()
+		.wrap_err_with(|| format!("cannot write {}", path.display()))?;
 
 	Ok(())
 }

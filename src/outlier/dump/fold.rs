@@ -10,7 +10,7 @@ use super::{
 	Held,
 };
 
-pub(super) fn folded(username: &str, held: &mut Held) -> hmerr::Result<()> {
+pub(super) fn folded(username: &str, held: &mut Held) -> miette::Result<()> {
 	let reached = held.reach().to_string();
 
 	own::fresh(

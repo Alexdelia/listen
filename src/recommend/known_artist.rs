@@ -1,5 +1,7 @@
-pub(super) fn declare(db: &duckdb::Connection, allow: bool) -> hmerr::Result<()> {
-	db.execute_batch(if allow { NOTHING_KNOWN } else { KNOWN_ARTIST })?;
+use miette::IntoDiagnostic;
+pub(super) fn declare(db: &duckdb::Connection, allow: bool) -> miette::Result<()> {
+	db.execute_batch(if allow { NOTHING_KNOWN } else { KNOWN_ARTIST })
+		.into_diagnostic()?;
 
 	Ok(())
 }

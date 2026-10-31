@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use ansi::abbrev::{B, D, F, R};
-use hmerr::{GenericError, ge};
+use console::style;
+use miette::{IntoDiagnostic, miette};
 
 use super::{super::progress, library, scan::Scan, seed, stage::Stage};
 
@@ -34,7 +34,7 @@ pub(super) fn of(
 	library: &Path,
 	declared: usize,
 	listener: Listener,
-) -> hmerr::Result<Pool> {
+) -> miette::Result<Pool> {
 	let own = own(scan, library, declared, listener)?;
 	let path = scan.work.join(POOL);
 
@@ -56,10 +56,13 @@ having count(*) >= {MIN_REPEATED_RECORDING}
 	Ok(Pool { path, own })
 }
 
-fn own(scan: &Scan, library: &Path, declared: usize, listener: Listener) -> hmerr::Result<u32> {
+fn own(scan: &Scan, library: &Path, declared: usize, listener: Listener) -> miette::Result<u32> {
 	if let Some(named) = listener.named {
 		progress::say(format!(
-			"{F}own listenbrainz user {B}{named}{D}{F}: what the listens dump names{D}"
+			"{}{}{}",
+			style("own listenbrainz user ").dim(),
+			style(named).dim().bold(),
+			style(": what the listens dump names").dim()
 		));
 
 		return Ok(named);
@@ -68,37 +71,50 @@ fn own(scan: &Scan, library: &Path, declared: usize, listener: Listener) -> hmer
 	let top = seeded(scan, library)?;
 
 	let Some((own, seed)) = top.first().copied() else {
-		return Err(no_overlap().into());
+		return Err(no_overlap());
 	};
 	let runner_up = top.get(1).map_or(0, |(_, seed)| *seed);
 
 	if separated(seed, runner_up, declared) {
 		progress::say(format!(
-			"{F}own listenbrainz user {B}{own}{D}{F}: {B}{share}%{D}{F} of declared library, \
-			runner up {B}{runner_up}{D}",
-			share = coverage(seed, declared)
+			"{}{}{}{}{}{}",
+			style("own listenbrainz user ").dim(),
+			style(own).dim().bold(),
+			style(": ").dim(),
+			style(format!("{share}%", share = coverage(seed, declared)))
+				.dim()
+				.bold(),
+			style(
+				" of declared library, \
+			runner up "
+			)
+			.dim(),
+			style(runner_up).dim().bold()
 		));
 
 		return Ok(own);
 	}
 
 	let Some(known) = listener.known else {
-		return Err(ambiguous(own, seed, runner_up).into());
+		return Err(ambiguous(own, seed, runner_up));
 	};
 
 	progress::say(format!(
-		"{F}declaration no longer singles out a listener, keeping known own user {B}{known}{D}"
+		"{}{}",
+		style("declaration no longer singles out a listener, keeping known own user ").dim(),
+		style(known).dim().bold()
 	));
 
 	Ok(known)
 }
 
-fn seeded(scan: &Scan, library: &Path) -> hmerr::Result<Vec<(u32, i64)>> {
+fn seeded(scan: &Scan, library: &Path) -> miette::Result<Vec<(u32, i64)>> {
 	let bar = scan.stage(Stage::Own)?;
 	let db = scan.take();
 
-	let mut statement = db.prepare(&format!(
-		r"
+	let mut statement = db
+		.prepare(&format!(
+			r"
 select l.user_id::uinteger, count(*)::bigint
 from {library} l
 semi join {seed} s on s.mbid = l.mbid
@@ -106,14 +122,18 @@ group by 1
 order by 2 desc
 limit 2
 ",
-		library = library::read(library),
-		seed = seed::NAME
-	))?;
+			library = library::read(library),
+			seed = seed::NAME
+		))
+		.into_diagnostic()?;
 
-	let mut row = statement.query([])?;
+	let mut row = statement.query([]).into_diagnostic()?;
 	let mut top = Vec::new();
-	while let Some(row) = row.next()? {
-		top.push((row.get::<_, u32>(0)?, row.get::<_, i64>(1)?));
+	while let Some(row) = row.next().into_diagnostic()? {
+		top.push((
+			row.get::<_, u32>(0).into_diagnostic()?,
+			row.get::<_, i64>(1).into_diagnostic()?,
+		));
 	}
 
 	bar.inc(1);
@@ -132,20 +152,18 @@ fn separated(seed: i64, runner_up: i64, declared: usize) -> bool {
 		&& 100 * seed >= MIN_OWN_MARGIN_PERCENT * runner_up
 }
 
-fn no_overlap() -> GenericError {
-	ge!(
-		format!("{R}no listener in the dump has played any declared recording{D}"),
-		h: "the dump may be incomplete, check that every parquet shard extracted"
+fn no_overlap() -> miette::Report {
+	miette!(
+		help = "the dump may be incomplete, check that every parquet shard extracted",
+		"no listener in the dump has played any declared recording"
 	)
 }
 
-fn ambiguous(own: u32, seed: i64, runner_up: i64) -> GenericError {
-	ge!(
-		format!(
-			"{R}cannot tell which listenbrainz user is yours: {B}{own}{D}{R} has {B}{seed}{D}{R} \
-			declared recording, next one {B}{runner_up}{D}"
-		),
-		h: "the index must exclude your own listen, else it recommends what you declared"
+fn ambiguous(own: u32, seed: i64, runner_up: i64) -> miette::Report {
+	miette!(
+		help = "the index must exclude your own listen, else it recommends what you declared",
+		"cannot tell which listenbrainz user is yours: {own} has {seed} \
+			declared recording, next one {runner_up}"
 	)
 }
 

@@ -12,7 +12,7 @@ pub(super) async fn run(
 	path: &Path,
 	mbid: &str,
 	recommend: bool,
-) -> hmerr::Result<Outcome> {
+) -> miette::Result<Outcome> {
 	let found = find::song(client, recording, title, length, mbid).await?;
 
 	Ok(Outcome::of(

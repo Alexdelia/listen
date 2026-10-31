@@ -10,12 +10,13 @@ use listen_cache as cache;
 use layout::{
 	ARTIST_LINK, DIR, RECORDING, RECORDING_ARTIST, RECORDING_LISTENER, USER_LISTEN, USER_STAT,
 };
+use miette::IntoDiagnostic;
 
 pub(crate) use state::{built, predates_listener, predates_stat, readable, scanned};
 
 pub use meta::{Gap, Meta};
 
-pub(crate) fn dir() -> hmerr::Result<PathBuf> {
+pub(crate) fn dir() -> miette::Result<PathBuf> {
 	Ok(cache::root()?.join(DIR))
 }
 
@@ -24,7 +25,7 @@ pub struct Index {
 	pub meta: Meta,
 }
 
-pub(crate) fn open(dir: &Path) -> hmerr::Result<Index> {
+pub(crate) fn open(dir: &Path) -> miette::Result<Index> {
 	let meta = meta::read(dir)?;
 	let db = session::of(dir)?;
 
@@ -38,7 +39,8 @@ create view user_stat as select * from read_parquet('{dir}/{USER_STAT}');
 create view artist_link as select * from read_parquet('{dir}/{ARTIST_LINK}');
 ",
 		dir = dir.display()
-	))?;
+	))
+	.into_diagnostic()?;
 
 	Ok(Index { db, meta })
 }

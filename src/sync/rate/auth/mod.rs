@@ -2,7 +2,7 @@ mod client;
 mod login;
 mod token;
 
-use ansi::abbrev::{D, Y};
+use console::style;
 
 pub(in crate::sync::rate) use client::Client;
 
@@ -10,7 +10,7 @@ pub(super) fn client() -> Option<Client> {
 	Client::from_env()
 }
 
-pub(super) fn acquire(client: &Client) -> hmerr::Result<Option<String>> {
+pub(super) fn acquire(client: &Client) -> miette::Result<Option<String>> {
 	if let Some(stored) = token::stored()? {
 		match token::refresh(client, &stored)? {
 			token::Refresh::Token(token) => {
@@ -20,7 +20,10 @@ pub(super) fn acquire(client: &Client) -> hmerr::Result<Option<String>> {
 				return Ok(Some(token.access));
 			}
 			token::Refresh::Rejected => {
-				eprintln!("{Y}musicbrainz login expired, logging in again{D}");
+				eprintln!(
+					"{}",
+					style("musicbrainz login expired, logging in again").yellow()
+				);
 			}
 		}
 	}

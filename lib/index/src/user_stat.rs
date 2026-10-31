@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ansi::abbrev::{D, F};
+use console::style;
 
 use super::{
 	index::{
@@ -10,15 +10,19 @@ use super::{
 	progress, query,
 };
 
-pub(super) fn derive(dir: &Path) -> hmerr::Result<()> {
+pub(super) fn derive(dir: &Path) -> miette::Result<()> {
 	if !index::predates_stat(dir) {
 		return Ok(());
 	}
 
-	progress::say(format!(
-		"{F}index predates listener stat, derived from its listen, \
-		rebuild from a dump to fix{D}"
-	));
+	progress::say(
+		style(
+			"index predates listener stat, derived from its listen, \
+		rebuild from a dump to fix",
+		)
+		.dim()
+		.to_string(),
+	);
 
 	let db = index::session::of(dir)?;
 

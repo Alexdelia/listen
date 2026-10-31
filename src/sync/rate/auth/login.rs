@@ -1,4 +1,4 @@
-use ansi::abbrev::{B, D};
+use console::style;
 
 use crate::{open, prompt};
 
@@ -6,7 +6,7 @@ use super::{Client, token};
 
 const SCOPE: &str = "rating";
 
-pub(super) fn run(client: &Client) -> hmerr::Result<Option<String>> {
+pub(super) fn run(client: &Client) -> miette::Result<Option<String>> {
 	let login = prompt::confirm("login to musicbrainz", true)?;
 
 	if !login {
@@ -14,7 +14,7 @@ pub(super) fn run(client: &Client) -> hmerr::Result<Option<String>> {
 	}
 
 	let url = authorize_url(client);
-	println!("{B}{url}{D}");
+	println!("{}", style(&url).bold());
 	open::open(&url)?;
 
 	let code = prompt::line("authorization code")?;

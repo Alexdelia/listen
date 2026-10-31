@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use ansi::abbrev::{CYA, D, F, G, M, Y};
+use console::style;
 use listen_index as index;
 use serde::Serialize;
 
@@ -201,34 +201,44 @@ impl Report {
 		let meta = &self.index;
 
 		println!(
-			"index {CYA}{built}{D}: {G}{recording} {G}{F}recording{D} {M}{listen} {M}{F}listen{D} {CYA}{user} {F}user{D}",
-			built = meta.built,
-			recording = human_readable_number::text(meta.recording),
-			listen = human_readable_number::text(meta.user_listen),
-			user = human_readable_number::text(meta.user),
+			"index {}: {} {} {} {} {} {}",
+			style(&meta.built).cyan(),
+			style(&human_readable_number::text(meta.recording)).green(),
+			style("recording").dim().green(),
+			style(&human_readable_number::text(meta.user_listen)).magenta(),
+			style("listen").dim().magenta(),
+			style(&human_readable_number::text(meta.user)).cyan(),
+			style("user").dim().cyan()
 		);
 
 		if meta.absorbed > 0 {
 			println!(
-				"covered to {CYA}{covered}{D} {F}after{D} {CYA}{absorbed}{D} {F}incremental{D}",
-				covered = day(meta.covered()),
-				absorbed = meta.absorbed
+				"covered to {} {} {} {}",
+				style(&day(meta.covered())).cyan(),
+				style("after").dim(),
+				style(&meta.absorbed).cyan(),
+				style("incremental").dim()
 			);
 		}
 
 		for gap in &meta.gap {
 			println!(
-				"{Y}gap{D} {F}from{D} {CYA}{from}{D} {F}to{D} {CYA}{to}{D}",
-				from = day(&gap.from),
-				to = day(&gap.to)
+				"{} {} {} {} {}",
+				style("gap").yellow(),
+				style("from").dim(),
+				style(&day(&gap.from)).cyan(),
+				style("to").dim(),
+				style(&day(&gap.to)).cyan()
 			);
 		}
 
 		let unsupported = self.library.unsupported;
 		if unsupported > 0 {
 			println!(
-				"{unsupported}{F}/{D}{declared} {F}declared recording have no listener in the index{D}",
-				declared = self.library.seed + unsupported,
+				"{unsupported}{}{declared} {}",
+				style("/").dim(),
+				style("declared recording have no listener in the index").dim(),
+				declared = self.library.seed + unsupported
 			);
 		}
 
@@ -237,7 +247,7 @@ impl Report {
 
 	fn describe(&self) {
 		if self.island.is_empty() {
-			println!("{Y}no island has a candidate{D}");
+			println!("{}", style("no island has a candidate").yellow());
 
 			return;
 		}
@@ -251,14 +261,16 @@ impl Report {
 
 		for island in &self.island {
 			println!(
-				"{name}{pad} {Y}{promise:.2} {F}promise  {q_color}{q:.2}{D} {CYA}{size:>4} {F}user{D} {G}{member:>4} {F}seed{D}",
-				name = genre_list::text(&island.name),
-				pad = genre_list::pad(&island.name, width),
-				promise = island.promise,
-				q_color = format::q_f32_color(island.q),
-				q = island.q,
-				member = island.seed.len(),
-				size = island.cohort.size,
+				"{}{} {:.2} {}  {:.2} {:>4} {} {:>4} {}",
+				genre_list::text(&island.name),
+				genre_list::pad(&island.name, width),
+				style(island.promise).yellow(),
+				style("promise").yellow().dim(),
+				format::q_f32_style(island.q).dim().apply_to(island.q),
+				style(island.cohort.size).cyan(),
+				style("user").cyan().dim(),
+				style(island.seed.len()).green(),
+				style("seed").green().dim(),
 			);
 		}
 	}

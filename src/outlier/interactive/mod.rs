@@ -3,11 +3,13 @@ mod play;
 
 use std::{ops::ControlFlow, path::Path};
 
-use ansi::abbrev::{B, CYA, D, R};
-use hmerr::ioe;
-use ux::AskKey;
+use console::Style;
 
-use crate::{declaration::Q, format};
+use crate::{
+	declaration::Q,
+	format,
+	prompt::{self, Choice},
+};
 
 use super::{
 	analyze::{Analysis, Record},
@@ -25,7 +27,7 @@ enum Answer {
 	Quit,
 }
 
-pub(super) fn run(analysis: &Analysis, path: &Path, username: &str) -> hmerr::Result<()> {
+pub(super) fn run(analysis: &Analysis, path: &Path, username: &str) -> miette::Result<()> {
 	render::matched(analysis);
 	render::median(analysis);
 	render::outlier_header(analysis.outlier.len());
@@ -46,7 +48,7 @@ pub(super) fn run(analysis: &Analysis, path: &Path, username: &str) -> hmerr::Re
 	Ok(())
 }
 
-fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<ControlFlow<()>> {
+fn review(record: &Record, path: &Path, player: &mut Player) -> miette::Result<ControlFlow<()>> {
 	loop {
 		render::line(record);
 
@@ -55,20 +57,20 @@ fn review(record: &Record, path: &Path, player: &mut Player) -> hmerr::Result<Co
 			Answer::Skip => return Ok(ControlFlow::Continue(())),
 			Answer::Apply(q) => {
 				apply::set_q(path, record.mbid, q)?;
-				println!("{B}{color}q{q}{D}", color = format::q_color(q));
+				println!("{}", format::q_style(q).bold().apply_to(format!("q{q}")));
 				return Ok(ControlFlow::Continue(()));
 			}
 			Answer::Play => {
 				if let Err(e) = player.play(record.mbid) {
-					eprintln!("{e}");
+					eprintln!("{e:?}");
 				}
 			}
 		}
 	}
 }
 
-fn ask(record: &Record) -> hmerr::Result<Answer> {
-	let answer = ux::ask("apply?", &key(record), Some('y')).map_err(|e| ioe!("stdin", e))?;
+fn ask(record: &Record) -> miette::Result<Answer> {
+	let answer = prompt::press("apply?", &choices(record), 'y')?;
 
 	Ok(match answer {
 		'y' => Answer::Apply(record.observed),
@@ -79,31 +81,43 @@ fn ask(record: &Record) -> hmerr::Result<Answer> {
 	})
 }
 
-fn key(record: &Record) -> Vec<AskKey> {
-	let mut key = Vec::with_capacity(9);
+fn choices(record: &Record) -> Vec<Choice> {
+	let mut choices = Vec::with_capacity(9);
 
-	key.push(AskKey::new(
-		'y',
-		Some("apply"),
-		true,
-		Some(format!(
-			"{B}{q_color}",
-			q_color = format::q_color(record.observed)
-		)),
-	));
-	key.push(AskKey::new('n', Some("skip"), true, Some(D)));
-	key.push(AskKey::new('p', Some("play"), true, Some(CYA)));
+	choices.push(Choice {
+		key: 'y',
+		label: Some("apply"),
+		style: format::q_style(record.observed).bold(),
+		either_case: true,
+	});
+	choices.push(Choice {
+		key: 'n',
+		label: Some("skip"),
+		style: Style::new(),
+		either_case: true,
+	});
+	choices.push(Choice {
+		key: 'p',
+		label: Some("play"),
+		style: Style::new().cyan(),
+		either_case: true,
+	});
 
 	for q in 0..=TOP_Q {
-		key.push(AskKey::new(
-			char::from(b'0' + q),
-			None::<&str>,
-			false,
-			Some(format::q_color(q)),
-		));
+		choices.push(Choice {
+			key: char::from(b'0' + q),
+			label: None,
+			style: format::q_style(q),
+			either_case: false,
+		});
 	}
 
-	key.push(AskKey::new('q', Some("quit"), true, Some(R)));
+	choices.push(Choice {
+		key: 'q',
+		label: Some("quit"),
+		style: Style::new().red(),
+		either_case: true,
+	});
 
-	key
+	choices
 }

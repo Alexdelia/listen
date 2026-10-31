@@ -8,8 +8,7 @@ mod release;
 
 use std::path::PathBuf;
 
-use ansi::abbrev::{D, R};
-use hmerr::{GenericError, ge};
+use miette::miette;
 
 pub(super) use decline::{decline, declined};
 pub(super) use fetch::{fetch, fetch_named};
@@ -29,9 +28,9 @@ pub(super) struct Offer {
 	pub default: bool,
 }
 
-pub(super) fn refused() -> GenericError {
-	ge!(
-		format!("{R}cancelled{D}"),
-		h: "the index is built from the dump, no dump means nothing to recommend from"
+pub(super) fn refused() -> miette::Report {
+	miette!(
+		help = "the index is built from the dump, no dump means nothing to recommend from",
+		"cancelled"
 	)
 }

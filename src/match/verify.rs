@@ -1,7 +1,6 @@
 use std::process::Command;
 
-use ansi::abbrev::{B, D, R};
-use hmerr::ge;
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::streaming_source::{StreamingSource, YT_DLP};
 
@@ -29,7 +28,7 @@ impl Info {
 	}
 }
 
-pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
+pub(super) fn verify(id: &str) -> miette::Result<Option<Info>> {
 	let output = Command::new(YT_DLP)
 		.args([
 			"--skip-download",
@@ -39,7 +38,8 @@ pub(super) fn verify(id: &str) -> hmerr::Result<Option<Info>> {
 			&watch(id),
 		])
 		.output()
-		.map_err(|e| ge!(format!("{R}failed to execute {B}{YT_DLP}{D}\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err_with(|| format!("failed to execute {YT_DLP}"))?;
 
 	if !output.status.success() {
 		return Ok(None);

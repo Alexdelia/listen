@@ -55,7 +55,7 @@ pub(super) fn stream(
 }
 
 impl feed::Feed for Stream {
-	fn next(&mut self, skip: &Skip) -> hmerr::Result<Option<Recommendation>> {
+	fn next(&mut self, skip: &Skip) -> miette::Result<Option<Recommendation>> {
 		self.forget(skip);
 
 		if self.drained() {
@@ -117,7 +117,7 @@ impl Stream {
 		}
 	}
 
-	fn decide(&mut self) -> hmerr::Result<()> {
+	fn decide(&mut self) -> miette::Result<()> {
 		if self.served == 0 {
 			self.turn = self.next_living(self.turn);
 			self.stay = true;
@@ -142,7 +142,7 @@ impl Stream {
 		Ok(())
 	}
 
-	fn asked(&self) -> hmerr::Result<bool> {
+	fn asked(&self) -> miette::Result<bool> {
 		let name = self
 			.island
 			.get(self.turn)
@@ -171,10 +171,8 @@ impl Stream {
 
 #[cfg(test)]
 mod tests {
-	use ansi::{
-		WHITE,
-		abbrev::{B, D, F},
-	};
+
+	use console::strip_ansi_codes;
 
 	use super::{super::super::feed::Feed, super::score::Backing, *};
 	use crate::declaration::Source;
@@ -361,16 +359,10 @@ mod tests {
 		let mut source = Vec::new();
 
 		while let Ok(Some(recommendation)) = stream.next(&Skip::default()) {
-			source.push(recommendation.origin.source());
+			source.push(strip_ansi_codes(&recommendation.origin.source()).into_owned());
 		}
 
-		assert_eq!(
-			source,
-			vec![
-				format!("{B}{WHITE}island{D} {F}{WHITE}isl0{D}"),
-				format!("{B}{WHITE}island{D} {F}{WHITE}isl1{D}")
-			]
-		);
+		assert_eq!(source, vec!["island isl0", "island isl1"]);
 	}
 
 	#[test]

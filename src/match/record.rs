@@ -8,7 +8,7 @@ pub(super) fn run(
 	found: &Found,
 	length: i64,
 	recommend: bool,
-) -> hmerr::Result<bool> {
+) -> miette::Result<bool> {
 	output::found(&found.info, length);
 	output::url(&found.url);
 

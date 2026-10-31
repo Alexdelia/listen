@@ -1,10 +1,12 @@
 use std::{path::Path, process::Command};
 
+use miette::miette;
+
 use crate::env;
 
 const PROGRAM: &str = "scdl";
 
-pub(super) fn command<P>(url: &str, path: P) -> hmerr::Result<Command>
+pub(super) fn command<P>(url: &str, path: P) -> miette::Result<Command>
 where
 	P: AsRef<Path>,
 {
@@ -12,10 +14,10 @@ where
 	let client_id = env::get(env::Var::SoundcloudClientId)?;
 	let parent = path
 		.parent()
-		.ok_or_else(|| format!("no parent folder for {path}", path = path.to_string_lossy()))?;
+		.ok_or_else(|| miette!("no parent folder for {}", path.display()))?;
 	let stem = path
 		.file_stem()
-		.ok_or_else(|| format!("no file stem for {path}", path = path.to_string_lossy()))?;
+		.ok_or_else(|| miette!("no file stem for {}", path.display()))?;
 
 	let mut command = Command::new(PROGRAM);
 	command.args([

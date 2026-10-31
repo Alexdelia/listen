@@ -11,9 +11,9 @@ mod select;
 
 use std::{collections::HashSet, path::PathBuf};
 
-use ansi::abbrev::{B, D, F, G, R};
-use hmerr::{GenericError, ge};
+use miette::miette;
 
+use console::style;
 use listen_index as index;
 
 use crate::args::IslandArg;
@@ -30,15 +30,20 @@ pub(super) use report::Report;
 use partition::{Island, Request};
 use seed::Library;
 
-pub(super) fn log_path() -> hmerr::Result<PathBuf> {
+pub(super) fn log_path() -> miette::Result<PathBuf> {
 	log::path()
 }
 
 pub(super) fn absent() {
-	eprintln!("{F}no island index, {G}run --source island{D}{F} to build it{D}");
+	eprintln!(
+		"{}{}{}",
+		style("no island index, ").dim(),
+		style("run --source island").dim().green(),
+		style(" to build it").dim()
+	);
 }
 
-pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> hmerr::Result<Fed> {
+pub(super) fn feed(local: &Local, arg: &IslandArg, log: Log) -> miette::Result<Fed> {
 	let index = &local.index;
 	attraction::declare(&index.db)?;
 	let library = seed::load(&local.entry, index)?;
@@ -118,7 +123,7 @@ const fn narrows(arg: &IslandArg, request: &Request) -> bool {
 	request.asked() || arg.island.is_some()
 }
 
-fn narrowed(library: &Library, arg: &IslandArg, request: &Request) -> hmerr::Result<Vec<Island>> {
+fn narrowed(library: &Library, arg: &IslandArg, request: &Request) -> miette::Result<Vec<Island>> {
 	let island = if request.asked() {
 		partition::requested(library, request)?
 	} else {
@@ -139,7 +144,7 @@ fn request(arg: &IslandArg) -> partition::Request {
 	}
 }
 
-fn pin(island: Vec<Island>, name: Option<&str>) -> hmerr::Result<Vec<Island>> {
+fn pin(island: Vec<Island>, name: Option<&str>) -> miette::Result<Vec<Island>> {
 	let Some(name) = name else {
 		return Ok(island);
 	};
@@ -151,15 +156,15 @@ fn pin(island: Vec<Island>, name: Option<&str>) -> hmerr::Result<Vec<Island>> {
 		.collect();
 
 	if matching.is_empty() {
-		return Err(unknown(name).into());
+		return Err(unknown(name));
 	}
 
 	Ok(matching)
 }
 
-fn unknown(name: &str) -> GenericError {
-	ge!(
-		format!("{R}no island named {B}{name}{D}"),
-		h: "islands are detected fresh every run, run without --island to see this run's names"
+fn unknown(name: &str) -> miette::Report {
+	miette!(
+		help = "islands are detected fresh every run, run without --island to see this run's names",
+		"no island named {name}"
 	)
 }

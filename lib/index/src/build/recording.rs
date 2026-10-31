@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::{super::index::layout::RECORDING, library, scan::Scan, stage::Stage};
 
-pub(super) fn of(scan: &Scan, dir: &Path, library: &Path) -> hmerr::Result<PathBuf> {
+pub(super) fn of(scan: &Scan, dir: &Path, library: &Path) -> miette::Result<PathBuf> {
 	let into = dir.join(RECORDING);
 
 	scan.step(

@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
-use ansi::{
-	DIM,
-	abbrev::{B, CYA, D, G, M, R},
-};
-use hmerr::ge;
+use console::{Style, style};
+use miette::{IntoDiagnostic, WrapErr};
 
 use crate::{format, library};
 
@@ -22,24 +19,29 @@ pub(super) fn render(analysis: &Analysis, username: &str) {
 
 pub(super) fn matched(analysis: &Analysis) {
 	println!(
-		"{B}{M}matched{D} {matched}/{declared} declared recording",
+		"{} {matched}/{declared} declared recording",
+		style("matched").bold().magenta(),
 		matched = analysis.matched,
-		declared = analysis.declared,
+		declared = analysis.declared
 	);
 }
 
 pub(super) fn median(analysis: &Analysis) {
-	println!("\n{B}{M}median listen/day per q{D} {DIM}(declared){D}");
+	println!(
+		"\n{} {}",
+		style("median listen/day per q").bold().magenta(),
+		style("(declared)").dim()
+	);
 	for (q, count) in &analysis.declared_per_q {
-		let color = format::q_color(*q);
+		let color = format::q_style(*q);
 		let percent = count * 100 / analysis.declared.max(1);
 
-		let head = format!("{B}{color}q{q}{D}:");
-		let tail = format!("{DIM}{count:>4}{percent:>3}%{D}");
+		let head = format!("{}:", color.clone().bold().apply_to(format!("q{q}")));
+		let tail = style(format!("{count:>4}{percent:>3}%")).dim().to_string();
 		let median = analysis
 			.median
 			.get(q)
-			.map(|median| format!(" {color}{median:.4}{D}"))
+			.map(|median| format!(" {:.4}", color.apply_to(median)))
 			.unwrap_or_default();
 
 		println!("{head}{median} {tail}");
@@ -47,7 +49,11 @@ pub(super) fn median(analysis: &Analysis) {
 }
 
 pub(super) fn outlier_header(count: usize) {
-	println!("\n{B}{M}{count}{D} {M}outlier{D}");
+	println!(
+		"\n{} {}",
+		style(&count).bold().magenta(),
+		style("outlier").magenta()
+	);
 }
 
 fn outlier(outlier: &[Record]) {
@@ -65,33 +71,40 @@ fn outlier(outlier: &[Record]) {
 
 pub(super) fn line(record: &Record) {
 	let arrow = if record.observed < record.declared {
-		R
+		Style::new().red()
 	} else {
-		G
+		Style::new().green()
 	};
 
-	let listen_0 = if record.listen == 0 { R } else { "" };
+	let listen = if record.listen == 0 {
+		Style::new().bold().red()
+	} else {
+		Style::new().bold()
+	};
+
+	let observed = format::q_style(record.observed);
 
 	println!(
-		"{B}{declared_color}{declared}{D}{B}{arrow}->{D}{B}{observed_color}{observed}{D}\
-{B}{listen_0}{listen:>4}{D}{DIM}/{D}{CYA}{days:<4}{D} {observed_color}{rate:.4}{D} \
-{DIM}{mbid}{D} {label}",
-		declared_color = format::q_color(record.declared),
-		declared = record.declared,
-		observed_color = format::q_color(record.observed),
-		observed = record.observed,
-		listen = record.listen,
-		days = record.days,
-		rate = record.rate,
-		mbid = record.mbid,
-		label = library::tag::label(record.mbid),
+		"{}{}{}{:>4}{}{:<4} {:.4} {} {}",
+		format::q_style(record.declared)
+			.bold()
+			.apply_to(record.declared),
+		arrow.bold().apply_to("->"),
+		observed.clone().bold().apply_to(record.observed),
+		listen.apply_to(record.listen),
+		style("/").dim(),
+		style(record.days).cyan(),
+		observed.apply_to(record.rate),
+		style(record.mbid).dim(),
+		library::tag::label(record.mbid),
 	);
 }
 
 pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 	println!(
-		"\n{B}{M}{count}{D} {M}listen not in file{D}",
-		count = undeclared.len()
+		"\n{} {}",
+		style(&undeclared.len()).bold().magenta(),
+		style("listen not in file").magenta()
 	);
 
 	if undeclared.is_empty() {
@@ -105,7 +118,7 @@ pub(super) fn undeclared(undeclared: &[Undeclared], username: &str) {
 	let more = more(undeclared);
 
 	if more > 0 {
-		println!("{DIM}+{more} more{D}");
+		println!("{}", style(format!("+{more} more")).dim());
 	}
 
 	kept(undeclared, username, more > 0);
@@ -117,36 +130,37 @@ const fn more(undeclared: &[Undeclared]) -> usize {
 
 fn kept(undeclared: &[Undeclared], username: &str, tell: bool) {
 	match written(undeclared, username) {
-		Ok(path) if tell => println!("{B}{CYA}{path}{D}", path = path.display()),
+		Ok(path) if tell => println!("{}", style(&path.display()).bold().cyan()),
 		Ok(_) => {}
-		Err(e) => eprintln!("{e}"),
+		Err(e) => eprintln!("{e:?}"),
 	}
 }
 
-fn written(undeclared: &[Undeclared], username: &str) -> hmerr::Result<PathBuf> {
+fn written(undeclared: &[Undeclared], username: &str) -> miette::Result<PathBuf> {
 	cache::undeclared::write(username, &listed(undeclared)?)
 }
 
-fn listed(undeclared: &[Undeclared]) -> hmerr::Result<String> {
+fn listed(undeclared: &[Undeclared]) -> miette::Result<String> {
 	let mut writer = csv::Writer::from_writer(Vec::new());
 
 	for undeclared in undeclared {
-		writer.serialize(undeclared)?;
+		writer.serialize(undeclared).into_diagnostic()?;
 	}
 
 	let listed = writer
 		.into_inner()
-		.map_err(|e| ge!(format!("{R}failed to write the undeclared listen\n{e}")))?;
+		.into_diagnostic()
+		.wrap_err("failed to write the undeclared listen")?;
 
-	Ok(String::from_utf8(listed)?)
+	String::from_utf8(listed).into_diagnostic()
 }
 
 fn undeclared_line(undeclared: &Undeclared) {
 	println!(
-		"{B}{listen:>4}{D} {DIM}{mbid}{D} {label}",
-		listen = undeclared.listen,
-		mbid = undeclared.mbid,
-		label = library::tag::join(&undeclared.track, &undeclared.artist),
+		"{:>4} {} {label}",
+		style(&undeclared.listen).bold(),
+		style(&undeclared.mbid).dim(),
+		label = library::tag::join(&undeclared.track, &undeclared.artist)
 	);
 }
 

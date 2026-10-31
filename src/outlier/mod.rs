@@ -11,7 +11,7 @@ mod song;
 
 use std::path::Path;
 
-use ansi::abbrev::{B, CYA, D, G};
+use console::style;
 
 use crate::declaration::parse;
 
@@ -29,7 +29,7 @@ pub(crate) fn run(
 	refresh: bool,
 	interactive: bool,
 	api: bool,
-) -> hmerr::Result<()> {
+) -> miette::Result<()> {
 	let username = crate::cache::username::resolve(username)?;
 
 	let list = parse::parse(path)?;
@@ -48,7 +48,7 @@ pub(crate) fn run(
 	Ok(())
 }
 
-fn listened(username: &str, refresh: bool, api: bool) -> hmerr::Result<Listened> {
+fn listened(username: &str, refresh: bool, api: bool) -> miette::Result<Listened> {
 	if !api && let Some(held) = dump::listen(username, refresh)? {
 		return Ok(Listened {
 			covered: gap::covered(held.ago()?, &held.gap)?,
@@ -62,10 +62,13 @@ fn listened(username: &str, refresh: bool, api: bool) -> hmerr::Result<Listened>
 	})
 }
 
-fn listen(username: &str, refresh: bool) -> hmerr::Result<ListenCount> {
+fn listen(username: &str, refresh: bool) -> miette::Result<ListenCount> {
 	if !refresh && let Some(cached) = cache::listen::read(username)? {
 		println!(
-			"{B}{CYA}cached{D} listen stat for {B}{username}{D} ({B}--refresh{D} to update)\n"
+			"{} listen stat for {} ({} to update)\n",
+			style("cached").bold().cyan(),
+			style(&username).bold(),
+			style("--refresh").bold()
 		);
 		return Ok(cached);
 	}
@@ -73,7 +76,9 @@ fn listen(username: &str, refresh: bool) -> hmerr::Result<ListenCount> {
 	let listen = fetch::listen_count(username)?;
 	cache::listen::write(username, &listen)?;
 	println!(
-		"{B}{G}fetched{D} {count} recording for {B}{username}{D}\n",
+		"{} {count} recording for {}\n",
+		style("fetched").bold().green(),
+		style(&username).bold(),
 		count = listen.len()
 	);
 

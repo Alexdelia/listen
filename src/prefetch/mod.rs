@@ -15,7 +15,7 @@ pub(crate) struct Prefetch {
 }
 
 impl Prefetch {
-	pub(crate) fn cached() -> hmerr::Result<Self> {
+	pub(crate) fn cached() -> miette::Result<Self> {
 		Ok(Self::at(listen_cache::root()?.join(DIR)))
 	}
 
