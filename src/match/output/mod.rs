@@ -96,6 +96,15 @@ pub(super) fn entry(path: &Path, mbid: &str, q: Option<Q>) -> miette::Result<()>
 	Ok(())
 }
 
+pub(super) fn already_declared(q: &str) {
+	let q = q.parse::<Q>().map_or_else(
+		|_| style(format!("q{q}")).dim().to_string(),
+		|q| format::q_style(q).apply_to(format!("q{q}")).to_string(),
+	);
+
+	println!("{} {q}", style("already declared").bold());
+}
+
 pub(super) fn url(url: &str) {
 	println!("{}", format::url(url));
 }

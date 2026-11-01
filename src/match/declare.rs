@@ -6,7 +6,7 @@ use crate::{
 	prompt,
 };
 
-use super::output;
+use super::{declared, output};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Answer {
@@ -25,6 +25,11 @@ impl fmt::Display for Answer {
 }
 
 pub(super) fn run(path: &Path, mbid: &str, recommend: bool) -> miette::Result<bool> {
+	if let Some(q) = declared::q(path, mbid)? {
+		output::already_declared(&q);
+		return Ok(true);
+	}
+
 	let q = if recommend {
 		match prompt::parsed(&format!("declare {}", hint()), answer)? {
 			Answer::Declare(q) => q,
