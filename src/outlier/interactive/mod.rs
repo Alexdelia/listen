@@ -70,7 +70,7 @@ fn review(record: &Record, path: &Path, player: &mut Player) -> miette::Result<C
 }
 
 fn ask(record: &Record) -> miette::Result<Answer> {
-	let answer = prompt::press("apply?", &choices(record), 'y')?;
+	let answer = prompt::press("apply", &choices(record), 'y')?;
 
 	Ok(match answer {
 		'y' => Answer::Apply(record.observed),

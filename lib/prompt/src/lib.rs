@@ -1,5 +1,5 @@
 use console::{Key, Style, Term, strip_ansi_codes, style};
-use dialoguer::{Confirm, Input, MultiSelect};
+use dialoguer::{Confirm, Input, MultiSelect, theme::ColorfulTheme};
 use miette::{IntoDiagnostic, WrapErr, bail};
 
 pub struct Choice {
@@ -10,7 +10,7 @@ pub struct Choice {
 }
 
 pub fn line(label: &str) -> miette::Result<String> {
-	Input::<String>::new()
+	Input::<String>::with_theme(&ColorfulTheme::default())
 		.with_prompt(label)
 		.validate_with(|input: &String| typed(input).map(drop))
 		.interact_text()
@@ -29,7 +29,7 @@ fn typed(input: &str) -> Result<&str, &'static str> {
 }
 
 pub fn confirm(asked: &str, default: bool) -> miette::Result<bool> {
-	Confirm::new()
+	Confirm::with_theme(&ColorfulTheme::default())
 		.with_prompt(asked)
 		.default(default)
 		.interact()
@@ -54,7 +54,7 @@ fn checked(term: &Term, asked: &str, items: &[String]) -> miette::Result<Vec<usi
 		);
 	}
 
-	MultiSelect::new()
+	MultiSelect::with_theme(&ColorfulTheme::default())
 		.with_prompt(asked)
 		.items(items.iter().map(|item| strip_ansi_codes(item)))
 		.report(false)
@@ -119,7 +119,13 @@ fn question(asked: &str, choices: &[Choice]) -> String {
 		.collect::<Vec<_>>()
 		.join("/");
 
-	format!("{asked} [{keys}] ")
+	let theme = ColorfulTheme::default();
+
+	format!(
+		"{} {} [{keys}] ",
+		theme.prompt_prefix,
+		theme.prompt_style.apply_to(asked)
+	)
 }
 
 fn waiting(choices: &[Choice], pressed: &Key) -> String {
@@ -218,14 +224,14 @@ mod tests {
 	#[test]
 	fn the_question_lists_every_key() {
 		assert_eq!(
-			strip_ansi_codes(&question("apply?", &choices())),
-			"apply? [y/n/p/0/1/2/3/4/q] "
+			strip_ansi_codes(&question("apply", &choices())),
+			"? apply [y/n/p/0/1/2/3/4/q] "
 		);
 	}
 
 	#[test]
 	fn a_prompt_with_no_terminal_to_read_refuses_instead_of_asking_forever() {
-		assert!(pressed(&no_terminal(), "apply?", &choices(), 'y').is_err());
+		assert!(pressed(&no_terminal(), "apply", &choices(), 'y').is_err());
 	}
 
 	#[test]
