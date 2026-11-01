@@ -2,11 +2,9 @@ use console::style;
 
 use crate::{open, prompt};
 
-use super::{Client, token};
+use super::{Client, SCOPE, token};
 
-pub(super) const SCOPE: &str = "rating tag";
-
-pub(super) fn run(client: &Client) -> miette::Result<Option<String>> {
+pub(super) fn run(client: &Client) -> miette::Result<Option<token::Token>> {
 	let login = prompt::confirm("login to musicbrainz", true)?;
 
 	if !login {
@@ -19,12 +17,7 @@ pub(super) fn run(client: &Client) -> miette::Result<Option<String>> {
 
 	let code = prompt::line("authorization code")?;
 
-	let token = token::exchange(client, &code)?;
-	if let Some(refresh) = &token.refresh {
-		token::store(refresh)?;
-	}
-
-	Ok(Some(token.access))
+	token::exchange(client, &code).map(Some)
 }
 
 fn authorize_url(client: &Client) -> String {
@@ -34,4 +27,19 @@ fn authorize_url(client: &Client) -> String {
 		redirect = token::REDIRECT_URI.replace(':', "%3A"),
 		scope = SCOPE.replace(' ', "+"),
 	)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn the_login_asks_for_every_scope_the_run_submits_under() {
+		let client = Client {
+			id: String::from("id"),
+			secret: String::from("secret"),
+		};
+
+		assert!(authorize_url(&client).ends_with("&scope=rating+tag"));
+	}
 }

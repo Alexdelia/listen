@@ -1,4 +1,4 @@
-use console::{Key, Style, Term, style};
+use console::{Key, Style, Term, strip_ansi_codes, style};
 use dialoguer::{Confirm, Input, MultiSelect};
 use miette::{IntoDiagnostic, WrapErr, bail};
 
@@ -37,12 +37,28 @@ pub fn confirm(asked: &str, default: bool) -> miette::Result<bool> {
 		.wrap_err("cannot read stdin")
 }
 
+#[must_use]
+pub fn interactive() -> bool {
+	Term::stderr().is_term()
+}
+
 pub fn check(asked: &str, items: &[String]) -> miette::Result<Vec<usize>> {
+	checked(&Term::stderr(), asked, items)
+}
+
+fn checked(term: &Term, asked: &str, items: &[String]) -> miette::Result<Vec<usize>> {
+	if !term.is_term() {
+		bail!(
+			help = "run it from a terminal, stderr is where the question is put",
+			"no terminal to read {asked} from"
+		);
+	}
+
 	MultiSelect::new()
 		.with_prompt(asked)
-		.items(items)
+		.items(items.iter().map(|item| strip_ansi_codes(item)))
 		.report(false)
-		.interact_opt()
+		.interact_on_opt(term)
 		.map(Option::unwrap_or_default)
 		.into_diagnostic()
 		.wrap_err("cannot read stdin")
@@ -210,6 +226,14 @@ mod tests {
 	#[test]
 	fn a_prompt_with_no_terminal_to_read_refuses_instead_of_asking_forever() {
 		assert!(pressed(&no_terminal(), "apply?", &choices(), 'y').is_err());
+	}
+
+	#[test]
+	fn a_checkbox_with_no_terminal_to_read_refuses_instead_of_failing_mid_draw() {
+		let e = checked(&no_terminal(), "genre", &[String::from("pop")])
+			.expect_err("no terminal is refused");
+
+		assert!(format!("{e:?}").contains("no terminal"));
 	}
 
 	#[test]

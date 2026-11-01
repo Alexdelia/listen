@@ -1,40 +1,14 @@
 use std::fmt::Write;
 
-use miette::miette;
-
-use crate::{declaration::Source, meta_brainz::Sent, music_brainz};
+use crate::{declaration::Source, music_brainz};
 
 const ENDPOINT: &str = "https://musicbrainz.org/ws/2/tag";
 
-const CONTENT_TYPE: &str = "application/xml; charset=utf-8";
-
-const FAILURE: &str = "failed to submit tag";
-
 pub(super) fn submit(bearer: &str, source: Source, genres: &[&str]) -> miette::Result<()> {
-	let Sent {
-		status,
-		body: detail,
-	} = music_brainz::post(
-		&format!("{ENDPOINT}?client={client}", client = listen_agent::CLIENT),
-		|request| {
-			request
-				.header("content-type", CONTENT_TYPE)
-				.header("authorization", format!("Bearer {bearer}"))
-				.send(body(source, genres))
-		},
-		FAILURE,
-	)?;
-
-	if !status.is_success() {
-		return Err(miette!(
-			"musicbrainz refused tag submission ({status})\n{detail}"
-		));
-	}
-
-	Ok(())
+	music_brainz::submit(bearer, ENDPOINT, &recording_list(source, genres), "tag")
 }
 
-fn body(source: Source, genres: &[&str]) -> String {
+fn recording_list(source: Source, genres: &[&str]) -> String {
 	let mut tags = String::new();
 	for genre in genres {
 		let _ = write!(
@@ -44,9 +18,7 @@ fn body(source: Source, genres: &[&str]) -> String {
 		);
 	}
 
-	format!(
-		"<?xml version=\"1.0\" encoding=\"UTF-8\"?><metadata xmlns=\"http://musicbrainz.org/ns/mmd-2.0#\"><recording-list><recording id=\"{source}\"><user-tag-list>{tags}</user-tag-list></recording></recording-list></metadata>"
-	)
+	format!("<recording id=\"{source}\"><user-tag-list>{tags}</user-tag-list></recording>")
 }
 
 fn escaped(text: &str) -> String {
@@ -75,7 +47,7 @@ mod tests {
 
 	#[test]
 	fn every_checked_genre_is_sent_as_its_own_upvote_on_the_recording() {
-		let body = body(source(), &["vaporwave", "future funk"]);
+		let body = recording_list(source(), &["vaporwave", "future funk"]);
 
 		assert!(body.contains("<recording id=\"7b5a3a8f-5e1d-4c43-9a1e-3f2d1c0b9a87\">"));
 		assert!(body.contains("<user-tag vote=\"upvote\"><name>vaporwave</name></user-tag>"));

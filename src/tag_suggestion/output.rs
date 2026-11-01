@@ -6,8 +6,9 @@ use super::select::Suggestion;
 
 pub(super) const LABEL: &str = "genre";
 const CARRIED: &str = "on musicbrainz";
+const UPVOTED: &str = "upvoted";
 
-pub(super) fn rows(suggestions: &[Suggestion]) -> Vec<String> {
+pub(super) fn rows(suggestions: &[Suggestion], upvoted: &[&str]) -> Vec<String> {
 	if suggestions.is_empty() {
 		return vec![format!(
 			"{}  {}",
@@ -20,7 +21,14 @@ pub(super) fn rows(suggestions: &[Suggestion]) -> Vec<String> {
 		.chain(
 			items(suggestions)
 				.into_iter()
-				.map(|item| format!("  {item}")),
+				.zip(suggestions)
+				.map(|(item, suggestion)| {
+					if upvoted.contains(&suggestion.name.as_str()) {
+						format!("  {item}  {}", style(&UPVOTED).bold().green())
+					} else {
+						format!("  {item}")
+					}
+				}),
 		)
 		.collect()
 }
@@ -75,10 +83,13 @@ mod tests {
 
 	#[test]
 	fn every_suggestion_gets_its_own_row_under_the_label_in_the_order_given() {
-		let rows = rows(&[
-			suggestion("vaporwave", 0.72, false),
-			suggestion("future funk", 0.41, false),
-		]);
+		let rows = rows(
+			&[
+				suggestion("vaporwave", 0.72, false),
+				suggestion("future funk", 0.41, false),
+			],
+			&[],
+		);
 
 		assert_eq!(rows.len(), 3);
 		assert!(rows[0].contains(LABEL));
@@ -88,20 +99,26 @@ mod tests {
 
 	#[test]
 	fn names_are_padded_so_the_percents_line_up() {
-		let rows = rows(&[
-			suggestion("pop", 0.42, false),
-			suggestion("pop rock", 0.18, false),
-		]);
+		let rows = rows(
+			&[
+				suggestion("pop", 0.42, false),
+				suggestion("pop rock", 0.18, false),
+			],
+			&[],
+		);
 
 		assert_eq!(rows[1].find('%'), rows[2].find('%'));
 	}
 
 	#[test]
 	fn only_a_genre_already_on_musicbrainz_says_so() {
-		let rows = rows(&[
-			suggestion("j-rock", 0.47, true),
-			suggestion("pop", 0.42, false),
-		]);
+		let rows = rows(
+			&[
+				suggestion("j-rock", 0.47, true),
+				suggestion("pop", 0.42, false),
+			],
+			&[],
+		);
 
 		assert!(rows[1].contains(CARRIED));
 		assert!(!rows[2].contains(CARRIED));
@@ -112,14 +129,28 @@ mod tests {
 		let suggestions = [suggestion("vaporwave", 0.72, true)];
 
 		assert_eq!(
-			rows(&suggestions)[1],
+			rows(&suggestions, &[])[1],
 			format!("  {}", items(&suggestions)[0])
 		);
 	}
 
 	#[test]
+	fn only_a_genre_upvoted_says_so() {
+		let rows = rows(
+			&[
+				suggestion("j-rock", 0.47, true),
+				suggestion("pop", 0.42, false),
+			],
+			&["pop"],
+		);
+
+		assert!(!rows[1].contains(UPVOTED));
+		assert!(rows[2].contains(UPVOTED));
+	}
+
+	#[test]
 	fn nothing_to_suggest_is_said_on_one_row() {
-		let rows = rows(&[]);
+		let rows = rows(&[], &[]);
 
 		assert_eq!(rows.len(), 1);
 		assert!(rows[0].contains("nothing to suggest"));

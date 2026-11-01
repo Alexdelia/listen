@@ -1,9 +1,12 @@
 pub(crate) mod auth;
+mod submit;
 
 use musicbrainz_rs::{MusicBrainzClient, api_bindium::ApiClient};
 use ureq::{Body, RequestBuilder, http::Response, typestate::WithBody};
 
 use crate::meta_brainz::{self, Sent};
+
+pub(crate) use submit::submit;
 
 pub(crate) fn client() -> MusicBrainzClient {
 	MusicBrainzClient::builder()
@@ -16,7 +19,7 @@ pub(crate) fn client() -> MusicBrainzClient {
 		.build()
 }
 
-pub(crate) fn post(
+fn post(
 	url: &str,
 	send: impl Fn(RequestBuilder<WithBody>) -> Result<Response<Body>, ureq::Error>,
 	failure: &str,

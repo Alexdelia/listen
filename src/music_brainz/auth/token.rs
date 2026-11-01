@@ -1,12 +1,16 @@
-use std::path::PathBuf;
+use std::{
+	fs, io,
+	path::{Path, PathBuf},
+	time::Duration,
+};
 
 use listen_cache::json;
-use miette::miette;
+use miette::{IntoDiagnostic, WrapErr, miette};
 use serde::{Deserialize, Serialize};
 
 use crate::{cache, meta_brainz::Sent, music_brainz};
 
-use super::{Client, login::SCOPE};
+use super::{Client, SCOPE};
 
 const ENDPOINT: &str = "https://musicbrainz.org/oauth2/token";
 pub(super) const REDIRECT_URI: &str = "urn:ietf:wg:oauth:2.0:oob";
@@ -20,6 +24,7 @@ const FAILURE: &str = "failed to reach musicbrainz oauth";
 pub(super) struct Token {
 	pub access: String,
 	pub refresh: Option<String>,
+	pub lasts: Option<Duration>,
 }
 
 pub(super) enum Refresh {
@@ -84,6 +89,7 @@ fn request(form: &[(&str, &str)]) -> miette::Result<Reply> {
 	Ok(Reply::Token(Token {
 		access: payload.access_token,
 		refresh: payload.refresh_token,
+		lasts: payload.expires_in.map(Duration::from_secs),
 	}))
 }
 
@@ -95,6 +101,7 @@ fn is_invalid_grant(body: &str) -> bool {
 struct Payload {
 	access_token: String,
 	refresh_token: Option<String>,
+	expires_in: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -108,10 +115,26 @@ struct Stored {
 	refresh: String,
 }
 
-pub(super) fn stored() -> miette::Result<Option<String>> {
-	Ok(json::read::<Stored>(&path()?)?
-		.filter(|stored| stored.scope == SCOPE)
-		.map(|stored| stored.refresh))
+pub(super) enum Kept {
+	Refresh(String),
+	Outscoped,
+	Nothing,
+}
+
+pub(super) fn stored() -> miette::Result<Kept> {
+	Ok(kept(
+		json::read::<Stored>(&path()?)?,
+		superseded_path()?.exists(),
+	))
+}
+
+fn kept(stored: Option<Stored>, superseded: bool) -> Kept {
+	match stored {
+		Some(stored) if stored.scope == SCOPE => Kept::Refresh(stored.refresh),
+		Some(_) => Kept::Outscoped,
+		None if superseded => Kept::Outscoped,
+		None => Kept::Nothing,
+	}
 }
 
 pub(super) fn store(refresh_token: &str) -> miette::Result<()> {
@@ -121,9 +144,61 @@ pub(super) fn store(refresh_token: &str) -> miette::Result<()> {
 			scope: SCOPE.to_owned(),
 			refresh: refresh_token.to_owned(),
 		},
-	)
+	)?;
+
+	remove_if_present(&superseded_path()?)
+}
+
+fn remove_if_present(path: &Path) -> miette::Result<()> {
+	match fs::remove_file(path) {
+		Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e)
+			.into_diagnostic()
+			.wrap_err_with(|| format!("cannot remove {}", path.display())),
+		_ => Ok(()),
+	}
 }
 
 fn path() -> miette::Result<PathBuf> {
-	Ok(cache::root()?.join(FILE).with_extension(json::EXT))
+	Ok(superseded_path()?.with_extension(json::EXT))
+}
+
+fn superseded_path() -> miette::Result<PathBuf> {
+	Ok(cache::root()?.join(FILE))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn stored(scope: &str) -> Stored {
+		Stored {
+			scope: scope.to_owned(),
+			refresh: String::from("refresh"),
+		}
+	}
+
+	#[test]
+	fn a_token_granted_the_current_scope_is_refreshed() {
+		assert!(
+			matches!(kept(Some(stored(SCOPE)), false), Kept::Refresh(refresh) if refresh == "refresh")
+		);
+	}
+
+	#[test]
+	fn a_token_granted_another_scope_is_not_reused() {
+		assert!(matches!(
+			kept(Some(stored("rating")), false),
+			Kept::Outscoped
+		));
+	}
+
+	#[test]
+	fn the_plain_token_written_before_scopes_were_kept_asks_for_a_new_login() {
+		assert!(matches!(kept(None, true), Kept::Outscoped));
+	}
+
+	#[test]
+	fn no_token_at_all_is_nothing_to_refresh() {
+		assert!(matches!(kept(None, false), Kept::Nothing));
+	}
 }
