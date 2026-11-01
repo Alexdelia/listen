@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fmt, path::Path};
 
 use crate::{
 	declaration::{Q, Q_MAX},
@@ -11,6 +11,16 @@ use super::output;
 enum Answer {
 	Declare(Option<Q>),
 	Decline,
+}
+
+impl fmt::Display for Answer {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Declare(None) => f.write_str("yes"),
+			Self::Declare(Some(q)) => write!(f, "{q}"),
+			Self::Decline => f.write_str("no"),
+		}
+	}
 }
 
 pub(super) fn run(path: &Path, mbid: &str, recommend: bool) -> miette::Result<bool> {
@@ -60,9 +70,16 @@ mod tests {
 	}
 
 	#[test]
-	fn no_declines() {
+	fn answering_no_declines() {
 		assert_eq!(answer("n"), Ok(Answer::Decline));
 		assert_eq!(answer("No"), Ok(Answer::Decline));
+	}
+
+	#[test]
+	fn an_answer_reads_back_as_what_it_declares() {
+		assert_eq!(Answer::Declare(None).to_string(), "yes");
+		assert_eq!(Answer::Declare(Some(3)).to_string(), "3");
+		assert_eq!(Answer::Decline.to_string(), "no");
 	}
 
 	#[test]

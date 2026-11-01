@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use console::{Key, Style, Term, strip_ansi_codes, style};
-use dialoguer::{Confirm, Input, MultiSelect, theme::ColorfulTheme};
+use dialoguer::{
+	Confirm, Input, MultiSelect,
+	theme::{ColorfulTheme, Theme},
+};
 use miette::{IntoDiagnostic, WrapErr, bail, miette};
 
 pub struct Choice {
@@ -21,19 +24,36 @@ pub fn line(label: &str) -> miette::Result<String> {
 		.wrap_err("cannot read stdin")
 }
 
-pub fn parsed<T, E: Display>(
+pub fn parsed<T: Display, E: Display>(
 	label: &str,
 	parse: impl Fn(&str) -> Result<T, E>,
 ) -> miette::Result<T> {
-	let input = Input::<String>::with_theme(&ColorfulTheme::default())
+	let theme = ColorfulTheme::default();
+
+	let input = Input::<String>::with_theme(&theme)
 		.with_prompt(label)
 		.allow_empty(true)
+		.report(false)
 		.validate_with(|input: &String| parse(input.trim()).map(drop).map_err(|e| e.to_string()))
 		.interact_text()
 		.into_diagnostic()
 		.wrap_err("cannot read stdin")?;
 
-	parse(input.trim()).map_err(|e| miette!("{e}"))
+	let value = parse(input.trim()).map_err(|e| miette!("{e}"))?;
+
+	Term::stderr()
+		.write_line(&answered(&theme, label, &value))
+		.into_diagnostic()
+		.wrap_err("cannot write stderr")?;
+
+	Ok(value)
+}
+
+fn answered(theme: &dyn Theme, label: &str, value: &impl Display) -> String {
+	let mut line = String::new();
+	theme
+		.format_input_prompt_selection(&mut line, label, &value.to_string())
+		.map_or_else(|_| format!("{label} {value}"), |()| line)
 }
 
 fn typed(input: &str) -> Result<&str, &'static str> {
@@ -257,6 +277,13 @@ mod tests {
 			.expect_err("no terminal is refused");
 
 		assert!(format!("{e:?}").contains("no terminal"));
+	}
+
+	#[test]
+	fn a_parsed_answer_is_reported_as_what_it_resolved_to() {
+		let reported = answered(&ColorfulTheme::default(), "declare", &"yes");
+
+		assert!(strip_ansi_codes(&reported).ends_with("declare · yes"));
 	}
 
 	#[test]
