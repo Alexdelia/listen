@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use console::{Key, Style, Term, strip_ansi_codes, style};
 use dialoguer::{Confirm, Input, MultiSelect, theme::ColorfulTheme};
-use miette::{IntoDiagnostic, WrapErr, bail};
+use miette::{IntoDiagnostic, WrapErr, bail, miette};
 
 pub struct Choice {
 	pub key: char,
@@ -17,6 +19,21 @@ pub fn line(label: &str) -> miette::Result<String> {
 		.map(|input| input.trim().to_owned())
 		.into_diagnostic()
 		.wrap_err("cannot read stdin")
+}
+
+pub fn parsed<T, E: Display>(
+	label: &str,
+	parse: impl Fn(&str) -> Result<T, E>,
+) -> miette::Result<T> {
+	let input = Input::<String>::with_theme(&ColorfulTheme::default())
+		.with_prompt(label)
+		.allow_empty(true)
+		.validate_with(|input: &String| parse(input.trim()).map(drop).map_err(|e| e.to_string()))
+		.interact_text()
+		.into_diagnostic()
+		.wrap_err("cannot read stdin")?;
+
+	parse(input.trim()).map_err(|e| miette!("{e}"))
 }
 
 fn typed(input: &str) -> Result<&str, &'static str> {

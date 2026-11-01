@@ -6,7 +6,7 @@ use console::style;
 use miette::{IntoDiagnostic, WrapErr, miette};
 use musicbrainz_rs::entity::{artist_credit::ArtistCredit, recording::Recording};
 
-use crate::{alias, format};
+use crate::{alias, declaration::Q, format};
 
 use super::{duration, open, verify::Info};
 
@@ -69,7 +69,7 @@ pub(super) fn found(info: &Info, length: i64) {
 	);
 }
 
-pub(super) fn entry(path: &Path, mbid: &str) -> miette::Result<()> {
+pub(super) fn entry(path: &Path, mbid: &str, q: Option<Q>) -> miette::Result<()> {
 	let content = fs::read_to_string(path)
 		.into_diagnostic()
 		.wrap_err_with(|| format!("cannot read {}", path.display()))?;
@@ -81,7 +81,8 @@ pub(super) fn entry(path: &Path, mbid: &str) -> miette::Result<()> {
 		));
 	};
 
-	let entry = format!("\t(s: {mbid:?}, q: ?, playlist: []),\n");
+	let q = q.map_or_else(|| UNKNOWN.to_string(), |q| q.to_string());
+	let entry = format!("\t(s: {mbid:?}, q: {q}, playlist: []),\n");
 	let content = format!(
 		"{head}{entry}{tail}",
 		head = &content[..close],
