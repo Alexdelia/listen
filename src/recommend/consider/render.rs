@@ -4,18 +4,20 @@ use console::style;
 use super::super::recommendation::{Origin, Recommendation};
 use crate::{
 	declaration::{Q, Source},
-	format::{DATE_FORMAT, TIME_FORMAT, q_style},
+	format::{DATE_FORMAT, TIME_FORMAT, q_style, url},
 	library,
 };
 
 pub(super) fn render(index: usize, recommendation: &Recommendation) -> String {
 	format!(
 		"{} {source} {}\n\
-		{}{}{label}",
+		{}{label}",
 		style(&index).bold().magenta(),
 		style(&recommendation.origin.position()).dim().magenta(),
-		style("https://musicbrainz.org/recording/").cyan(),
-		style(&recommendation.mbid).bold().cyan(),
+		url(&format!(
+			"https://musicbrainz.org/recording/{}",
+			recommendation.mbid
+		)),
 		source = recommendation.origin.source(),
 		label = label(&recommendation.origin)
 	)

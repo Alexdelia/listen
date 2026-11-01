@@ -6,7 +6,7 @@ use console::style;
 use miette::{IntoDiagnostic, WrapErr, miette};
 use musicbrainz_rs::entity::{artist_credit::ArtistCredit, recording::Recording};
 
-use crate::alias;
+use crate::{alias, format};
 
 use super::{duration, open, verify::Info};
 
@@ -96,7 +96,7 @@ pub(super) fn entry(path: &Path, mbid: &str) -> miette::Result<()> {
 }
 
 pub(super) fn url(url: &str) {
-	println!("{url}");
+	println!("{}", format::url(url));
 }
 
 pub(super) fn musicbrainz(mbid: &str, url: &str) -> miette::Result<()> {

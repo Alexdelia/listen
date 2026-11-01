@@ -1,6 +1,4 @@
-use console::style;
-
-use crate::{open, prompt};
+use crate::{format, open, prompt};
 
 use super::{Client, SCOPE, token};
 
@@ -12,7 +10,7 @@ pub(super) fn run(client: &Client) -> miette::Result<Option<token::Token>> {
 	}
 
 	let url = authorize_url(client);
-	println!("{}", style(&url).bold());
+	println!("{}", format::url(&url));
 	open::open(&url)?;
 
 	let code = prompt::line("authorization code")?;
