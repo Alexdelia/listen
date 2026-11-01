@@ -1,11 +1,11 @@
 use std::fmt::Display;
 
-use console::{Key, Style, Term, strip_ansi_codes, style};
-use dialoguer::{
-	Confirm, Input, MultiSelect,
-	theme::{ColorfulTheme, Theme},
-};
+use console::{Key, Style, StyledObject, Term, strip_ansi_codes, style};
+use dialoguer::{Confirm, Input, MultiSelect, theme::ColorfulTheme};
 use miette::{IntoDiagnostic, WrapErr, bail, miette};
+
+pub const YES: Style = Style::new().for_stderr().green();
+pub const NO: Style = Style::new().for_stderr().red();
 
 pub struct Choice {
 	pub key: char,
@@ -40,20 +40,34 @@ pub fn parsed<T: Display, E: Display>(
 		.wrap_err("cannot read stdin")?;
 
 	let value = parse(input.trim()).map_err(|e| miette!("{e}"))?;
-
-	Term::stderr()
-		.write_line(&answered(&theme, label, &value))
-		.into_diagnostic()
-		.wrap_err("cannot write stderr")?;
+	report(&theme, label, &value)?;
 
 	Ok(value)
 }
 
-fn answered(theme: &dyn Theme, label: &str, value: &impl Display) -> String {
-	let mut line = String::new();
-	theme
-		.format_input_prompt_selection(&mut line, label, &value.to_string())
-		.map_or_else(|_| format!("{label} {value}"), |()| line)
+fn report(theme: &ColorfulTheme, label: &str, value: &impl Display) -> miette::Result<()> {
+	Term::stderr()
+		.write_line(&answered(theme, label, value))
+		.into_diagnostic()
+		.wrap_err("cannot write stderr")
+}
+
+fn answered(theme: &ColorfulTheme, label: &str, value: &impl Display) -> String {
+	format!(
+		"{} {} {} {value}",
+		theme.success_prefix,
+		theme.prompt_style.apply_to(label),
+		theme.success_suffix
+	)
+}
+
+#[must_use]
+pub fn said(yes: bool) -> StyledObject<&'static str> {
+	if yes {
+		YES.apply_to("yes")
+	} else {
+		NO.apply_to("no")
+	}
 }
 
 fn typed(input: &str) -> Result<&str, &'static str> {
@@ -66,12 +80,18 @@ fn typed(input: &str) -> Result<&str, &'static str> {
 }
 
 pub fn confirm(asked: &str, default: bool) -> miette::Result<bool> {
-	Confirm::with_theme(&ColorfulTheme::default())
+	let theme = ColorfulTheme::default();
+
+	let confirmed = Confirm::with_theme(&theme)
 		.with_prompt(asked)
 		.default(default)
+		.report(false)
 		.interact()
 		.into_diagnostic()
-		.wrap_err("cannot read stdin")
+		.wrap_err("cannot read stdin")?;
+	report(&theme, asked, &said(confirmed))?;
+
+	Ok(confirmed)
 }
 
 #[must_use]
@@ -280,10 +300,10 @@ mod tests {
 	}
 
 	#[test]
-	fn a_parsed_answer_is_reported_as_what_it_resolved_to() {
-		let reported = answered(&ColorfulTheme::default(), "declare", &"yes");
+	fn an_answer_is_reported_as_what_it_resolved_to() {
+		let reported = answered(&ColorfulTheme::default(), "declare", &said(false));
 
-		assert!(strip_ansi_codes(&reported).ends_with("declare · yes"));
+		assert_eq!(strip_ansi_codes(&reported), "✔ declare · no");
 	}
 
 	#[test]

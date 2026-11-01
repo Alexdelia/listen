@@ -2,6 +2,7 @@ use std::{fmt, path::Path};
 
 use crate::{
 	declaration::{Q, Q_MAX},
+	format::q_style,
 	prompt,
 };
 
@@ -16,16 +17,16 @@ enum Answer {
 impl fmt::Display for Answer {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
-			Self::Declare(None) => f.write_str("yes"),
-			Self::Declare(Some(q)) => write!(f, "{q}"),
-			Self::Decline => f.write_str("no"),
+			Self::Declare(None) => write!(f, "{}", prompt::said(true)),
+			Self::Declare(Some(q)) => write!(f, "{}", q_style(*q).apply_to(format!("q{q}"))),
+			Self::Decline => write!(f, "{}", prompt::said(false)),
 		}
 	}
 }
 
 pub(super) fn run(path: &Path, mbid: &str, recommend: bool) -> miette::Result<bool> {
 	let q = if recommend {
-		match prompt::parsed(&format!("declare [Y/n/0-{Q_MAX}]"), answer)? {
+		match prompt::parsed(&format!("declare {}", hint()), answer)? {
 			Answer::Declare(q) => q,
 			Answer::Decline => return Ok(false),
 		}
@@ -36,6 +37,19 @@ pub(super) fn run(path: &Path, mbid: &str, recommend: bool) -> miette::Result<bo
 	output::entry(path, mbid, q)?;
 
 	Ok(true)
+}
+
+fn hint() -> String {
+	let q = (0..=Q_MAX)
+		.map(|q| q_style(q).apply_to(q).to_string())
+		.collect::<Vec<_>>()
+		.join("/");
+
+	format!(
+		"[{}/{}/{q}]",
+		prompt::YES.apply_to("Y"),
+		prompt::NO.apply_to("n")
+	)
 }
 
 fn answer(input: &str) -> Result<Answer, String> {
@@ -77,9 +91,16 @@ mod tests {
 
 	#[test]
 	fn an_answer_reads_back_as_what_it_declares() {
-		assert_eq!(Answer::Declare(None).to_string(), "yes");
-		assert_eq!(Answer::Declare(Some(3)).to_string(), "3");
-		assert_eq!(Answer::Decline.to_string(), "no");
+		let read = |answer: Answer| console::strip_ansi_codes(&answer.to_string()).into_owned();
+
+		assert_eq!(read(Answer::Declare(None)), "yes");
+		assert_eq!(read(Answer::Declare(Some(3))), "q3");
+		assert_eq!(read(Answer::Decline), "no");
+	}
+
+	#[test]
+	fn the_hint_offers_yes_no_and_every_q() {
+		assert_eq!(console::strip_ansi_codes(&hint()), "[Y/n/0/1/2/3/4]");
 	}
 
 	#[test]
