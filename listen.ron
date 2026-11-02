@@ -1334,4 +1334,6 @@
 	(s: "8f4c67fb-c82f-4d8f-bc1c-065338d749d5", q: 1, playlist: ["calm"]),
 	(s: "ad4e7265-61c2-44b4-9b9d-079e738130ae", q: 2, playlist: []),
 	(s: "13b6b245-c2c9-49a3-af8e-d4030d5344d3", q: 1, playlist: []),
+	(s: "95407108-de25-4a5b-a5b5-89f3f9af76dd", q: 0, playlist: []),
+	(s: "b52bc4db-d617-452c-8d7c-ca28c443356a", q: 2, playlist: []),
 ]
