@@ -1337,4 +1337,8 @@
 	(s: "95407108-de25-4a5b-a5b5-89f3f9af76dd", q: 0, playlist: []),
 	(s: "b52bc4db-d617-452c-8d7c-ca28c443356a", q: 2, playlist: ["charged"]),
 	(s: "1f77bab0-4b88-4bb2-8634-db4dd11dfd86", q: 3, playlist: ["charged"]),
+	(s: "56a29794-5451-4c61-8528-1be6c6d3b480", q: 1, playlist: []),
+	(s: "b2d6635f-7c48-4217-95fc-b018d9341b7f", q: 3, playlist: []),
+	(s: "41abc0d1-a255-4557-a895-44c3a1dea030", q: 1, playlist: []),
+	(s: "c004b80e-4852-4bb5-b510-9dbec72d30d0", q: 2, playlist: []),
 ]
