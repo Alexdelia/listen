@@ -12,6 +12,7 @@ pub(crate) enum Var {
 	MusicBrainzClientId,
 	MusicBrainzClientSecret,
 	ComputeTagSuggestion,
+	MusicBrainzRating,
 }
 
 impl Var {
@@ -21,6 +22,7 @@ impl Var {
 			Self::MusicBrainzClientId => "MUSICBRAINZ_CLIENT_ID",
 			Self::MusicBrainzClientSecret => "MUSICBRAINZ_CLIENT_SECRET",
 			Self::ComputeTagSuggestion => "DECLARATIVE_LISTEN_COMPUTE_TAG_SUGGESTION",
+			Self::MusicBrainzRating => "DECLARATIVE_LISTEN_MUSICBRAINZ_RATING",
 		}
 	}
 }
@@ -56,6 +58,12 @@ pub(crate) fn enabled(key: Var) -> bool {
 	read();
 
 	listen_cache::flag::enabled(key.key())
+}
+
+pub(crate) fn enabled_unless_off(key: Var) -> bool {
+	read();
+
+	listen_cache::flag::enabled_or(key.key(), true)
 }
 
 pub(crate) fn get(key: Var) -> miette::Result<String> {

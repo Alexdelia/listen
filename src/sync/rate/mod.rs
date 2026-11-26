@@ -8,6 +8,7 @@ use crate::{
 		Entry, Source,
 		value::{self, Value},
 	},
+	env::{self, Var},
 	meta_brainz,
 	music_brainz::auth,
 };
@@ -23,6 +24,10 @@ pub(super) struct Pending {
 }
 
 pub(super) fn pending(list: &[Entry]) -> miette::Result<Option<Pending>> {
+	if !env::enabled_unless_off(Var::MusicBrainzRating) {
+		return Ok(None);
+	}
+
 	let Some(client) = auth::client() else {
 		return Ok(None);
 	};
