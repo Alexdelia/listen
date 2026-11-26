@@ -1345,4 +1345,12 @@
 	(s: "e156a398-3c68-4ba2-8497-66b618af0649", q: 2, playlist: ["charged"]),
 	(s: "a13b8a52-4800-4d3b-96be-755f9a863485", q: 1, playlist: []),
 	(s: "842fbdae-8839-46e6-8a02-7f500a2b6597", q: 0, playlist: []),
+	(s: "298e57f8-87af-400b-8e24-dcf499fd3016", q: 3, playlist: []),
+	(s: "73dddcb6-74d8-448b-a426-7383a5ea0025", q: 2, playlist: []),
+	(s: "7ac0925b-5baa-452c-ba2c-86a2426df7e5", q: 0, playlist: []),
+	(s: "64677552-d8d2-490f-bbca-8cac23cb3297", q: 1, playlist: []),
+	(s: "59391862-37c6-4d1d-bea2-9bbe872c99ce", q: 1, playlist: ["charged"]),
+	(s: "a3f67350-9af3-46d1-b515-cb93b7ccb7e7", q: 0, playlist: []),
+	(s: "96917016-81b7-4c7d-b581-49d50dac8a1c", q: 1, playlist: []),
+	(s: "9375c705-cdc1-4ebe-8a2d-e989ee8a4721", q: 1, playlist: []),
 ]
