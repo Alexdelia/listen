@@ -10,20 +10,22 @@ pub fn enabled_or(key: &str, default: bool) -> bool {
 	enabled_or_by(std::env::var(key).ok().as_deref(), default)
 }
 
-fn enabled_by(value: Option<&str>) -> bool {
-	enabled_or_by(value, false)
-}
-
 fn enabled_or_by(value: Option<&str>, default: bool) -> bool {
 	value
 		.map(str::trim)
 		.filter(|value| !value.is_empty())
-		.map_or(default, |value| !FALSE.contains(&value.to_lowercase().as_str()))
+		.map_or(default, |value| {
+			!FALSE.contains(&value.to_lowercase().as_str())
+		})
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn enabled_by(value: Option<&str>) -> bool {
+		enabled_or_by(value, false)
+	}
 
 	#[test]
 	fn an_unset_or_blank_flag_is_off() {
