@@ -5,6 +5,7 @@ pub(super) enum Action {
 	FetchMusicBrainz,
 	FetchStreaming,
 	AddMetadata,
+	AddGain,
 
 	RemoveFile,
 

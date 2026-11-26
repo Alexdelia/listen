@@ -216,6 +216,22 @@ mod tests {
 	}
 
 	#[test]
+	fn rewriting_the_tag_keeps_a_track_gain_already_there() {
+		let path = std::env::temp_dir().join("declarative_listen_tag_keeps_gain.mp3");
+		std::fs::write(&path, []).unwrap();
+		let mut tag = Tag::new();
+		tag.add_frame(ExtendedText {
+			description: "REPLAYGAIN_TRACK_GAIN".to_string(),
+			value: "-4.90 dB".to_string(),
+		});
+		tag.write_to_path(&path, Version::Id3v24).unwrap();
+
+		write(&path, &recording("Bad Apple!!", &[], "")).unwrap();
+
+		assert!(crate::library::gain::carried(&path));
+	}
+
+	#[test]
 	fn the_other_name_alone_is_the_subtitle() {
 		assert_eq!(
 			subtitle(&recording(

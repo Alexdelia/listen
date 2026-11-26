@@ -20,6 +20,7 @@ pkgs.mkShell {
 
       mpc
       ffmpeg
+      rsgain
       scdl
       yt-dlp
       wl-clipboard

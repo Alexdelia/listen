@@ -45,12 +45,7 @@ pub(crate) async fn run(list: &[Entry]) -> miette::Result<()> {
 
 	pb.finish();
 
-	if !err.is_empty() {
-		eprint!("\n\nerrors:\n\n");
-		for e in &err {
-			eprintln!("{e:?}");
-		}
-	}
+	super::said(&err);
 
 	Ok(())
 }

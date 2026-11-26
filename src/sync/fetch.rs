@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_std::{channel::Sender, task};
 use miette::miette;
@@ -13,10 +13,10 @@ use crate::{
 
 use super::{
 	channel::{Action, Status, report},
-	download_order, tag,
+	download_order, gain, tag,
 };
 
-pub(super) async fn fetch(sync: &[Source], tx: Sender<Status>) {
+pub(super) async fn fetch(sync: &[Source], gain_ready: bool, tx: Sender<Status>) {
 	let client = music_brainz::client();
 
 	let mut handles = vec![];
@@ -53,7 +53,10 @@ pub(super) async fn fetch(sync: &[Source], tx: Sender<Status>) {
 				return;
 			};
 
-			add_metadata(path, recording, &tcx).await;
+			add_metadata(&path, recording, &tcx).await;
+			if gain_ready {
+				add_gain(&path, &tcx).await;
+			}
 		}));
 	}
 
@@ -138,8 +141,12 @@ async fn fetch_recording(
 	None
 }
 
-async fn add_metadata(path: PathBuf, recording: Recording, tx: &Sender<Status>) {
-	let status = tag::write(&path, &recording);
+async fn add_metadata(path: &Path, recording: Recording, tx: &Sender<Status>) {
+	let status = tag::write(path, &recording);
 
 	report(tx, Action::AddMetadata, status).await;
+}
+
+async fn add_gain(path: &Path, tx: &Sender<Status>) {
+	report(tx, Action::AddGain, gain::write(path)).await;
 }

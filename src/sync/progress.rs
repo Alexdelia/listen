@@ -8,6 +8,7 @@ use super::channel::{Action, Status};
 #[derive(Default, Clone, Copy)]
 pub(super) struct Count {
 	pub fetch: usize,
+	pub gain: usize,
 	pub remove: usize,
 	pub playlist: usize,
 	pub rating: usize,
@@ -21,6 +22,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> miette::Result<()> 
 	let pb_fetch = bar(&mp, total.fetch, "fetch", "blue")?;
 	let pb_download = bar(&mp, total.fetch, "download", "cyan")?;
 	let pb_metadata = bar(&mp, total.fetch, "metadata", "green")?;
+	let pb_gain = bar(&mp, total.gain, "gain", "white")?;
 	let pb_playlist = bar(&mp, total.playlist, "playlist", "magenta")?;
 
 	let mut err = vec![];
@@ -42,6 +44,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> miette::Result<()> 
 				pb_download.tick();
 				pb_metadata.inc(1);
 			}
+			Action::AddGain => pb_gain.inc(1),
 			Action::RemoveFile => pb_remove.inc(1),
 			Action::SyncPlaylist => pb_playlist.inc(1),
 			Action::ReadTag => pb_playlist.tick(),
@@ -59,6 +62,7 @@ pub(super) fn render(total: Count, rx: &Receiver<Status>) -> miette::Result<()> 
 	finished(&pb_fetch);
 	finished(&pb_download);
 	finished(&pb_metadata);
+	finished(&pb_gain);
 	finished(&pb_playlist);
 
 	if !err.is_empty() {

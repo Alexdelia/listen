@@ -19,7 +19,7 @@ pub(crate) struct Args {
 	#[arg(default_value = "listen.ron")]
 	pub path: PathBuf,
 
-	/// refetch metadata from musicbrainz and rewrite tags for every downloaded recording
+	/// refetch metadata from musicbrainz, rewrite tags and recompute replaygain for every downloaded recording
 	#[arg(long)]
 	pub refresh_metadata: bool,
 }

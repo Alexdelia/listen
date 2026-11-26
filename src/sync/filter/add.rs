@@ -7,9 +7,14 @@ use crate::declaration::{Entry, Q, Source};
 
 use super::SyncEntry;
 
-pub(super) fn fs(existing: &mut HashSet<Source>, add: &mut Vec<Source>, entry: &Entry) {
-	if existing.contains(&entry.s) {
-		existing.remove(&entry.s);
+pub(super) fn fs(
+	existing: &mut HashSet<Source>,
+	add: &mut Vec<Source>,
+	kept: &mut Vec<Source>,
+	entry: &Entry,
+) {
+	if existing.remove(&entry.s) {
+		kept.push(entry.s);
 	} else {
 		add.push(entry.s);
 	}

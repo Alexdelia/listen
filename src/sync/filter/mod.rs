@@ -32,8 +32,14 @@ impl SyncEntry {
 	}
 }
 
-pub(super) fn sync(list: Vec<Entry>) -> miette::Result<GroupedEntry<SyncEntry>> {
+pub(super) struct Filtered {
+	pub entry: GroupedEntry<SyncEntry>,
+	pub kept: Vec<Source>,
+}
+
+pub(super) fn sync(list: Vec<Entry>) -> miette::Result<Filtered> {
 	let mut ret = GroupedEntry::<SyncEntry>::default();
+	let mut kept = Vec::new();
 
 	fs::create_dir_all(library::recording::DIR)
 		.into_diagnostic()
@@ -50,7 +56,7 @@ pub(super) fn sync(list: Vec<Entry>) -> miette::Result<GroupedEntry<SyncEntry>> 
 	};
 
 	for entry in list {
-		add::fs(&mut existing.fs, &mut ret.fs.add, &entry);
+		add::fs(&mut existing.fs, &mut ret.fs.add, &mut kept, &entry);
 		add::q(&mut existing.q, &mut ret.q, &entry);
 		add::playlist(&mut existing.playlist, &mut ret.playlist, &entry);
 	}
@@ -66,5 +72,5 @@ pub(super) fn sync(list: Vec<Entry>) -> miette::Result<GroupedEntry<SyncEntry>> 
 	sort::grouped(&mut ret.q);
 	sort::grouped(&mut ret.playlist);
 
-	Ok(ret)
+	Ok(Filtered { entry: ret, kept })
 }
