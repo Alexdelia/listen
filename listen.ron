@@ -1355,4 +1355,6 @@
 	(s: "9375c705-cdc1-4ebe-8a2d-e989ee8a4721", q: 1, playlist: []),
 	(s: "17eaa722-1981-4c1e-a359-1e90fd264f84", q: 2, playlist: ["charged"]),
 	(s: "5b310253-beff-42c3-94e9-b5e3a14c20e1", q: 2, playlist: []),
+	(s: "e2809050-17c2-47f7-9a7d-53b6530ee50f", q: 2, playlist: []),
+	(s: "7ab73b2b-c18d-40e8-a700-66114537e7bf", q: 0, playlist: []),
 ]
